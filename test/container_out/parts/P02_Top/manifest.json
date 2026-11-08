@@ -1,0 +1,40 @@
+{
+  "source_step": "test/container_out/parts/P02_Top.step",
+  "units": "mm",
+  "stock": {
+    "x_min": 110.0,
+    "y_min": 0.0,
+    "x_max": 210.0,
+    "y_max": 100.0,
+    "z_min": -0.0,
+    "z_max": 10.0,
+    "thickness": 10.0
+  },
+  "z_top": 10.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "POCKET_D5.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 5.0,
+      "segment_count": 1,
+      "floor_z": 5.0,
+      "depth_total": 5.0
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 1
+    }
+  ],
+  "holes": [],
+  "pocket_count": 1,
+  "flags": []
+}

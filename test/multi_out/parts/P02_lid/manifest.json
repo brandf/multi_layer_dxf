@@ -1,0 +1,63 @@
+{
+  "source_step": "test/multi_out/parts/P02_lid.step",
+  "units": "mm",
+  "stock": {
+    "x_min": 50.0,
+    "y_min": -20.0,
+    "x_max": 110.0,
+    "y_max": 20.0,
+    "z_min": -0.0,
+    "z_max": 8.0,
+    "thickness": 8.0
+  },
+  "z_top": 8.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D8.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 8.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          100.0,
+          0.0
+        ]
+      ],
+      "diameter": 8.0
+    },
+    {
+      "layer": "POCKET_D3.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 3.0,
+      "segment_count": 4,
+      "floor_z": 5.0,
+      "depth_total": 3.0
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 8.0,
+      "segment_count": 4
+    }
+  ],
+  "holes": [
+    {
+      "cx": 100.0,
+      "cy": 0.0,
+      "dia": 8.0,
+      "z0": -4.898587196588e-16,
+      "z1": 8.0,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 1,
+  "flags": []
+}

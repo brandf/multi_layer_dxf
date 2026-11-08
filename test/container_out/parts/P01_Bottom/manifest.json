@@ -1,0 +1,147 @@
+{
+  "source_step": "test/container_out/parts/P01_Bottom.step",
+  "units": "mm",
+  "stock": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 100.0,
+    "y_max": 100.0,
+    "z_min": 0.0,
+    "z_max": 12.0,
+    "thickness": 12.0
+  },
+  "z_top": 12.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D5.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 8,
+      "centres": [
+        [
+          8.0,
+          50.0
+        ],
+        [
+          20.3,
+          20.3
+        ],
+        [
+          20.3,
+          79.7
+        ],
+        [
+          50.0,
+          8.0
+        ],
+        [
+          50.0,
+          92.0
+        ],
+        [
+          79.7,
+          20.3
+        ],
+        [
+          79.7,
+          79.7
+        ],
+        [
+          92.0,
+          50.0
+        ]
+      ],
+      "diameter": 5.0
+    },
+    {
+      "layer": "POCKET_D6.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 6.0,
+      "segment_count": 1,
+      "floor_z": 6.0,
+      "depth_total": 6.0
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 1
+    }
+  ],
+  "holes": [
+    {
+      "cx": 8.0,
+      "cy": 50.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 20.3,
+      "cy": 20.3,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 20.3,
+      "cy": 79.7,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 50.0,
+      "cy": 8.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 50.0,
+      "cy": 92.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 79.7,
+      "cy": 20.3,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 79.7,
+      "cy": 79.7,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 92.0,
+      "cy": 50.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 1,
+  "flags": []
+}

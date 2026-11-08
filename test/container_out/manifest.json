@@ -1,0 +1,205 @@
+{
+  "source_step": "test/container.step",
+  "units": "mm",
+  "parts": [
+    {
+      "name": "P01_Bottom",
+      "label": "Bottom",
+      "flip_x": false,
+      "flip_y": false,
+      "rotate_z_deg": 0.0,
+      "stock": {
+        "x_min": 0.0,
+        "y_min": 0.0,
+        "x_max": 100.0,
+        "y_max": 100.0,
+        "z_min": 0.0,
+        "z_max": 12.0,
+        "thickness": 12.0
+      },
+      "z_top": 12.0,
+      "layers": [
+        "DRILL_D5.00_THRU",
+        "POCKET_D6.00",
+        "PROFILE_THRU"
+      ],
+      "holes": [
+        {
+          "cx": 8.0,
+          "cy": 50.0,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        },
+        {
+          "cx": 20.3,
+          "cy": 20.3,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        },
+        {
+          "cx": 20.3,
+          "cy": 79.7,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        },
+        {
+          "cx": 50.0,
+          "cy": 8.0,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        },
+        {
+          "cx": 50.0,
+          "cy": 92.0,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        },
+        {
+          "cx": 79.7,
+          "cy": 20.3,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        },
+        {
+          "cx": 79.7,
+          "cy": 79.7,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        },
+        {
+          "cx": 92.0,
+          "cy": 50.0,
+          "dia": 5.0,
+          "z0": 0.0,
+          "z1": 12.0,
+          "kind": "thru"
+        }
+      ],
+      "pocket_count": 1
+    },
+    {
+      "name": "P02_Top",
+      "label": "Top",
+      "flip_x": true,
+      "flip_y": false,
+      "rotate_z_deg": 0.0,
+      "stock": {
+        "x_min": 110.0,
+        "y_min": 0.0,
+        "x_max": 210.0,
+        "y_max": 100.0,
+        "z_min": -0.0,
+        "z_max": 10.0,
+        "thickness": 10.0
+      },
+      "z_top": 10.0,
+      "layers": [
+        "POCKET_D5.00",
+        "PROFILE_THRU"
+      ],
+      "holes": [],
+      "pocket_count": 1
+    }
+  ],
+  "layers": [
+    {
+      "layer": "P01_Bottom__DRILL_D5.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 8,
+      "centres": [
+        [
+          8.0,
+          50.0
+        ],
+        [
+          20.3,
+          20.3
+        ],
+        [
+          20.3,
+          79.7
+        ],
+        [
+          50.0,
+          8.0
+        ],
+        [
+          50.0,
+          92.0
+        ],
+        [
+          79.7,
+          20.3
+        ],
+        [
+          79.7,
+          79.7
+        ],
+        [
+          92.0,
+          50.0
+        ]
+      ],
+      "diameter": 5.0,
+      "part": "P01_Bottom"
+    },
+    {
+      "layer": "P01_Bottom__POCKET_D6.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 6.0,
+      "segment_count": 1,
+      "floor_z": 6.0,
+      "depth_total": 6.0,
+      "part": "P01_Bottom"
+    },
+    {
+      "layer": "P01_Bottom__PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 1,
+      "part": "P01_Bottom"
+    },
+    {
+      "layer": "P02_Top__POCKET_D5.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 5.0,
+      "segment_count": 1,
+      "floor_z": 5.0,
+      "depth_total": 5.0,
+      "part": "P02_Top"
+    },
+    {
+      "layer": "P02_Top__PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 1,
+      "part": "P02_Top"
+    }
+  ],
+  "flags": [],
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ]
+}

@@ -1,0 +1,6 @@
+P01_bottom__DRILL_D6.00_THRU|drill|0.000|10.000|P01_bottom
+P01_bottom__POCKET_D4.00|pocket|0.000|4.000|P01_bottom
+P01_bottom__PROFILE_THRU|profile|0.000|10.000|P01_bottom
+P02_lid__DRILL_D8.00_THRU|drill|0.000|8.000|P02_lid
+P02_lid__POCKET_D3.00|pocket|0.000|3.000|P02_lid
+P02_lid__PROFILE_THRU|profile|0.000|8.000|P02_lid
