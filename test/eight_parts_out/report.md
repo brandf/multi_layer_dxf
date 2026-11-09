@@ -10,7 +10,7 @@
 - P08_P08: stock 12.0 x 20.0 x 30.0 mm, flip_x=False rot_z=0.0, layers 3 [auto: axis X 49%, openings +0 vs -0 mm2, flip=False, ambiguous=True]
 
 Tool plan (recommendations from standard sizes — review against your VCarve library):
-Tool plan A (chosen, fastest estimate): 2 tool(s), 3 manual change(s), est 13.7 min total (cutting 7.7 + changes 6.0). Times are estimates, not promises.
+Tool plan A (chosen, fastest estimate): 2 tool(s), 1 manual change(s), est 9.7 min total (cutting 7.7 + changes 2.0). Times are estimates, not promises.
 - T1: End Mill 1/8 in (3.17 mm) — feed 15.88 mm/s, plunge 5.29 mm/s, 20000 rpm, stepdown 1.587 mm, stepover 1.27 mm
 - T2: End Mill 1/4 in (6.35 mm) — feed 30.0 mm/s, plunge 10.0 mm/s, 20000 rpm, stepdown 3.0 mm, stepover 2.54 mm
 Cut order (tool changes marked):
@@ -19,13 +19,11 @@ Cut order (tool changes marked):
 - P04_P04__DRILL_D6.00_THRU (drill, bore): est 18 s — bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)
 - P06_P06__DRILL_D4.00_THRU (drill, bore): est 14 s — bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)
 - P07_P07__DRILL_D6.00_THRU (drill, bore): est 12 s — bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)
-  — change to T2 (End Mill 1/4 in (6.35 mm)) —
-- P05_P05__DRILL_D12.00_THRU (drill, bore): est 4 s — bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)
-- P07_P07__DRILL_D12.00_D4.00 (drill, bore): est 3 s — bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)
-  — change to T1 (End Mill 1/8 in (3.17 mm)) —
 - P08_P08__POCKET_D7.50 (pocket, endmill): est 14 s — largest endmill that fits
 - P08_P08__POCKET_D22.50_START7.50 (pocket, endmill): est 29 s — largest endmill that fits
   — change to T2 (End Mill 1/4 in (6.35 mm)) —
+- P05_P05__DRILL_D12.00_THRU (drill, bore): est 4 s — bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)
+- P07_P07__DRILL_D12.00_D4.00 (drill, bore): est 3 s — bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)
 - P02_P02__POCKET_D5.00 (pocket, endmill): est 37 s — largest endmill that fits
 - P02_P02__DRILL_D8.00_D6.00_START5.00 (drill, bore): est 3 s — bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)
 - P03_P03__POCKET_D4.00 (pocket, endmill): est 12 s — largest endmill that fits
@@ -40,9 +38,9 @@ Cut order (tool changes marked):
 - P07_P07__PROFILE_THRU (profile, endmill): est 25 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
 - P08_P08__PROFILE_THRU (profile, endmill): est 31 s — largest endmill that fits — tabs x2 (5.0 x 1.0 mm)
 Fallback plans (same DXF, run manifest_plan_<id>.txt instead):
-- Plan B: 2 tool(s), 3 change(s), est 16.8 min — T1 End Mill 1/8 in (3.17 mm), T2 End Mill 3/16 in (4.76 mm)
-- Plan C: 2 tool(s), 6 change(s), est 20.1 min — T1 End Mill 1/8 in (3.17 mm), T2 End Mill 1/2 in (12.70 mm)
-- Plan D (two-pass finish — sharper pocket corners): 2 tool(s), 8 change(s), est 44.1 min — T1 End Mill 1/8 in (3.17 mm), T2 End Mill 1/16 in (1.59 mm)
+- Plan B: 2 tool(s), 2 change(s), est 12.1 min — T1 End Mill 3/8 in (9.53 mm), T2 End Mill 1/8 in (3.17 mm)
+- Plan C: 2 tool(s), 2 change(s), est 12.1 min — T1 End Mill 1/2 in (12.70 mm), T2 End Mill 1/8 in (3.17 mm)
+- Plan D (two-pass finish — sharper pocket corners): 2 tool(s), 4 change(s), est 36.1 min — T1 End Mill 1/8 in (3.17 mm), T2 End Mill 1/16 in (1.59 mm)
 Review the tools against your VCarve library before cutting — the gadget asks you to pick each one from the library, or uses the recommendation above if you cancel.
 
 Flags — read before cutting:

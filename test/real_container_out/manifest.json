@@ -217,54 +217,6 @@
   ],
   "layers": [
     {
-      "layer": "P02_P02__DRILL_D2.25_D1.55",
-      "operation": "drill",
-      "start_depth": 0.0,
-      "cut_depth": 1.55,
-      "segment_count": 8,
-      "centres": [
-        [
-          58.5,
-          23.0
-        ],
-        [
-          64.5,
-          8.5
-        ],
-        [
-          64.5,
-          37.5
-        ],
-        [
-          79.0,
-          2.5
-        ],
-        [
-          79.0,
-          43.5
-        ],
-        [
-          93.5,
-          8.5
-        ],
-        [
-          93.5,
-          37.5
-        ],
-        [
-          99.5,
-          23.0
-        ]
-      ],
-      "diameter": 2.25,
-      "est": {
-        "hole_count": 8,
-        "hole_dia_mm": 2.25,
-        "depth_mm": 1.55
-      },
-      "part": "P02_P02"
-    },
-    {
       "layer": "P01_P01__POCKET_D1.50",
       "operation": "pocket",
       "start_depth": 0.0,
@@ -278,55 +230,6 @@
         "depth_mm": 1.5,
         "perimeter_mm": 144.513,
         "corner_radius_mm": 23.0
-      },
-      "part": "P01_P01"
-    },
-    {
-      "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
-      "operation": "drill",
-      "start_depth": 1.5,
-      "cut_depth": 1.55,
-      "segment_count": 8,
-      "centres": [
-        [
-          2.5,
-          23.0
-        ],
-        [
-          8.5,
-          8.5
-        ],
-        [
-          8.5,
-          37.5
-        ],
-        [
-          23.0,
-          2.5
-        ],
-        [
-          23.0,
-          43.5
-        ],
-        [
-          37.5,
-          8.5
-        ],
-        [
-          37.5,
-          37.5
-        ],
-        [
-          43.5,
-          23.0
-        ]
-      ],
-      "diameter": 2.25,
-      "depends_on": "P01_P01__POCKET_D1.50",
-      "est": {
-        "hole_count": 8,
-        "hole_dia_mm": 2.25,
-        "depth_mm": 1.55
       },
       "part": "P01_P01"
     },
@@ -384,6 +287,103 @@
       "part": "P02_P02"
     },
     {
+      "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
+      "operation": "drill",
+      "start_depth": 1.5,
+      "cut_depth": 1.55,
+      "segment_count": 8,
+      "centres": [
+        [
+          2.5,
+          23.0
+        ],
+        [
+          8.5,
+          8.5
+        ],
+        [
+          8.5,
+          37.5
+        ],
+        [
+          23.0,
+          2.5
+        ],
+        [
+          23.0,
+          43.5
+        ],
+        [
+          37.5,
+          8.5
+        ],
+        [
+          37.5,
+          37.5
+        ],
+        [
+          43.5,
+          23.0
+        ]
+      ],
+      "diameter": 2.25,
+      "depends_on": "P01_P01__POCKET_D1.50",
+      "est": {
+        "hole_count": 8,
+        "hole_dia_mm": 2.25,
+        "depth_mm": 1.55
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P02_P02__DRILL_D2.25_D1.55",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 1.55,
+      "segment_count": 8,
+      "centres": [
+        [
+          58.5,
+          23.0
+        ],
+        [
+          64.5,
+          8.5
+        ],
+        [
+          64.5,
+          37.5
+        ],
+        [
+          79.0,
+          2.5
+        ],
+        [
+          79.0,
+          43.5
+        ],
+        [
+          93.5,
+          8.5
+        ],
+        [
+          93.5,
+          37.5
+        ],
+        [
+          99.5,
+          23.0
+        ]
+      ],
+      "diameter": 2.25,
+      "est": {
+        "hole_count": 8,
+        "hole_dia_mm": 2.25,
+        "depth_mm": 1.55
+      },
+      "part": "P02_P02"
+    },
+    {
       "layer": "P01_P01__PROFILE_THRU",
       "operation": "profile",
       "start_depth": 0.0,
@@ -427,11 +427,23 @@
         "variant": "single",
         "finish_pockets": 0,
         "dependency_warnings": [],
-        "total_seconds": 453.9,
+        "total_seconds": 333.9,
         "cutting_seconds": 93.9,
-        "tool_changes": 3,
-        "change_seconds": 360.0,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
         "tools": [
+          {
+            "id": "EM12.70",
+            "kind": "endmill",
+            "dia_mm": 12.7,
+            "name": "End Mill 1/2 in (12.70 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 5.08,
+            "tool_number": 1
+          },
           {
             "id": "D2.25",
             "kind": "drill",
@@ -443,32 +455,10 @@
             "stepdown_mm": 1.125,
             "stepover_mm": 0.0,
             "peck": true,
-            "tool_number": 1
-          },
-          {
-            "id": "EM12.70",
-            "kind": "endmill",
-            "dia_mm": 12.7,
-            "name": "End Mill 1/2 in (12.70 mm)",
-            "feed_mm_s": 30.0,
-            "plunge_mm_s": 10.0,
-            "spindle_rpm": 20000,
-            "stepdown_mm": 3.0,
-            "stepover_mm": 5.08,
             "tool_number": 2
           }
         ],
         "layers": [
-          {
-            "layer": "P02_P02__DRILL_D2.25_D1.55",
-            "operation": "drill",
-            "tool_id": "D2.25",
-            "kind": "drill",
-            "note": "drill",
-            "seconds": 13.1,
-            "allowance_mm": 0.0,
-            "tabs": null
-          },
           {
             "layer": "P01_P01__POCKET_D1.50",
             "operation": "pocket",
@@ -476,16 +466,6 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 6.2,
-            "allowance_mm": 0.0,
-            "tabs": null
-          },
-          {
-            "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
-            "operation": "drill",
-            "tool_id": "D2.25",
-            "kind": "drill",
-            "note": "drill",
-            "seconds": 13.1,
             "allowance_mm": 0.0,
             "tabs": null
           },
@@ -516,6 +496,26 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 7.2,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
+            "operation": "drill",
+            "tool_id": "D2.25",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 13.1,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "P02_P02__DRILL_D2.25_D1.55",
+            "operation": "drill",
+            "tool_id": "D2.25",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 13.1,
             "allowance_mm": 0.0,
             "tabs": null
           },
@@ -554,11 +554,23 @@
         "variant": "single",
         "finish_pockets": 0,
         "dependency_warnings": [],
-        "total_seconds": 460.8,
+        "total_seconds": 340.8,
         "cutting_seconds": 100.8,
-        "tool_changes": 3,
-        "change_seconds": 360.0,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
         "tools": [
+          {
+            "id": "EM9.53",
+            "kind": "endmill",
+            "dia_mm": 9.525,
+            "name": "End Mill 3/8 in (9.53 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 3.81,
+            "tool_number": 1
+          },
           {
             "id": "D2.25",
             "kind": "drill",
@@ -570,32 +582,10 @@
             "stepdown_mm": 1.125,
             "stepover_mm": 0.0,
             "peck": true,
-            "tool_number": 1
-          },
-          {
-            "id": "EM9.53",
-            "kind": "endmill",
-            "dia_mm": 9.525,
-            "name": "End Mill 3/8 in (9.53 mm)",
-            "feed_mm_s": 30.0,
-            "plunge_mm_s": 10.0,
-            "spindle_rpm": 20000,
-            "stepdown_mm": 3.0,
-            "stepover_mm": 3.81,
             "tool_number": 2
           }
         ],
         "layers": [
-          {
-            "layer": "P02_P02__DRILL_D2.25_D1.55",
-            "operation": "drill",
-            "tool_id": "D2.25",
-            "kind": "drill",
-            "note": "drill",
-            "seconds": 13.1,
-            "allowance_mm": 0.0,
-            "tabs": null
-          },
           {
             "layer": "P01_P01__POCKET_D1.50",
             "operation": "pocket",
@@ -603,16 +593,6 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 7.9,
-            "allowance_mm": 0.0,
-            "tabs": null
-          },
-          {
-            "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
-            "operation": "drill",
-            "tool_id": "D2.25",
-            "kind": "drill",
-            "note": "drill",
-            "seconds": 13.1,
             "allowance_mm": 0.0,
             "tabs": null
           },
@@ -643,6 +623,26 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 8.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
+            "operation": "drill",
+            "tool_id": "D2.25",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 13.1,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "P02_P02__DRILL_D2.25_D1.55",
+            "operation": "drill",
+            "tool_id": "D2.25",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 13.1,
             "allowance_mm": 0.0,
             "tabs": null
           },
@@ -681,23 +681,11 @@
         "variant": "single",
         "finish_pockets": 0,
         "dependency_warnings": [],
-        "total_seconds": 473.2,
+        "total_seconds": 353.2,
         "cutting_seconds": 113.2,
-        "tool_changes": 3,
-        "change_seconds": 360.0,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
         "tools": [
-          {
-            "id": "EM1.59",
-            "kind": "endmill",
-            "dia_mm": 1.5875,
-            "name": "End Mill 1/16 in (1.59 mm)",
-            "feed_mm_s": 8.0,
-            "plunge_mm_s": 2.67,
-            "spindle_rpm": 20000,
-            "stepdown_mm": 0.794,
-            "stepover_mm": 0.635,
-            "tool_number": 1
-          },
           {
             "id": "EM12.70",
             "kind": "endmill",
@@ -708,20 +696,22 @@
             "spindle_rpm": 20000,
             "stepdown_mm": 3.0,
             "stepover_mm": 5.08,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.59",
+            "kind": "endmill",
+            "dia_mm": 1.5875,
+            "name": "End Mill 1/16 in (1.59 mm)",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.794,
+            "stepover_mm": 0.635,
             "tool_number": 2
           }
         ],
         "layers": [
-          {
-            "layer": "P02_P02__DRILL_D2.25_D1.55",
-            "operation": "drill",
-            "tool_id": "EM1.59",
-            "kind": "bore",
-            "note": "bore with End Mill 1/16 in (1.59 mm) (no drill in this plan)",
-            "seconds": 22.8,
-            "allowance_mm": 0.0,
-            "tabs": null
-          },
           {
             "layer": "P01_P01__POCKET_D1.50",
             "operation": "pocket",
@@ -729,16 +719,6 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 6.2,
-            "allowance_mm": 0.0,
-            "tabs": null
-          },
-          {
-            "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
-            "operation": "drill",
-            "tool_id": "EM1.59",
-            "kind": "bore",
-            "note": "bore with End Mill 1/16 in (1.59 mm) (no drill in this plan)",
-            "seconds": 22.8,
             "allowance_mm": 0.0,
             "tabs": null
           },
@@ -769,6 +749,26 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 7.2,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "P01_P01__DRILL_D2.25_D1.55_START1.50",
+            "operation": "drill",
+            "tool_id": "EM1.59",
+            "kind": "bore",
+            "note": "bore with End Mill 1/16 in (1.59 mm) (no drill in this plan)",
+            "seconds": 22.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "P02_P02__DRILL_D2.25_D1.55",
+            "operation": "drill",
+            "tool_id": "EM1.59",
+            "kind": "bore",
+            "note": "bore with End Mill 1/16 in (1.59 mm) (no drill in this plan)",
+            "seconds": 22.8,
             "allowance_mm": 0.0,
             "tabs": null
           },

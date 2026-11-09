@@ -1,5 +1,5 @@
 # dxf: eight_parts.dxf
-# plan: A — 2 tool(s), 3 change(s), est 13.7 min (cutting 7.7 + changes 6.0)
+# plan: A — 2 tool(s), 1 change(s), est 9.7 min (cutting 7.7 + changes 2.0)
 # tool: EM3.17|endmill|3.1750|1|15.88|5.29|20000|1.587|1.27
 # tool: EM6.35|endmill|6.3500|2|30.0|10.0|20000|3.0|2.54
 # tabs: P01_P01__PROFILE_THRU|4|5.0|1.0
@@ -17,10 +17,10 @@ P03_P03__DRILL_D5.00_THRU|drill|0.000|10.000|P03_P03|EM3.17|0.0|bore
 P04_P04__DRILL_D6.00_THRU|drill|0.000|8.000|P04_P04|EM3.17|0.0|bore
 P06_P06__DRILL_D4.00_THRU|drill|0.000|8.000|P06_P06|EM3.17|0.0|bore
 P07_P07__DRILL_D6.00_THRU|drill|0.000|12.000|P07_P07|EM3.17|0.0|bore
-P05_P05__DRILL_D12.00_THRU|drill|0.000|6.000|P05_P05|EM6.35|0.0|bore
-P07_P07__DRILL_D12.00_D4.00|drill|0.000|4.000|P07_P07|EM6.35|0.0|bore
 P08_P08__POCKET_D7.50|pocket|0.000|7.500|P08_P08|EM3.17|0.0|endmill
 P08_P08__POCKET_D22.50_START7.50|pocket|7.500|15.000|P08_P08|EM3.17|0.0|endmill
+P05_P05__DRILL_D12.00_THRU|drill|0.000|6.000|P05_P05|EM6.35|0.0|bore
+P07_P07__DRILL_D12.00_D4.00|drill|0.000|4.000|P07_P07|EM6.35|0.0|bore
 P02_P02__POCKET_D5.00|pocket|0.000|5.000|P02_P02|EM6.35|0.0|endmill
 P02_P02__DRILL_D8.00_D6.00_START5.00|drill|5.000|6.000|P02_P02|EM6.35|0.0|bore
 P03_P03__POCKET_D4.00|pocket|0.000|4.000|P03_P03|EM6.35|0.0|endmill

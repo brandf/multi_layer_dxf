@@ -345,12 +345,21 @@ Three CAM-practice rules Brandon asked about, all in the plan now:
 - **Profile last is a hard invariant.** Cut order is a dependency
   sort: facing pocket before its surface drill, parent pocket
   before a pocket-in-pocket child, rough before finish — then
-  (profile-last, operation rank drill → pocket → profile, tool) to
-  minimise changes. A post-sort partition forces every profile to
+  tool-grouped (BRA-15) to minimise changes: continue with the
+  current tool when possible, else start a tool that can finish
+  all its non-profile work right now (a tool with locked work
+  still to come gets stranded and forces an extra switch — the
+  real container's surface drill depends on a pocket, so the
+  drill must not go first), smallest finishable group first, so
+  the big group (usually the profile tool) runs last and absorbs
+  the profiles. A post-sort partition forces every profile to
   the end regardless of what else reordered. Nothing follows the
   profile: after it the part hangs on its tabs. This was already
   the practice; it is now enforced even when surface drills and
-  finish passes reorder everything else.
+  finish passes reorder everything else. Verified: real container
+  Plan A 3 changes → 2 (7.6 → 5.6 min); 8-part Plan A 3 → 1
+  (13.7 → 9.7 min); all other regressions unchanged (test_part A
+  still 1 change / 4.3 min, container A still 1 / 5.4).
 
 ## Pocket islands (built 2026-11-08, BRA-8)
 

@@ -161,14 +161,17 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # has two POCKET_D5.00 lines, `...|0.5|rough` then `...|0.0|finish`.
 # Single-pass plans are dropped (final radius 3.18 > 1.0).
 
-# Real container (BRA-8, verified 2026-11-08):
+# Real container (BRA-8, verified 2026-11-08; BRA-15 re-verified 2026-11-09):
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_out --auto
 # expect: 2 parts, 8 layers, 6 flags (see §2). P01 facing pocket
 # P01_P01__POCKET_D1.50 has 3 DXF circles (r 23.00 / 17.97 / 15.00);
 # P02 facing pocket has 1 (r 18.00 counterbore). Bottom drills are
-# surface drills START1.50 depending on POCKET_D1.50.
+# surface drills START1.50 depending on POCKET_D1.50. Plan A (BRA-15):
+# Drill 2.25 + EM 1/2", 2 changes, est 5.6 min — cut order all pockets,
+# both drills, profiles last.
 
-# Eight unrelated parts (generalisation, verified 2026-11-08):
+# Eight unrelated parts (generalisation, verified 2026-11-08;
+# BRA-15 re-verified 2026-11-09):
 .venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_out --auto
 # expect: 8 parts, 22 layers, 6 flags. 7 of 8 classify exactly
 # right (L-bracket, disc, pocketed plate, slot bar, counterbore
@@ -176,7 +179,8 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # block (modelled on its side, prismatic axis along X) is flagged
 # AUTO-ORIENT AMBIGUOUS (X share 49% vs the 50% dominant
 # threshold) and classified as-is — flagged, never silently
-# re-oriented. Plan A: 2 tools, 3 changes, est 13.7 min.
+# re-oriented. Plan A (BRA-15): 2 tools, 1 change, est 9.7 min
+# (was 3 changes / 13.7 min before the tool-grouped orderer).
 
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"

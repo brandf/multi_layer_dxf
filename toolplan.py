@@ -242,12 +242,13 @@ def order_entries(entries, tool_key):
     resolves to its LAST entry: the layer is done when its last pass
     finishes. A dependency on a layer that is not in this plan (e.g.
     --only filtered the facing pocket out) is reported, not fatal.
-    Order: dependencies first, then (profile-last, operation rank,
-    tool) so tool changes are minimised. Profiles are ALWAYS last:
-    after the profile cut the part hangs on its tabs, so nothing may
-    follow it — this is an invariant, not a preference.
+    Order: dependencies first, then tool-grouped (BRA-15) — continue
+    with the current tool when possible, else start with the tool
+    that has the most work available — so tool changes are minimised.
+    Profiles are ALWAYS last: after the profile cut the part hangs
+    on its tabs, so nothing may follow it — this is an invariant,
+    not a preference.
     Returns (ordered_entries, warnings)."""
-    import heapq
     n = len(entries)
     last_idx = {}
     for i, e in enumerate(entries):
@@ -277,20 +278,64 @@ def order_entries(entries, tool_key):
         return (1 if e["operation"] == "profile" else 0,
                 OP_RANK.get(e["operation"], 99), tool_key(e), i)
 
-    heap = []
-    for i in range(n):
-        if indeg[i] == 0:
-            heapq.heappush(heap, (_key(i), i))
+    def _pick(pool):
+        # Tool-grouped pick (BRA-15): continue with the last tool when
+        # possible (free — no change). Otherwise pick a tool that can
+        # finish all its non-profile work right now — starting a tool
+        # that still has locked work strands it and forces an extra
+        # switch later (the real container's surface drill depends on
+        # a pocket, so the drill must not go first). Among tools that
+        # can finish, take the smallest available group first: the big
+        # group usually holds the profile tool and runs last, absorbing
+        # the profiles (a drill-first order on the test part is 1
+        # change; pockets-first is 2). If no tool can finish now, make
+        # progress on the tool with the most work available. Within a
+        # tool: (operation rank, tool, index). Profiles are excluded
+        # from the pool by the caller until nothing else remains.
+        if last_tool is not None:
+            same = [i for i in pool if tool_key(entries[i]) == last_tool]
+            if same:
+                return min(same, key=lambda i: (OP_RANK.get(entries[i]["operation"], 99), tool_key(entries[i]), i))
+        if entries[pool[0]]["operation"] == "profile":
+            return min(pool, key=lambda i: (OP_RANK.get(entries[i]["operation"], 99), tool_key(entries[i]), i))
+        by_tool = {}
+        for i in pool:
+            by_tool.setdefault(tool_key(entries[i]), []).append(i)
+        pool_set = set(pool)
+
+        def _can_finish(tk):
+            # Every remaining non-profile node of this tool is
+            # available now (profiles excluded — always last).
+            for j, e in enumerate(entries):
+                if placed[j] or e["operation"] == "profile":
+                    continue
+                if tool_key(e) == tk and j not in pool_set:
+                    return False
+            return True
+
+        finishable = [tk for tk in by_tool if _can_finish(tk)]
+        if finishable:
+            best = min(finishable, key=lambda tk: (len(by_tool[tk]), tk))
+        else:
+            best = min(by_tool.items(), key=lambda kv: (-len(kv[1]), kv[0]))[0]
+        return min(by_tool[best],
+                   key=lambda i: (OP_RANK.get(entries[i]["operation"], 99), tool_key(entries[i]), i))
+
     ordered = []
     placed = [False] * n
-    while heap:
-        _, i = heapq.heappop(heap)
+    last_tool = None
+    while len(ordered) < n:
+        avail = [i for i in range(n) if not placed[i] and indeg[i] == 0]
+        if not avail:
+            break
+        nonprof = [i for i in avail if entries[i]["operation"] != "profile"]
+        pool = nonprof if nonprof else avail
+        i = _pick(pool)
         ordered.append(entries[i])
         placed[i] = True
+        last_tool = tool_key(entries[i])
         for j in dependents[i]:
             indeg[j] -= 1
-            if indeg[j] == 0:
-                heapq.heappush(heap, (_key(j), j))
     if len(ordered) < n:
         warnings.append("dependency cycle in cut order — fell back to key order")
         rest = [entries[i] for i in range(n) if not placed[i]]
