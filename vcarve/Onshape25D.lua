@@ -1,11 +1,15 @@
--- Onshape25D.lua — VCarve Pro gadget (v0.3, implemented, NOT yet run in VCarve)
+-- Onshape25D.lua — VCarve Pro gadget (v0.4, implemented, NOT yet run in VCarve)
 --
 -- What it does, in one click inside VCarve Pro:
 --   1. Asks for manifest.txt (written by step_to_vcarve.py / multi_part.py).
 --      One line per layer, in cut order:
---        layer|operation|start_depth|cut_depth|part|tool_id
+--        layer|operation|start_depth|cut_depth|part|tool_id|allowance|kind
 --      (v0.2 manifests have only the first 4 fields — still accepted,
---      the gadget then falls back to the TOOLS table below.)
+--      the gadget then falls back to the TOOLS table below; v0.3
+--      manifests stop at field 6, allowance defaults to 0.)
+--      Field 7 is the wall allowance in mm (a rough pass leaves it,
+--      a finish pass removes it); field 8 is the pass kind
+--      (rough/finish — two toolpaths on one layer get different names).
 --      Comment lines at the top carry the rest of the plan:
 --        # dxf: <stem>.dxf            — the layered DXF, same folder
 --        # plan: <id> — N tool(s), M change(s), est X min
@@ -264,12 +268,14 @@ local function create_drill(name, layer, start_depth, cut_depth, tool, peck_gap_
   return true
 end
 
-local function create_pocket(name, layer, start_depth, cut_depth, tool)
+local function create_pocket(name, layer, start_depth, cut_depth, tool, allowance_mm)
   local pocket_data = PocketParameterData()
   pocket_data.StartDepth = start_depth
   pocket_data.CutDepth = cut_depth
   pocket_data.CutDirection = ProfileParameterData.CLIMB_DIRECTION
-  pocket_data.Allowance = 0.0
+  -- A rough pass leaves `allowance_mm` on the walls; the finish pass
+  -- (allowance 0) removes it and sharpens the corners.
+  pocket_data.Allowance = allowance_mm or 0.0
   pocket_data.DoRasterClearance = true
   pocket_data.RasterAngle = 0
   pocket_data.ProfilePassType = PocketParameterData.PROFILE_LAST
@@ -459,6 +465,14 @@ function main()
     local start_depth = tonumber(parts[3]) or 0
     local cut_depth = tonumber(parts[4]) or 0
     local tool_id = trim(parts[6] or "")
+    local allowance_mm = tonumber(parts[7]) or 0
+    local kind = trim(parts[8] or "")
+    -- Rough and finish passes share one DXF layer but are two
+    -- toolpaths: give them different names or VCarve shows two
+    -- toolpaths with the same name.
+    local tp_name = layer
+    if kind == "rough" then tp_name = layer .. " rough" end
+    if kind == "finish" then tp_name = layer .. " finish" end
     if layer == "" or operation == "" then
       DisplayMessageBox("Onshape25D: bad manifest line: " .. line)
       return false
@@ -498,11 +512,11 @@ function main()
       end
       local ok, err
       if operation == "drill" then
-        ok, err = create_drill(layer, layer, start_depth, cut_depth, tool, 2.0)
+        ok, err = create_drill(tp_name, layer, start_depth, cut_depth, tool, 2.0)
       elseif operation == "pocket" then
-        ok, err = create_pocket(layer, layer, start_depth, cut_depth, tool)
+        ok, err = create_pocket(tp_name, layer, start_depth, cut_depth, tool, allowance_mm)
       elseif operation == "profile" then
-        ok, err = create_profile(layer, layer, start_depth, cut_depth,
+        ok, err = create_profile(tp_name, layer, start_depth, cut_depth,
                                  tool, tabs_by_layer[layer])
       else
         DisplayMessageBox("Onshape25D: unknown operation '" .. operation

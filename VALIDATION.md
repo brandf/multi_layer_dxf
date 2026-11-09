@@ -6,44 +6,70 @@ unexpected result and report it instead of pushing on.
 
 ## 0. What you need from Onshape first
 
-- In the Part Studio, drag the rollback bar to **just before the
-  `post process` folder** (after Extrude 7 / Move face 1, before Fillet 1).
-  The rounded outside edge is Fillet 1 — cutting the profile from the
-  filleted model would undersize the part.
 - Export **both parts in one STEP**, units **mm** (File > Export, or
   right-click the Part Studio > Export). The file must contain 2 solids.
-- If the STEP comes from a Version instead, the version must be taken
-  at the same rollback point.
+- Rollback is **optional** since BRA-11 (2026-11-08): a finished STEP
+  with the `post process` fillets works — the classifier recovers the
+  prismatic shape and files the fillets into the post-processing plan.
+  The real container was validated this way (fillet/BSpline intact).
 
 ## 1. Run the multi-part classifier
 
 ```bash
 cd ~/workspace/cnc-onshape-vcarve
-.venv/bin/python multi_part.py <real-container>.step -o test/real_container_out \
-    --parts parts.container.json --mode full
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_out --auto
 ```
 
-`parts.container.json` assumes: Bottom first in the STEP (lowest bbox
-min), Top second, Top flipped (`flip_x: true`). If the STEP's solid
-order differs, the parts are labelled by bbox-min order — check the
-report's part list and adjust the labels in `parts.json` if needed.
+`--auto` orients each part (prismatic axis to Z, inside up) and lays
+them out side by side, bottom-aligned. `parts.container.json` is the
+manual equivalent (Bottom first, Top `flip_x: true`).
+
+**Verified on the real STEP (2026-11-08, BRA-8): 2 parts, 8 layers,
+6 flags.** The part is Ø46 mm, not the Ø100 of the synthetic
+approximation. Bottom 9.5 mm tall, Top 8.0 mm tall.
 
 ## 2. Check the report against the drawing (report.md)
 
-Expected, from the Onshape drawing:
+Verified against the real STEP (face-level probe + point-inside
+checks), superseding the drawing-based expectations:
 
-- **Bottom:** 8 small holes around the outer flange ring, large central
-  circular recess with a step ring. So: 8 drill centres on one PCD,
-  1 central pocket (check the step ring — it may show as a
-  pocket-in-pocket with a start depth).
-- **Top:** outer ring + inner circle, **no holes**. So: 0 holes,
-  1 central pocket, profile only.
-- **Both:** side by side in one job, inside facing up, Zmin = 0 for
-  each part (bottom-aligned). Real diameters / depths / heights replace
-  the Ø100 synthetic approximation — record the real numbers here.
-- **Flags must be 0** for a clean run. Any flag means: read it, decide
-  whether it is a real feature (e.g. the step ring) or a classifier
-  miss, and fix the classifier before cutting.
+- **Both parts:** 8× Ø2.25 blind holes, 1.55 mm deep, on a Ø41 PCD,
+  opening on the **mating/step faces** (not Ø5 through holes in the
+  Bottom flange as the drawing first suggested). Bottom's holes open
+  on the Z 8.00 flange face (bottoming Z 6.45); Top's open on its
+  mating face (bottoming Z 9.55 scene). Both are drilled after the
+  facing pocket — Bottom's are surface drills
+  (`DRILL_D2.25_D1.55_START1.50`, depends on POCKET_D1.50).
+- **Bottom:** Ø30 central pocket, 6.5 mm deep from the top face
+  (floor Z 3.0), reached through the 1.50 mm facing pocket
+  (POCKET_D1.50, floor Z 8.00). The mating **rib** (r15..18, rising
+  1.5 mm above the step face) is an island in the facing pocket —
+  see §2a.
+- **Top:** Ø30 central pocket, 5.0 mm deep (floor Z 3.0 local),
+  through the 1.50 mm facing pocket, which is the Ø36 counterbore
+  the Bottom's rib plugs into. No island (the Top has the recess,
+  the Bottom has the rib). 0.03 mm radial clearance: Bottom rib
+  r=17.97 vs Top counterbore r=18.00 (the Move-face clearance).
+- **Both outsides** are largely a BSpline rounded surface (only a
+  2 mm-tall r=23 cylindrical band + Ø34 flat end disc are
+  prismatic). The BSpline is filed as `cnc_3d` post-process on both
+  parts — **open question for Brandon:** CNC 3D (current default)
+  vs router table (his outer-edge default, but a spline roundover
+  won't match a standard roundover bit).
+- **Flags (6, all understood):** 2× PROFILE OUTLINE DIFFERS (real —
+  the BSpline roundover makes top/bottom outlines differ 11% / 45%),
+  2× POST-PROCESS [cnc_3d] BSpline, 1× DRILL FROM SURFACE
+  (informational), 1× POCKET ISLAND (Bottom rib, handled — see §2a).
+
+### 2a. Island check (the rib)
+
+P01's facing pocket layer `P01_P01__POCKET_D1.50` must contain
+**three circles**: r=23.00 (Ø46 outer), r=17.97 (Ø36 island — the
+rib's outer edge), r=15.00 (Ø30 child outline, re-opening the cut
+inside the rib). Cut regions: annulus Ø36..Ø46 + disc inside Ø30;
+the rib Ø30..Ø36 is preserved. Verify with ezdxf (see §3) — if the
+layer has only one circle, the rib would be machined away. The Top's
+facing pocket correctly has one circle (Ø36, the counterbore).
 
 ## 3. Check the DXF
 
@@ -77,13 +103,13 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step \
     -o test/external/kookabus_out --mode check
-# expect: no crash; layers 11 / 8 / 7, holes 18 / 5 / 7, flags 39 / 72 / 12
-# (updated 2026-11-08 from 11 / 7 / 6 and 70 / 631 / 22: the
-# wire-orientation fix changed containment results, and bottom-face
-# outer circles now exclude P02's two D6.5 bosses from the hole list —
-# they are bosses, not holes. Kookabus is a robustness sample, not
-# ground truth; the check is "no crash, flags identify the
-# non-prismatic features".)
+# expect: no crash; post-BRA-14 layers 12 / 10 / 7, holes 18 / 5 / 7,
+# flags 30 / 67 / 9 (107 total, incl. 4 POCKET ISLAND flags — bosses
+# rising from pocket floors, plausible on an enclosure). Pre-BRA-14
+# numbers were 11 / 8 / 7 and 39 / 72 / 12: BRA-14's surface drills
+# added layers and its hole-floor fix removed bogus pockets and their
+# flags. Kookabus is a robustness sample, not ground truth; the check
+# is "no crash, flags identify the non-prismatic features".)
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50
@@ -110,6 +136,26 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # verification flag) — THROUGH_CUT (Ø60 hole, tabs x4) + PROFILE_THRU
 # (Ø100, tabs x4), 1 tool, 0 changes. The doughnut proves the tabs
 # rule: the centre disc is a slug, not sawdust.
+
+.venv/bin/python step_to_vcarve.py test/square.step -o test/square_out --mode full
+# expect (BRA-14): 3 layers, 1 hole, 1 pocket, 0 flags; the square
+# pocket's corner_radius_mm = 0.0 (sharp corners detected). Plan A is
+# a single 1/4" endmill, est 1.4 min; Plan D is a finish variant
+# (rough 1/4" + finish 3/16", corners to R2.38). manifest.txt must
+# carry two POCKET_D5.00 lines only when a finish plan is chosen.
+.venv/bin/python step_to_vcarve.py test/square.step -o test/square_gate_out \
+    --config test/square_config.json
+# expect (gate, max_corner_radius_mm = 1.0): chosen plan is a finish
+# variant (rough 1/4" + finish 1/16", corners to R0.79); manifest.txt
+# has two POCKET_D5.00 lines, `...|0.5|rough` then `...|0.0|finish`.
+# Single-pass plans are dropped (final radius 3.18 > 1.0).
+
+# Real container (BRA-8, verified 2026-11-08):
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_out --auto
+# expect: 2 parts, 8 layers, 6 flags (see §2). P01 facing pocket
+# P01_P01__POCKET_D1.50 has 3 DXF circles (r 23.00 / 17.97 / 15.00);
+# P02 facing pocket has 1 (r 18.00 counterbore). Bottom drills are
+# surface drills START1.50 depending on POCKET_D1.50.
 
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"

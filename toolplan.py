@@ -36,22 +36,38 @@ Design decisions (Brandon, 2026-11-08):
 How it works:
   - Each layer carries an "est" dict from the classifier:
       drill:   {"hole_count", "hole_dia_mm", "depth_mm"}
-      pocket:  {"area_mm2", "min_width_mm", "depth_mm"}
+      pocket:  {"area_mm2", "min_width_mm", "depth_mm",
+                "perimeter_mm", "corner_radius_mm" (None = no corners)}
       profile: {"perimeter_mm", "min_width_mm" (slots only), "depth_mm"}
+    Layers may also carry "depends_on" (a layer name that must be cut
+    first — a facing pocket for a surface drill, a parent pocket for
+    a pocket-in-pocket child). The planner orders by dependency first.
   - A plan is a TOOL SET: a set of endmills (0-2 sizes) plus, per
     distinct hole diameter, "drill it" or "bore it with an endmill".
     Per layer the tool is then forced (largest fitting endmill in the
     set, exact drill, or largest endmill that fits the hole for a
     bore). Enumerating tool sets (<= 22 sets x <= 4 drill modes) is
     cheap and exact — no per-layer combinatorial search.
+  - Rough + finish (BRA-14): for a pocket whose corners the roughing
+    tool would round beyond their design radius, the plan can add a
+    finish pass with the smallest smaller endmill in the set, removing
+    only a thin wall allowance. It is a plan VARIANT ("finish"), never
+    the fastest (extra tool change) — it is always listed so you can
+    pick sharp corners over speed, and max_corner_radius_mm makes it
+    mandatory when set. The finish pass is priced like a profile cut
+    around the perimeter, not an area clear.
   - Cutting time is an MRR estimate (volume / (feed*stepover*stepdown)
     for pockets, length*passes/feed for profiles, plunge+peck for
     drills). Estimates are labelled as such everywhere they appear.
-  - Cut order is drill -> pocket -> profile (hard: the profile frees
-    the part, so it is last), grouped by tool inside each operation
-    so tool changes are minimised. Tool numbers are assigned in
-    first-use order — this fixes the v0.2 gadget bug where every
-    toolpath was Tool 1 and the posted code called no tool change.
+  - Cut order is dependency-aware (BRA-14): a drill that opens on a
+    faced surface runs after the facing pocket; a pocket-in-pocket
+    child runs after its parent; a finish pass runs after its rough
+    pass. Otherwise drill -> pocket -> profile, grouped by tool inside
+    each operation so tool changes are minimised. The profile is
+    ALWAYS last (invariant): after it the part hangs on its tabs, so
+    nothing may follow it. Tool numbers are assigned in first-use
+    order — this fixes the v0.2 gadget bug where every toolpath was
+    Tool 1 and the posted code called no tool change.
 
 Public API:
   settings(cfg)            -> merged settings dict
@@ -85,6 +101,17 @@ DEFAULTS = {
     "stepover_pct": 40,
     "tabs": {"enabled": True, "count": 4, "length_mm": 5.0, "thickness_mm": 1.0},
     "max_plans": 3,
+    # Rough + finish (BRA-14): a pocket roughed with the largest tool
+    # that fits leaves round corners (radius = tool radius). A finish
+    # pass with a smaller tool, removing only a thin wall allowance,
+    # gets the corners closer to sharp. It is never faster than the
+    # single pass (extra tool change), so it is offered as an
+    # alternative plan — unless max_corner_radius_mm is set, in which
+    # case any pocket the roughing tool would round beyond that radius
+    # MUST get a finish pass (plans that cannot achieve it are dropped).
+    "finish_corners": True,
+    "finish_allowance_mm": 0.5,
+    "max_corner_radius_mm": None,
 }
 
 
@@ -172,9 +199,10 @@ def _est_bore(layer, tool, st):
     return n * per_hole
 
 
-def _est_pocket(layer, tool, st):
+def _est_pocket(layer, tool, st, area=None):
     e = layer.get("est", {})
-    area = float(e.get("area_mm2", 0))
+    if area is None:
+        area = float(e.get("area_mm2", 0))
     depth = float(e.get("depth_mm", layer["cut_depth"]))
     mrr = tool["feed_mm_s"] * tool["stepover_mm"] * tool["stepdown_mm"]
     passes = _passes(depth, tool["stepdown_mm"])
@@ -187,6 +215,161 @@ def _est_profile(layer, tool, st):
     depth = float(e.get("depth_mm", layer["cut_depth"]))
     passes = _passes(depth, tool["stepdown_mm"])
     return (perim * passes) / max(tool["feed_mm_s"], 0.1) + 1.0 * passes
+
+
+def _est_finish(layer, tool, st):
+    """A finish pass removes only the thin wall allowance left by the
+    rough pass: it is a profile-like cut around the pocket perimeter
+    (plus the corner crescents the rough tool could not reach), not
+    an area clear — so it is priced like a profile, not a pocket."""
+    e = layer.get("est", {})
+    perim = float(e.get("perimeter_mm", 0))
+    depth = float(e.get("depth_mm", layer["cut_depth"]))
+    passes = _passes(depth, tool["stepdown_mm"])
+    return (perim * passes) / max(tool["feed_mm_s"], 0.1) + 1.0 * passes
+
+
+OP_RANK = {"drill": 0, "pocket": 1, "profile": 2}
+
+
+def order_entries(entries, tool_key):
+    """Dependency-aware cut order (BRA-14).
+
+    entries: dicts with "layer" (name), "operation", optional
+    "depends_on" (a layer NAME — the entry depends on that layer being
+    fully cut) and optional "depends_on_entry" (an index into entries
+    — a finish pass depends on its own rough pass). A layer name
+    resolves to its LAST entry: the layer is done when its last pass
+    finishes. A dependency on a layer that is not in this plan (e.g.
+    --only filtered the facing pocket out) is reported, not fatal.
+    Order: dependencies first, then (profile-last, operation rank,
+    tool) so tool changes are minimised. Profiles are ALWAYS last:
+    after the profile cut the part hangs on its tabs, so nothing may
+    follow it — this is an invariant, not a preference.
+    Returns (ordered_entries, warnings)."""
+    import heapq
+    n = len(entries)
+    last_idx = {}
+    for i, e in enumerate(entries):
+        last_idx[e["layer"]] = i
+    deps = [set() for _ in range(n)]
+    warnings = []
+    for i, e in enumerate(entries):
+        d = e.get("depends_on")
+        if d:
+            if d in last_idx and last_idx[d] != i:
+                deps[i].add(last_idx[d])
+            elif d not in last_idx:
+                warnings.append(
+                    f"{e['layer']} depends on {d}, which is not in this plan "
+                    f"(facing cut missing — run without --only?)")
+        j = e.get("depends_on_entry")
+        if j is not None and 0 <= j < n and j != i:
+            deps[i].add(j)
+    indeg = [len(deps[i]) for i in range(n)]
+    dependents = [[] for _ in range(n)]
+    for i in range(n):
+        for d in deps[i]:
+            dependents[d].append(i)
+
+    def _key(i):
+        e = entries[i]
+        return (1 if e["operation"] == "profile" else 0,
+                OP_RANK.get(e["operation"], 99), tool_key(e), i)
+
+    heap = []
+    for i in range(n):
+        if indeg[i] == 0:
+            heapq.heappush(heap, (_key(i), i))
+    ordered = []
+    placed = [False] * n
+    while heap:
+        _, i = heapq.heappop(heap)
+        ordered.append(entries[i])
+        placed[i] = True
+        for j in dependents[i]:
+            indeg[j] -= 1
+            if indeg[j] == 0:
+                heapq.heappush(heap, (_key(j), j))
+    if len(ordered) < n:
+        warnings.append("dependency cycle in cut order — fell back to key order")
+        rest = [entries[i] for i in range(n) if not placed[i]]
+        ordered.extend(sorted(rest, key=lambda e: _key(entries.index(e))))
+    # Profile-last invariant, enforced even if the sort ever slips.
+    # (Nothing depends on a profile — dependencies only point at
+    # facing/parent pockets and rough passes — so this cannot break
+    # a dependency.)
+    prof = [e for e in ordered if e["operation"] == "profile"]
+    rest = [e for e in ordered if e["operation"] != "profile"]
+    return rest + prof, warnings
+
+
+def _finish_variant(entries, em_set, em_tools, st):
+    """Two-pass variant of an assigned entry list (BRA-14): every
+    pocket whose corners the roughing tool would round beyond their
+    design radius gets a rough pass (with a wall allowance) plus a
+    finish pass with the smallest smaller endmill in the set.
+    Returns the new entry list, or None if no pocket benefits or no
+    finish tool exists in the set."""
+    allow = float(st.get("finish_allowance_mm", 0.5))
+    out = []
+    any_finish = False
+    for e in entries:
+        if e["operation"] != "pocket":
+            out.append(e)
+            continue
+        L = e["_L"]
+        corner = L.get("est", {}).get("corner_radius_mm")
+        rough_r = e["tool"]["dia_mm"] / 2.0
+        if corner is None or corner >= rough_r:
+            out.append(e)  # round pocket, or the rough tool already fits the corner
+            continue
+        smaller = [d for d in sorted(em_set) if d < e["tool"]["dia_mm"]]
+        if not smaller:
+            return None  # set has no smaller tool to finish with
+        ftool = em_tools[smaller[0]]
+        # Rough: same tool, but it leaves `allow` mm on the walls.
+        area = float(L.get("est", {}).get("area_mm2", 0))
+        perim = float(L.get("est", {}).get("perimeter_mm", 0))
+        rough = dict(e)
+        rough["kind"] = "rough"
+        rough["allowance_mm"] = allow
+        rough["note"] = (f"rough, {allow:g} mm wall allowance "
+                         f"(corners left R{rough_r:.2f} mm)")
+        rough["seconds"] = _est_pocket(L, e["tool"], st,
+                                       area=max(0.0, area - perim * allow))
+        out.append(rough)
+        finish = dict(e)
+        finish["tool"] = ftool
+        finish["tool_id"] = ftool["id"]
+        finish["kind"] = "finish"
+        finish["allowance_mm"] = 0.0
+        finish["note"] = (f"finish pass — corners to R{ftool['dia_mm'] / 2:.2f} mm")
+        finish["seconds"] = _est_finish(L, ftool, st)
+        finish["depends_on_entry"] = len(out) - 1  # after its rough pass
+        finish["depends_on"] = None
+        out.append(finish)
+        any_finish = True
+    return out if any_finish else None
+
+
+def _corner_gate_ok(entries, max_corner):
+    """Every pocket whose corners the FINAL tool would round beyond
+    max_corner_radius_mm fails the gate. The design corner radius is
+    not gated (a round pocket's radius is the design, not a tool
+    artefact) — only the tool-imposed radius counts."""
+    by_layer = {}
+    for e in entries:
+        if e["operation"] == "pocket":
+            by_layer.setdefault(e["layer"], []).append(e)
+    for name, es in by_layer.items():
+        corner = es[0]["_L"].get("est", {}).get("corner_radius_mm")
+        if corner is None:
+            continue
+        final_r = min(e["tool"]["dia_mm"] / 2.0 for e in es)
+        if final_r > corner and final_r > max_corner:
+            return False
+    return True
 
 
 def _is_outer_profile(layer):
@@ -262,20 +445,31 @@ def plan_tools(layers, cfg=None):
             for combo in itertools.combinations(hole_dias, r):
                 drill_modes.append(set(combo))
 
-    op_rank = {"drill": 0, "pocket": 1, "profile": 2}
+    max_corner = st.get("max_corner_radius_mm")
+    want_finish = bool(st.get("finish_corners", True))
     candidates = []
     for em_set in em_sets:
         for drill_set in drill_modes:
-            assigned = []  # (layer, tool, kind, note, seconds)
+            assigned = []  # entry dicts (layer, tool, kind, note, seconds, ...)
             ok = True
             for L in layers:
                 op = L["operation"]
                 e = L.get("est", {})
+
+                def _entry(tool, kind, note, seconds):
+                    return {"layer": L["layer"], "operation": op,
+                            "tool": tool, "tool_id": tool["id"],
+                            "kind": kind, "note": note, "seconds": seconds,
+                            "allowance_mm": 0.0,
+                            "depends_on": L.get("depends_on"),
+                            "depends_on_entry": None, "_L": L}
+
                 if op == "drill":
                     dia = float(e.get("hole_dia_mm", L.get("diameter", 0)))
                     if dia in drill_set:
                         tool = drill_tools[dia]
-                        assigned.append((L, tool, "drill", "drill", _est_drill(L, tool, st)))
+                        assigned.append(_entry(tool, "drill", "drill",
+                                               _est_drill(L, tool, st)))
                     else:
                         # Bore with the largest endmill in the set that
                         # fits inside the hole (needs room to orbit).
@@ -285,9 +479,10 @@ def plan_tools(layers, cfg=None):
                             ok = False
                             break
                         tool = em_tools[fitting[0]]
-                        assigned.append((L, tool, "bore",
-                                         f"bore with {tool['name']} (no drill in this plan)",
-                                         _est_bore(L, tool, st)))
+                        assigned.append(_entry(
+                            tool, "bore",
+                            f"bore with {tool['name']} (no drill in this plan)",
+                            _est_bore(L, tool, st)))
                 elif op == "pocket":
                     mw = float(e.get("min_width_mm", 0))
                     fitting = [d for d in sorted(em_set, reverse=True) if _fits(d, mw)]
@@ -295,8 +490,8 @@ def plan_tools(layers, cfg=None):
                         ok = False
                         break
                     tool = em_tools[fitting[0]]
-                    assigned.append((L, tool, "endmill", "largest endmill that fits",
-                                     _est_pocket(L, tool, st)))
+                    assigned.append(_entry(tool, "endmill", "largest endmill that fits",
+                                           _est_pocket(L, tool, st)))
                 elif op == "profile":
                     if _is_outer_profile(L):
                         fitting = sorted(em_set, reverse=True)
@@ -307,39 +502,50 @@ def plan_tools(layers, cfg=None):
                         ok = False
                         break
                     tool = em_tools[fitting[0]]
-                    assigned.append((L, tool, "endmill", "largest endmill that fits",
-                                     _est_profile(L, tool, st)))
+                    assigned.append(_entry(tool, "endmill", "largest endmill that fits",
+                                           _est_profile(L, tool, st)))
                 else:
                     ok = False
                     break
             if not ok:
                 continue
-            # Cut order: drill -> pocket -> profile, grouped by tool
-            # inside each operation. That is the whole ordering rule.
-            ordered = sorted(assigned, key=lambda a: (op_rank[a[0]["operation"]], a[1]["id"]))
-            cutting = sum(a[4] for a in ordered)
-            changes = 0
-            prev = None
-            tools_in_order = []
-            for _, tool, _, _, _ in ordered:
-                if tool["id"] not in [t["id"] for t in tools_in_order]:
-                    tools_in_order.append(tool)
-                if prev is not None and tool["id"] != prev:
-                    changes += 1
-                prev = tool["id"]
-            total = cutting + changes * float(st["tool_change_seconds"])
-            candidates.append({
-                "total_seconds": round(total, 1),
-                "cutting_seconds": round(cutting, 1),
-                "tool_changes": changes,
-                "change_seconds": round(changes * float(st["tool_change_seconds"]), 1),
-                "tools": [dict(t, tool_number=i + 1)
-                          for i, t in enumerate(tools_in_order)],
-                "layers": [{"layer": a[0]["layer"], "operation": a[0]["operation"],
-                            "tool_id": a[1]["id"], "kind": a[2], "note": a[3],
-                            "seconds": round(a[4], 1),
-                            "tabs": tabs_for_layer(a[0], st)} for a in ordered],
-            })
+            variants = [("single", assigned)]
+            if want_finish:
+                fin = _finish_variant(assigned, em_set, em_tools, st)
+                if fin is not None:
+                    variants.append(("finish", fin))
+            for variant, entries in variants:
+                if max_corner is not None and not _corner_gate_ok(entries, max_corner):
+                    continue
+                ordered, dep_warnings = order_entries(entries, lambda e: e["tool_id"])
+                cutting = sum(e["seconds"] for e in ordered)
+                changes = 0
+                prev = None
+                tools_in_order = []
+                for e in ordered:
+                    tool = e["tool"]
+                    if tool["id"] not in [t["id"] for t in tools_in_order]:
+                        tools_in_order.append(tool)
+                    if prev is not None and tool["id"] != prev:
+                        changes += 1
+                    prev = tool["id"]
+                total = cutting + changes * float(st["tool_change_seconds"])
+                candidates.append({
+                    "variant": variant,
+                    "finish_pockets": sum(1 for e in ordered if e["kind"] == "finish"),
+                    "dependency_warnings": dep_warnings,
+                    "total_seconds": round(total, 1),
+                    "cutting_seconds": round(cutting, 1),
+                    "tool_changes": changes,
+                    "change_seconds": round(changes * float(st["tool_change_seconds"]), 1),
+                    "tools": [dict(t, tool_number=i + 1)
+                              for i, t in enumerate(tools_in_order)],
+                    "layers": [{"layer": e["layer"], "operation": e["operation"],
+                                "tool_id": e["tool_id"], "kind": e["kind"], "note": e["note"],
+                                "seconds": round(e["seconds"], 1),
+                                "allowance_mm": e.get("allowance_mm", 0.0),
+                                "tabs": tabs_for_layer(e["_L"], st)} for e in ordered],
+                })
     if not candidates:
         bad = []
         for L in layers:
@@ -354,10 +560,14 @@ def plan_tools(layers, cfg=None):
                     bad.append(f"{L['layer']} (slot only {mw:.2f} mm wide)")
         return {"plans": [], "error": "no standard tool fits: " + "; ".join(bad)
                 if bad else "no valid tool plan for these layers"}
-    # Dedupe by tool complement, keep the fastest of each; rank by total.
+    # Dedupe by (tool complement, variant), keep the fastest of each;
+    # rank by total. A two-pass plan is never the fastest (extra tool
+    # change), so without the guarantee below it would be crowded out
+    # by single-pass plans — but it is the plan that buys sharp
+    # corners, so the fastest finish variant is always visible.
     by_tools = {}
     for c in candidates:
-        key = tuple(sorted(t["id"] for t in c["tools"]))
+        key = (tuple(sorted(t["id"] for t in c["tools"])), c["variant"])
         if key not in by_tools or c["total_seconds"] < by_tools[key]["total_seconds"]:
             by_tools[key] = c
     ranked = sorted(by_tools.values(), key=lambda c: c["total_seconds"])
@@ -366,6 +576,12 @@ def plan_tools(layers, cfg=None):
         c = dict(c)
         c["id"] = chr(ord("A") + i)
         plans.append(c)
+    if plans and not any(p["variant"] == "finish" for p in plans):
+        fin = [c for c in ranked if c["variant"] == "finish"]
+        if fin:
+            c = dict(fin[0])
+            c["id"] = chr(ord("A") + len(plans))
+            plans.append(c)
     return {"plans": plans, "error": None}
 
 
@@ -381,10 +597,13 @@ def choose_plan(plans, wanted_id=None):
 
 def manifest_txt(plan, layers, dxf_name, st=None):
     """manifest.txt v2: # tool / # tabs / # plan comment lines, then
-    layer|operation|start|cut|part|tool_id per layer, in cut order.
-    Old gadgets ignore the extra fields (they read fields 1-4).
+    layer|operation|start|cut|part|tool_id|allowance|kind per layer,
+    in cut order. Old gadgets ignore the extra fields (they read
+    fields 1-4; v0.3 reads field 6). Field 7 is the wall allowance
+    in mm (rough passes), field 8 the pass kind (rough/finish — the
+    gadget names the two toolpaths on one layer differently).
     Tabs ride on `# tabs: <layer>|<count>|<length_mm>|<thickness_mm>`
-    lines, one per outer-profile layer."""
+    lines, one per tabbed profile layer."""
     st = st or settings({})
     by_name = {L["layer"]: L for L in layers}
     lines = [f"# dxf: {dxf_name}"]
@@ -407,7 +626,8 @@ def manifest_txt(plan, layers, dxf_name, st=None):
         L = by_name[entry["layer"]]
         part = L.get("part", "")
         lines.append(f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|"
-                     f"{L['cut_depth']:.3f}|{part}|{entry['tool_id']}")
+                     f"{L['cut_depth']:.3f}|{part}|{entry['tool_id']}|"
+                     f"{entry.get('allowance_mm', 0.0)}|{entry.get('kind', '')}")
     return "\n".join(lines) + "\n"
 
 
@@ -420,11 +640,18 @@ def format_tool_plan_report(tool_plan):
         out.append(f"Tool plan: none — {tool_plan.get('error', 'no plan')}")
         return out
     chosen = plans[0]
+    variant_note = ""
+    if chosen.get("variant") == "finish":
+        variant_note = (f" — two-pass finish on {chosen.get('finish_pockets', 0)} "
+                        f"pocket(s) (rough with wall allowance + finish pass)")
     out.append(f"Tool plan {chosen['id']} (chosen, fastest estimate): "
                f"{len(chosen['tools'])} tool(s), {chosen['tool_changes']} manual "
                f"change(s), est {chosen['total_seconds'] / 60:.1f} min total "
                f"(cutting {chosen['cutting_seconds'] / 60:.1f} + changes "
-               f"{chosen['change_seconds'] / 60:.1f}). Times are estimates, not promises.")
+               f"{chosen['change_seconds'] / 60:.1f}). Times are estimates, not promises."
+               f"{variant_note}")
+    for w in chosen.get("dependency_warnings", []):
+        out.append(f"Cut-order warning: {w}")
     for t in chosen["tools"]:
         out.append(f"- T{t['tool_number']}: {t['name']} — feed {t['feed_mm_s']} mm/s, "
                    f"plunge {t['plunge_mm_s']} mm/s, {t['spindle_rpm']} rpm, "
@@ -447,7 +674,9 @@ def format_tool_plan_report(tool_plan):
         out.append("Fallback plans (same DXF, run manifest_plan_<id>.txt instead):")
         for p in plans[1:]:
             tools = ", ".join(f"T{t['tool_number']} {t['name']}" for t in p["tools"])
-            out.append(f"- Plan {p['id']}: {len(p['tools'])} tool(s), {p['tool_changes']} change(s), "
+            variant_txt = " (two-pass finish — sharper pocket corners)" \
+                if p.get("variant") == "finish" else ""
+            out.append(f"- Plan {p['id']}{variant_txt}: {len(p['tools'])} tool(s), {p['tool_changes']} change(s), "
                        f"est {p['total_seconds'] / 60:.1f} min — {tools}")
     out.append("Review the tools against your VCarve library before cutting — "
                "the gadget asks you to pick each one from the library, or "

@@ -236,14 +236,72 @@ def wire_sample_points(wire, per_edge=12):
             pts = first[::-1] + pts[n0:]
     return pts
 
+def _wire_is_island(solid, poly, floor_z):
+    """True if material rises above the floor inside this inner wire
+    (a rib / boss island the pocket must preserve) — tested by asking
+    the solid whether points just above the floor, inside the wire,
+    are inside the solid. A hole or deeper-pocket opening has void
+    above the floor, so it tests False. Found on the real container
+    (BRA-8, 2026-11-08): the Bottom's mating rib (r15..18) rises
+    1.5 mm above the Z 8.00 step face, and a plain pocket of the
+    outer wire would have machined it away."""
+    if not poly or len(poly) < 3:
+        return False
+    cx = sum(x for x, _ in poly) / len(poly)
+    cy = sum(y for _, y in poly) / len(poly)
+    try:
+        from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+        from OCP.gp import gp_Pnt
+        from OCP.TopAbs import TopAbs_IN, TopAbs_ON
+        cls = BRepClass3d_SolidClassifier(solid.wrapped)
+        pts = poly[::max(1, len(poly) // 6)][:6]
+        for (px, py) in pts:
+            dx, dy = px - cx, py - cy
+            dist = math.hypot(dx, dy)
+            if dist < 1e-9:
+                continue
+            for off in (0.3, 0.8, 2.0):
+                if off >= dist:
+                    continue
+                tx = px - dx / dist * off
+                ty = py - dy / dist * off
+                for dz in (0.1, 0.5):
+                    cls.Perform(gp_Pnt(tx, ty, floor_z + dz), 1e-6)
+                    if cls.State() in (TopAbs_IN, TopAbs_ON):
+                        return True
+    except Exception:
+        return False
+    return False
+
+
 def wire_is_single_circle(wire):
-    edges = wire.edges()
-    if len(edges) != 1:
+    # A circle is often ONE edge — but OCC splits some circles into
+    # two semicircular edges (a seam). The real container's 8 hole-floor
+    # discs were 2-edge wires, so this returned None for 7 of 8 and the
+    # discs were misread as pockets (BRA-8, 2026-11-08). Accept any set
+    # of circle/arc edges that share one centre and radius and sweep
+    # the full 360 degrees.
+    centre = None
+    radius = None
+    sweep = 0.0
+    for e in wire.edges():
+        for s in edge_segments(e):
+            if s[0] == 'circle':
+                (_, (cx, cy), r) = s
+                sweep += 360.0
+            elif s[0] == 'arc':
+                (_, (cx, cy), r, a0, a1) = s
+                sweep += (a1 - a0) % 360.0
+            else:
+                return None
+            if centre is None:
+                centre, radius = (cx, cy), r
+            elif (abs(cx - centre[0]) > 0.05 or abs(cy - centre[1]) > 0.05
+                    or abs(r - radius) > 0.05):
+                return None
+    if centre is None or abs(sweep - 360.0) > 1.0:
         return None
-    segs = edge_segments(edges[0])
-    if len(segs) == 1 and segs[0][0] == 'circle':
-        return segs[0][1], segs[0][2]  # centre, radius
-    return None
+    return centre, radius
 
 # ---------------------------------------------------------------- main
 def main():
@@ -555,10 +613,14 @@ def main():
                             "inner": [wire_segments(w) for w in f.inner_wires()],
                             "inner_polys": [wire_sample_points(w) for w in f.inner_wires()]})
 
-    # pocket-in-pocket start depths via containment
+    # pocket-in-pocket start depths via containment. The parent pocket
+    # is recorded: a child pocket can only be cut after its parent
+    # (the parent's floor is the surface the child starts from), so
+    # the child DEPENDS on the parent in cut order (BRA-14).
     pockets.sort(key=lambda p: p["depth"])
     for p in pockets:
         p["start"] = 0.0
+        p["parent"] = None
         c = p["face"].center()
         for q in pockets:
             if q is p or q["depth"] >= p["depth"]:
@@ -566,7 +628,122 @@ def main():
             if point_in_polygon(c.X, c.Y, q["poly"]):
                 if q["depth"] > p["start"]:
                     p["start"] = q["depth"]
+                    p["parent"] = q
         p["cut"] = p["depth"] - p["start"]
+
+    def _pocket_layer_name(p):
+        if abs(p["start"]) < 0.005:
+            return f"POCKET_D{fmt(p['depth'])}"
+        return f"POCKET_D{fmt(p['depth'])}_START{fmt(p['start'])}"
+
+    def _pocket_corner_radius(segs):
+        """Tightest corner of a pocket outline (mm): the smallest arc
+        radius, or 0.0 if two straight edges meet at a sharp corner,
+        or None if the outline has no corners (round / spline outline).
+        A finish pass can only sharpen a corner down to the finish
+        tool's own radius — this is the number the tool planner
+        reasons about (BRA-14)."""
+        if not segs:
+            return None
+        radii = []
+        sharp = False
+        for s in segs:
+            if s[0] == 'arc':
+                radii.append(s[2])
+            elif s[0] == 'circle':
+                radii.append(s[2])
+        # Sharp corners: consecutive line segments that change
+        # direction. segs are wire-ordered, so consecutive lines share
+        # an endpoint; collinear splits (turn ~0) are not corners.
+        n = len(segs)
+        for i in range(n):
+            a, b = segs[i], segs[(i + 1) % n]
+            if a[0] != 'line' or b[0] != 'line':
+                continue
+            d1 = (a[2][0] - a[1][0], a[2][1] - a[1][1])
+            d2 = (b[2][0] - b[1][0], b[2][1] - b[1][1])
+            n1 = math.hypot(*d1)
+            n2 = math.hypot(*d2)
+            if n1 < 1e-9 or n2 < 1e-9:
+                continue
+            cosang = (d1[0] * d2[0] + d1[1] * d2[1]) / (n1 * n2)
+            if cosang < math.cos(math.radians(10)):
+                sharp = True
+                break
+        if sharp:
+            return 0.0
+        if radii:
+            return round(min(radii), 3)
+        return None
+
+    # ---- pocket suppression, decided BEFORE layer building: a pocket
+    # whose floor outline is ringed by a non-prismatic wall (taper,
+    # cone, spline) must not be emitted as a vertical pocket at its
+    # floor size — that would cut the wrong shape. Decided here (not
+    # in the layer loop) because the drill pass below needs to know
+    # which pockets are actually emitted: a hole opening on a
+    # suppressed pocket's floor has no machined surface to drill from.
+    # Found on the machined test (2026-11-08): a 10 deg tapered pocket
+    # was emitted as POCKET_D6.00 at its (smaller) floor outline.
+    for p in pockets:
+        p["suppressed"] = False
+        if p["poly"]:
+            # A wall face belongs to this pocket if its LOWEST edge lies on
+            # the pocket's floor outline — that edge is shared with the
+            # floor face. (Face-centre proximity is not enough: on the
+            # machined test the tapered pocket sits flush against Pocket A,
+            # and its wall's centre is 0.5 mm from Pocket A's outline too,
+            # which falsely suppressed Pocket A as well.)
+            for info in nonprism_info:
+                f = info["face"]
+                # A small floor fillet (Z span << pocket depth) does not
+                # make the pocket un-cuttable — the endmill leaves a
+                # sharp corner and the fillet becomes a post-process
+                # item (ball-nose) instead. A taper / freeform wall
+                # spanning most of the depth does suppress the pocket.
+                fb = f.bounding_box()
+                zspan = fb.max.Z - fb.min.Z
+                if info["kind"] in ("taper", "freeform"):
+                    substantial = True
+                else:
+                    # 0.6, not 0.5: a floor fillet's Z span is exactly
+                    # its radius, and R2 on a 4 mm pocket is 0.5 — that
+                    # must NOT suppress the pocket (floating point
+                    # would flip it). A wall that is mostly round
+                    # (span > 60% of depth) does suppress.
+                    substantial = zspan > 0.6 * p["depth"]
+                if not substantial:
+                    continue
+                try:
+                    low_edge = min(f.edges(), key=lambda e: e.center().Z)
+                except Exception:
+                    continue
+                c = low_edge.center()
+                if abs(c.Z - p["z"]) > 0.05:
+                    continue
+                if dist_to_poly_boundary(c.X, c.Y, p["poly"]) < 0.1:
+                    p["suppressed"] = True
+                    flags.append(
+                        f"POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z {p['z']:.2f}, "
+                        f"depth {p['depth']:.2f} — {info['kind']} wall, Z span {zspan:.2f} mm")
+                    break
+    # A child pocket whose parent is suppressed has no surface to
+    # start from either.
+    for p in pockets:
+        if p.get("parent") is not None and p["parent"].get("suppressed"):
+            if not p["suppressed"]:
+                p["suppressed"] = True
+                flags.append(
+                    f"POCKET SUPPRESSED (parent pocket suppressed): floor Z {p['z']:.2f}, "
+                    f"depth {p['depth']:.2f} — its parent has non-vertical walls")
+
+    # floor Z -> layer name, for pockets that WILL be cut. A hole
+    # opening on one of these floors is drilled from that surface
+    # (the facing pocket runs first) — see the drill loop (BRA-14).
+    pocket_floor_layer = {}
+    for p in pockets:
+        if not p["suppressed"]:
+            pocket_floor_layer[round(p["z"], 3)] = _pocket_layer_name(p)
 
     # ---- profile: largest outer wire among ALL planar Z faces
     # A beveled / filleted top edge shrinks the top face, so the top
@@ -1004,6 +1181,15 @@ def main():
                         e0[k] = round(e0.get(k, 0.0) + v, 3)
                     elif k == "min_width_mm":
                         e0[k] = round(min(e0.get(k, v), v), 3)
+                    elif k == "corner_radius_mm":
+                        # tightest corner wins; None = no corners here
+                        cur = e0.get(k)
+                        if v is None:
+                            e0.setdefault(k, None)
+                        elif cur is None:
+                            e0[k] = v
+                        else:
+                            e0[k] = round(min(cur, v), 3)
             return
         d = {"layer": name, "operation": operation, "start_depth": round(start, 3),
              "cut_depth": round(cut, 3), "segment_count": len(segs)}
@@ -1014,7 +1200,13 @@ def main():
         _layer_index[name] = len(layers)
         layers.append(d)
 
-    # drills first
+    # drills first. A hole that opens on an intermediate face is NOT
+    # undrillable: face the stock down to that face first, then drill
+    # from there (BRA-14 — Brandon's point, and the real container's
+    # Bottom needs exactly this: its 8 blind holes open on the Z 8.00
+    # step face, 1.50 mm below the top). The facing pocket is an
+    # emitted layer, so the drill DEPENDS on it in cut order.
+    _surface_flags = set()
     for h in sorted(holes, key=lambda h: (h["kind"], h["dia"])):
         if h["kind"] == "thru":
             name = f"DRILL_D{fmt(h['dia'])}_THRU"
@@ -1027,88 +1219,103 @@ def main():
             add_layer(name, "drill", 0.0, depth,
                       [('circle', (h["cx"], h["cy"]), h["dia"] / 2)],
                       {"diameter": round(h["dia"], 3), "centre": [round(h["cx"], 3), round(h["cy"], 3)]})
+        elif h["kind"] == "internal" and round(h["z1"], 3) in pocket_floor_layer:
+            surf = pocket_floor_layer[round(h["z1"], 3)]
+            depth = h["z1"] - h["z0"]
+            start = zmax - h["z1"]
+            name = f"DRILL_D{fmt(h['dia'])}_D{fmt(depth)}_START{fmt(start)}"
+            add_layer(name, "drill", start, depth,
+                      [('circle', (h["cx"], h["cy"]), h["dia"] / 2)],
+                      {"diameter": round(h["dia"], 3), "centre": [round(h["cx"], 3), round(h["cy"], 3)],
+                       "depends_on": surf})
+            key = (round(h["dia"], 3), round(h["z1"], 3), surf)
+            if key not in _surface_flags:
+                _surface_flags.add(key)
+                flags.append(
+                    f"DRILL FROM SURFACE: dia {h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f}) "
+                    f"opens on the Z {h['z1']:.2f} face — {surf} faces it down first "
+                    f"(start depth {start:.2f} mm), then drill {depth:.2f} mm from there")
         else:
             flags.append(f"HOLE NOT FROM TOP ({h['kind']}): dia {h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f}) Z {h['z0']:.2f}..{h['z1']:.2f} — no toolpath emitted")
 
-    # pockets shallow -> deep
+    # pockets shallow -> deep (suppression was decided in the pre-pass
+    # above, so the drill loop already knows which floors exist)
     for p in pockets:
-        # Non-vertical walls: a pocket whose floor outline is ringed by a
-        # non-prismatic face (taper, cone, spline) must not be emitted as
-        # a vertical pocket at its floor size — that would cut the wrong
-        # shape. Flag it and suppress the layer instead. Found on the
-        # machined test (2026-11-08): a 10 deg tapered pocket was emitted
-        # as POCKET_D6.00 at its (smaller) floor outline.
-        p["suppressed"] = False
-        if p["poly"]:
-            # A wall face belongs to this pocket if its LOWEST edge lies on
-            # the pocket's floor outline — that edge is shared with the
-            # floor face. (Face-centre proximity is not enough: on the
-            # machined test the tapered pocket sits flush against Pocket A,
-            # and its wall's centre is 0.5 mm from Pocket A's outline too,
-            # which falsely suppressed Pocket A as well.)
-            for info in nonprism_info:
-                f = info["face"]
-                # A small floor fillet (Z span << pocket depth) does not
-                # make the pocket un-cuttable — the endmill leaves a
-                # sharp corner and the fillet becomes a post-process
-                # item (ball-nose) instead. A taper / freeform wall
-                # spanning most of the depth does suppress the pocket.
-                fb = f.bounding_box()
-                zspan = fb.max.Z - fb.min.Z
-                if info["kind"] in ("taper", "freeform"):
-                    substantial = True
-                else:
-                    # 0.6, not 0.5: a floor fillet's Z span is exactly
-                    # its radius, and R2 on a 4 mm pocket is 0.5 — that
-                    # must NOT suppress the pocket (floating point
-                    # would flip it). A wall that is mostly round
-                    # (span > 60% of depth) does suppress.
-                    substantial = zspan > 0.6 * p["depth"]
-                if not substantial:
-                    continue
-                try:
-                    low_edge = min(f.edges(), key=lambda e: e.center().Z)
-                except Exception:
-                    continue
-                c = low_edge.center()
-                if abs(c.Z - p["z"]) > 0.05:
-                    continue
-                if dist_to_poly_boundary(c.X, c.Y, p["poly"]) < 0.1:
-                    p["suppressed"] = True
-                    flags.append(
-                        f"POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z {p['z']:.2f}, "
-                        f"depth {p['depth']:.2f} — {info['kind']} wall, Z span {zspan:.2f} mm")
-                    break
         if p["suppressed"]:
             continue
-        if abs(p["start"]) < 0.005:
-            name = f"POCKET_D{fmt(p['depth'])}"
-        else:
-            name = f"POCKET_D{fmt(p['depth'])}_START{fmt(p['start'])}"
+        name = _pocket_layer_name(p)
         pbb = p["face"].bounding_box()
-        add_layer(name, "pocket", p["start"], p["cut"], p["segs"],
-                  {"floor_z": round(p["z"], 3), "depth_total": round(p["depth"], 3),
-                   "est": {"area_mm2": round(abs(poly_area(p["poly"])), 3) if p.get("poly") else 0.0,
-                           "min_width_mm": round(min(pbb.max.X - pbb.min.X, pbb.max.Y - pbb.min.Y), 3),
-                           "depth_mm": round(p["cut"], 3)}})
+        extra = {"floor_z": round(p["z"], 3), "depth_total": round(p["depth"], 3),
+                 "est": {"area_mm2": round(abs(poly_area(p["poly"])), 3) if p.get("poly") else 0.0,
+                         "min_width_mm": round(min(pbb.max.X - pbb.min.X, pbb.max.Y - pbb.min.Y), 3),
+                         "depth_mm": round(p["cut"], 3),
+                         "perimeter_mm": round(segs_perimeter(p["segs"]), 3),
+                         "corner_radius_mm": _pocket_corner_radius(p["segs"])}}
+        if p.get("parent") is not None:
+            # pocket-in-pocket: the child starts on the parent's floor,
+            # so the parent is cut first (BRA-14).
+            extra["depends_on"] = _pocket_layer_name(p["parent"])
+        add_layer(name, "pocket", p["start"], p["cut"], p["segs"], extra)
+        # Inner wires of the pocket floor: a hole opening or a deeper
+        # pocket's opening is a void below the floor (already tooled);
+        # an ISLAND is material rising above the floor (a rib / boss)
+        # and must be preserved — its outline goes into the DXF layer
+        # so VCarve pockets around it, and a child pocket nested
+        # inside an island gets its outline added too, re-opening the
+        # cut region inside the island (even-odd nesting). Without
+        # this, the real container's mating rib would be machined away
+        # (BRA-8, 2026-11-08).
+        island_polys = []
         for inner_segs, inner_poly in zip(p["inner"], p["inner_polys"]):
-            # inner wire is usually the opening of a deeper pocket
-            # (pocket-in-pocket) or a hole through the floor — both are
-            # already tooled as their own layer. Only flag true islands.
-            is_deeper_pocket = False
-            if inner_poly:
-                # centre of the inner wire is interior to the deeper
-                # pocket (boundary points fail ray-casting, so don't test them)
-                cx = sum(x for x, _ in inner_poly) / len(inner_poly)
-                cy = sum(y for _, y in inner_poly) / len(inner_poly)
-                for q in pockets:
-                    if q is p or not q["poly"]:
-                        continue
-                    if point_in_polygon(cx, cy, q["poly"]):
-                        is_deeper_pocket = True
+            if not inner_poly:
+                continue
+            # centre of the inner wire is interior to the deeper
+            # pocket (boundary points fail ray-casting, so don't test them)
+            cx = sum(x for x, _ in inner_poly) / len(inner_poly)
+            cy = sum(y for _, y in inner_poly) / len(inner_poly)
+            explained = None
+            # A deeper pocket's opening: the wire IS the pocket's
+            # outline (same bbox), not merely centred inside it. Centre
+            # containment alone misfires on a stepped face: the real
+            # container's Ø36 rib wire is centred on the Ø30 central
+            # pocket but is the rib's outer boundary, not the pocket's
+            # opening — it must reach the island test below, not be
+            # dismissed here. (BRA-8, 2026-11-08.)
+            for q in pockets:
+                if q is p or not q["poly"]:
+                    continue
+                if _same_bbox(inner_poly, q["poly"]):
+                    explained = "pocket"
+                    break
+            if explained is None:
+                xs = [x for x, _ in inner_poly]
+                ys = [y for _, y in inner_poly]
+                for h in holes:
+                    if (abs(cx - h["cx"]) < 0.1 and abs(cy - h["cy"]) < 0.1
+                            and abs((max(xs) - min(xs)) - h["dia"]) < 0.1
+                            and abs((max(ys) - min(ys)) - h["dia"]) < 0.1):
+                        explained = "hole"
                         break
-            if not is_deeper_pocket:
+            if explained is None and _wire_is_island(solids[0], inner_poly, p["z"]):
+                explained = "island"
+                island_polys.append(inner_poly)
+                add_layer(name, "pocket", p["start"], p["cut"], inner_segs)
+                flags.append(
+                    f"POCKET ISLAND at floor Z {p['z']:.2f} — a rib/boss rises above the floor "
+                    f"inside the pocket outline; its outline is in the DXF as an island and the "
+                    f"pocket clears around it (verify the island in VCarve)")
+            if explained is None:
                 flags.append(f"POCKET INNER WIRE at floor Z {p['z']:.2f} (island / hole through floor) — check report, inner wire not auto-tooled")
+        # A child pocket nested inside an island needs its outline in
+        # the parent's layer, or the slab above the child's start would
+        # never be cleared (the island blocks the parent's pocket and
+        # the child only cuts from its start depth down).
+        for q in pockets:
+            if q.get("parent") is not p or not q.get("segs"):
+                continue
+            qc = q["face"].center()
+            if any(point_in_polygon(qc.X, qc.Y, ipoly) for ipoly in island_polys):
+                add_layer(name, "pocket", p["start"], p["cut"], q["segs"])
 
     # through cuts (slots etc.)
     for i, tc in enumerate(through_cuts):
@@ -1169,6 +1376,14 @@ def main():
         else:
             flags.append(f"TOOL PLAN: {tool_plan['error']} — no tool recommendations; "
                          "gadget falls back to its TOOLS table")
+    else:
+        # No plan (multi_part plans the merged job, or --no-toolplan):
+        # still order the layers so dependencies are respected and the
+        # profile is last — the manifest is cut in list order.
+        layers, _dep_warn = _tp.order_entries(
+            layers, lambda e: e.get("tool_id") or e["layer"])
+        for w in _dep_warn:
+            flags.append(f"CUT ORDER: {w}")
     if args.mode == "check":
         print("mode=check: classification only, no DXF / manifest written")
         print(f"layers would be: {len(layers)}, holes: {len(holes)}, pockets: {len(pockets)}, flags: {len(flags)}")

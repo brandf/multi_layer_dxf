@@ -1,0 +1,7 @@
+# dxf: square.dxf
+# plan: B — 1 tool(s), 0 change(s), est 2.5 min (cutting 2.5 + changes 0.0)
+# tool: EM4.76|endmill|4.7625|1|23.81|7.94|20000|2.381|1.905
+# tabs: PROFILE_THRU|4|5.0|1.0
+DRILL_D10.00_THRU|drill|0.000|10.000||EM4.76|0.0|bore
+POCKET_D5.00|pocket|0.000|5.000||EM4.76|0.0|endmill
+PROFILE_THRU|profile|0.000|10.000||EM4.76|0.0|endmill

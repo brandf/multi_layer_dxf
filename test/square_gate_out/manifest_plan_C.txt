@@ -1,0 +1,10 @@
+# dxf: square.dxf
+# plan: C — 3 tool(s), 3 change(s), est 9.5 min (cutting 3.5 + changes 6.0)
+# tool: D10.00|drill|10.0000|1|10.0|10.0|20000|3.0|0.0
+# tool: EM12.70|endmill|12.7000|2|30.0|10.0|20000|3.0|5.08
+# tool: EM1.59|endmill|1.5875|3|8.0|2.67|20000|0.794|0.635
+# tabs: PROFILE_THRU|4|5.0|1.0
+DRILL_D10.00_THRU|drill|0.000|10.000||D10.00|0.0|drill
+POCKET_D5.00|pocket|0.000|5.000||EM12.70|0.5|rough
+POCKET_D5.00|pocket|0.000|5.000||EM1.59|0.0|finish
+PROFILE_THRU|profile|0.000|10.000||EM12.70|0.0|endmill

@@ -236,6 +236,10 @@ def main():
             L2 = dict(L)
             L2["layer"] = f"{prefix}__{L['layer']}"
             L2["part"] = prefix
+            # Cut-order dependencies name a layer in the same part —
+            # prefix them too, or the merged plan cannot resolve them.
+            if L2.get("depends_on"):
+                L2["depends_on"] = f"{prefix}__{L2['depends_on']}"
             combined_layers.append(L2)
         combined_flags.extend(f"[{prefix}] {f}" for f in man["flags"])
         p_out = {

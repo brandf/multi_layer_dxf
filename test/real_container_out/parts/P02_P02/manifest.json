@@ -1,0 +1,194 @@
+{
+  "source_step": "test/real_container_out/parts/P02_P02.step",
+  "units": "mm",
+  "stock": {
+    "x_min": 56.0,
+    "y_min": -0.0,
+    "x_max": 102.0,
+    "y_max": 46.0,
+    "z_min": -0.0,
+    "z_max": 8.0,
+    "thickness": 8.0
+  },
+  "z_top": 8.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D2.25_D1.55",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 1.55,
+      "segment_count": 8,
+      "centres": [
+        [
+          58.5,
+          23.0
+        ],
+        [
+          64.5,
+          8.5
+        ],
+        [
+          64.5,
+          37.5
+        ],
+        [
+          79.0,
+          2.5
+        ],
+        [
+          79.0,
+          43.5
+        ],
+        [
+          93.5,
+          8.5
+        ],
+        [
+          93.5,
+          37.5
+        ],
+        [
+          99.5,
+          23.0
+        ]
+      ],
+      "diameter": 2.25,
+      "est": {
+        "hole_count": 8,
+        "hole_dia_mm": 2.25,
+        "depth_mm": 1.55
+      }
+    },
+    {
+      "layer": "POCKET_D1.50",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 1.5,
+      "segment_count": 1,
+      "floor_z": 6.5,
+      "depth_total": 1.5,
+      "est": {
+        "area_mm2": 972.0,
+        "min_width_mm": 36.0,
+        "depth_mm": 1.5,
+        "perimeter_mm": 113.097,
+        "corner_radius_mm": 18.0
+      }
+    },
+    {
+      "layer": "POCKET_D5.00_START1.50",
+      "operation": "pocket",
+      "start_depth": 1.5,
+      "cut_depth": 3.5,
+      "segment_count": 1,
+      "floor_z": 3.0,
+      "depth_total": 5.0,
+      "est": {
+        "area_mm2": 675.0,
+        "min_width_mm": 30.0,
+        "depth_mm": 3.5,
+        "perimeter_mm": 94.248,
+        "corner_radius_mm": 15.0
+      },
+      "depends_on": "POCKET_D1.50"
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 8.0,
+      "segment_count": 1,
+      "est": {
+        "perimeter_mm": 144.513,
+        "depth_mm": 8.0
+      }
+    }
+  ],
+  "holes": [
+    {
+      "cx": 58.5,
+      "cy": 23.0,
+      "dia": 2.25,
+      "z0": 6.45,
+      "z1": 8.0000002,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 64.5,
+      "cy": 8.5,
+      "dia": 2.25,
+      "z0": 6.450000000000002,
+      "z1": 8.000000200000002,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 64.5,
+      "cy": 37.5,
+      "dia": 2.25,
+      "z0": 6.449999999999998,
+      "z1": 8.000000199999999,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 79.0,
+      "cy": 2.5,
+      "dia": 2.25,
+      "z0": 6.450000000000002,
+      "z1": 8.000000200000004,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 79.0,
+      "cy": 43.5,
+      "dia": 2.25,
+      "z0": 6.449999999999998,
+      "z1": 8.000000199999999,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 93.5,
+      "cy": 8.5,
+      "dia": 2.25,
+      "z0": 6.450000000000002,
+      "z1": 8.000000200000002,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 93.5,
+      "cy": 37.5,
+      "dia": 2.25,
+      "z0": 6.449999999999998,
+      "z1": 8.000000199999999,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 99.5,
+      "cy": 23.0,
+      "dia": 2.25,
+      "z0": 6.45,
+      "z1": 8.0000002,
+      "kind": "blind_top"
+    }
+  ],
+  "pocket_count": 2,
+  "post_process": [
+    {
+      "feature": "sculpted surface",
+      "location": "outer bottom edge",
+      "params": "GeomAbs_SurfaceType.GeomAbs_BSplineSurface",
+      "method": "cnc_3d",
+      "tool": "ball-nose endmill, 3D rough + finish from STL",
+      "step": "Sculpted surface: 3D rough + finish from an STL in VCarve, or hand shaping.",
+      "cnc_alternative": null
+    }
+  ],
+  "flags": [
+    "PROFILE OUTLINE DIFFERS top vs bottom by 45% (top 1587 mm2, bottom 867 mm2) \u2014 profile taken from Z 8.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "POST-PROCESS [cnc_3d]: sculpted surface GeomAbs_SurfaceType.GeomAbs_BSplineSurface at outer bottom edge \u2014 Sculpted surface: 3D rough + finish from an STL in VCarve, or hand shaping."
+  ]
+}

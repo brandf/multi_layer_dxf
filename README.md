@@ -315,6 +315,68 @@ the recommendation plus fallback plans:
   (small tools go slower); stepdown is capped at half the tool
   diameter. Override any of it in `config.json` → `toolplan`.
 
+## Rough + finish, surface drills, profile last (built 2026-11-08, BRA-14)
+
+Three CAM-practice rules Brandon asked about, all in the plan now:
+
+- **Rough + finish (pockets only).** A square pocket roughed with
+  a 1/4" endmill leaves R3.18 corners. The planner offers a finish
+  variant: rough with the big tool leaving `finish_allowance_mm`
+  (default 0.5 mm) on the walls, then a finish pass with the
+  smallest smaller endmill in the plan's tool set. It is a plan
+  variant, never the fastest (the extra tool change costs more than
+  the corner is worth on most parts), so it is always listed as an
+  alternative — and the fastest finish variant is appended as an
+  extra plan if none made the top three. The report shows the
+  corner radius each plan achieves. Set
+  `toolplan.max_corner_radius_mm` to make it a hard gate: any pocket
+  whose final tool would round corners beyond that radius must get
+  a finish pass, and plans that cannot achieve it are dropped.
+  Only tool-imposed radius counts — a round pocket's design radius
+  is not gated. Profiles are excluded: Brandon's example was a
+  square pocket.
+- **Face down first, then drill.** A hole that opens on a pocket
+  floor (not on the top face) is now a surface drill:
+  `DRILL_D{dia}_D{depth}_START{start}` with `depends_on` pointing
+  at the facing pocket, so the order is facing pocket first, drill
+  from the new surface second. The real container's Bottom needed
+  exactly this: its eight Ø2.25 blind holes open on the Z 8.00
+  step face, 1.55 mm deep, drilled after the 1.50 mm facing pocket.
+- **Profile last is a hard invariant.** Cut order is a dependency
+  sort: facing pocket before its surface drill, parent pocket
+  before a pocket-in-pocket child, rough before finish — then
+  (profile-last, operation rank drill → pocket → profile, tool) to
+  minimise changes. A post-sort partition forces every profile to
+  the end regardless of what else reordered. Nothing follows the
+  profile: after it the part hangs on its tabs. This was already
+  the practice; it is now enforced even when surface drills and
+  finish passes reorder everything else.
+
+## Pocket islands (built 2026-11-08, BRA-8)
+
+A pocket floor can have an inner wire that is not a hole or a
+deeper pocket — it can be a rib or boss rising above the floor.
+The classifier tests each inner wire with a point-inside check
+just above the floor: material there means island. The island's
+outline goes into the pocket's DXF layer so VCarve pockets around
+it, and a child pocket nested inside an island gets its outline
+added too, re-opening the cut region inside the island. The real
+container's Bottom has exactly this: its mating rib (r15..18)
+rises 1.5 mm above the Z 8.00 step face, and a plain Ø46 pocket
+would have machined it away. The Top has the mirror recess, not a
+rib, so its facing pocket has no island. See VALIDATION.md §1.
+
+## Two-sided parts (backlog, BRA-13 — not built)
+
+Two-sided work (drill holes from both sides, flip the part) is
+not supported yet and is not needed for the container. Design
+sketch, in Linear BRA-13: assign each feature a side (A top / B
+bottom; side-B features are today's blind_bottom / internal
+flags), cut side A (no profile), flip on a registered fixture
+(dowel pins), cut side B, profile last across the flip; side-B DXF
+mirrored about the flip axis. Registration accuracy is the hard
+part; it needs a real two-sided test part before it is built.
+
 ## Quick start (Python side)
 
 Linux / Mac:

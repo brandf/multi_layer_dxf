@@ -1,0 +1,345 @@
+{
+  "source_step": "test/square.step",
+  "units": "mm",
+  "stock": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 80.0,
+    "y_max": 60.0,
+    "z_min": 0.0,
+    "z_max": 10.0,
+    "thickness": 10.0
+  },
+  "z_top": 10.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D10.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          65.0,
+          30.0
+        ]
+      ],
+      "diameter": 10.0,
+      "est": {
+        "hole_count": 1,
+        "hole_dia_mm": 10.0,
+        "depth_mm": 10.0
+      }
+    },
+    {
+      "layer": "POCKET_D5.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 5.0,
+      "segment_count": 4,
+      "floor_z": 5.0,
+      "depth_total": 5.0,
+      "est": {
+        "area_mm2": 1594.444,
+        "min_width_mm": 40.0,
+        "depth_mm": 5.0,
+        "perimeter_mm": 160.0,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 4,
+      "est": {
+        "perimeter_mm": 280.0,
+        "depth_mm": 10.0
+      }
+    }
+  ],
+  "holes": [
+    {
+      "cx": 65.0,
+      "cy": 30.0,
+      "dia": 10.0,
+      "z0": 0.0,
+      "z1": 10.0,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 1,
+  "post_process": [],
+  "flags": [],
+  "tool_plan": {
+    "plans": [
+      {
+        "variant": "finish",
+        "finish_pockets": 1,
+        "dependency_warnings": [],
+        "total_seconds": 469.1,
+        "cutting_seconds": 229.1,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "EM6.35",
+            "kind": "endmill",
+            "dia_mm": 6.35,
+            "name": "End Mill 1/4 in (6.35 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 2.54,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.59",
+            "kind": "endmill",
+            "dia_mm": 1.5875,
+            "name": "End Mill 1/16 in (1.59 mm)",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.794,
+            "stepover_mm": 0.635,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D10.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM6.35",
+            "kind": "bore",
+            "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
+            "seconds": 5.7,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R3.17 mm)",
+            "seconds": 35.1,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM1.59",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.79 mm",
+            "seconds": 147.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 41.3,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "A"
+      },
+      {
+        "variant": "finish",
+        "finish_pockets": 1,
+        "dependency_warnings": [],
+        "total_seconds": 532.3,
+        "cutting_seconds": 292.3,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "EM4.76",
+            "kind": "endmill",
+            "dia_mm": 4.7625,
+            "name": "End Mill 3/16 in (4.76 mm)",
+            "feed_mm_s": 23.81,
+            "plunge_mm_s": 7.94,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 2.381,
+            "stepover_mm": 1.905,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.59",
+            "kind": "endmill",
+            "dia_mm": 1.5875,
+            "name": "End Mill 1/16 in (1.59 mm)",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.794,
+            "stepover_mm": 0.635,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D10.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM4.76",
+            "kind": "bore",
+            "note": "bore with End Mill 3/16 in (4.76 mm) (no drill in this plan)",
+            "seconds": 8.4,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM4.76",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R2.38 mm)",
+            "seconds": 73.1,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM1.59",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.79 mm",
+            "seconds": 147.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM4.76",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 63.8,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "B"
+      },
+      {
+        "variant": "finish",
+        "finish_pockets": 1,
+        "dependency_warnings": [],
+        "total_seconds": 570.6,
+        "cutting_seconds": 210.6,
+        "tool_changes": 3,
+        "change_seconds": 360.0,
+        "tools": [
+          {
+            "id": "D10.00",
+            "kind": "drill",
+            "dia_mm": 10.0,
+            "name": "Drill 10.00 mm",
+            "feed_mm_s": 10.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 1
+          },
+          {
+            "id": "EM12.70",
+            "kind": "endmill",
+            "dia_mm": 12.7,
+            "name": "End Mill 1/2 in (12.70 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 5.08,
+            "tool_number": 2
+          },
+          {
+            "id": "EM1.59",
+            "kind": "endmill",
+            "dia_mm": 1.5875,
+            "name": "End Mill 1/16 in (1.59 mm)",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.794,
+            "stepover_mm": 0.635,
+            "tool_number": 3
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D10.00_THRU",
+            "operation": "drill",
+            "tool_id": "D10.00",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 3.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM12.70",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R6.35 mm)",
+            "seconds": 18.6,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM1.59",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.79 mm",
+            "seconds": 147.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 41.3,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "C"
+      }
+    ],
+    "error": null,
+    "chosen": "A"
+  }
+}
