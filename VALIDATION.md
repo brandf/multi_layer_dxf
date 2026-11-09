@@ -88,7 +88,7 @@ facing pocket correctly has one circle (Ø36, the counterbore).
 .venv/bin/python -c "
 import ezdxf
 from collections import Counter
-doc = ezdxf.readfile('test/real_container_out/container.dxf')
+doc = ezdxf.readfile('test/real_container_out/real_container.dxf')
 print(Counter(e.dxf.layer for e in doc.modelspace()))
 "
 ```
@@ -115,7 +115,7 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step \
     -o test/external/kookabus_out --mode check
 # expect: no crash; post-BRA-14 layers 12 / 10 / 7, holes 18 / 5 / 7,
-# flags 30 / 67 / 9 (107 total, incl. 4 POCKET ISLAND flags — bosses
+# flags 30 / 67 / 9 (106 total, incl. 4 POCKET ISLAND flags — bosses
 # rising from pocket floors, plausible on an enclosure). Pre-BRA-14
 # numbers were 11 / 8 / 7 and 39 / 72 / 12: BRA-14's surface drills
 # added layers and its hole-floor fix removed bogus pockets and their
@@ -173,9 +173,15 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # both drills, profiles last. Orientation search (BRA-17): Bottom
 # best +Z (score 6.9) over -Z (122.8); Top best -Z (4.7) over +Z
 # (122.5) — the same flip the explicit parts.json gives. With
-# --material 150x100x10 the X/Y orientations are pruned (height
-# 46.00 > thickness 10.00); with --material 150x100x5 the run
-# fails with a named error (smallest dimension 9.50 > 5.00), exit 1.
+# --material 170x100x10 the X/Y orientations are pruned (height
+# 46.00 > thickness 10.00); with --material 150x100x10 the run now
+# fails at PACKING (named error, exit 1) instead: the 1/2 in profile
+# tools need 46 + 30.4 + 46 = 122.4 mm of usable width and the sheet
+# only has 110 — the old 10 mm gap would have let the two profile
+# cuts overlap. 170x100x10 is the smallest fitting sheet for the
+# default plan (or a smaller clamp margin / smaller profile tool).
+# With --material 150x100x5 the run fails with a named error
+# (smallest dimension 9.50 > 5.00), exit 1.
 
 # Eight unrelated parts (generalisation, verified 2026-11-08;
 # BRA-15 re-verified 2026-11-09; BRA-17 re-verified 2026-11-09):
@@ -192,6 +198,55 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # (was 1 change / 9.7 min under the heuristic — the correct
 # orientation gives cleaner layers). The search runs the classifier
 # up to 6 times per part, so this takes ~4 minutes.
+
+# Material size, packing, clamp margin, pins (BRA-16, verified 2026-11-09;
+# tool-dependent spacing verified 2026-11-09):
+.venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_bra16_out --auto --material 500x300x19
+# expect: 8 parts, 22 layers, 4 flags (same classification as the
+# no-material run); usable area 460 x 260 mm (500x300 minus 20 mm
+# clamp margin); gaps are max(10, 12.7 + 12.7 + 5) = 30.4 mm (every
+# part's profile tool is the 1/2 in endmill); 6 parts in row 1
+# (P06 rotated 90 deg, 20 x 80, at sheet x 452.0), P07 + P08 in row 2
+# at sheet y 130.4 (usable y 110.4); manifest carries material,
+# clamp_margin_mm, usable_area_mm, layout (per-part x/y/w/d/rotate_z
+# + profile_tool_dia_mm), spacing (rule, gap_mm, web_min_mm,
+# pin_clearance_mm, check) and suggested_material: null.
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_mat_out --auto --material 170x100x10
+# expect: 2 parts, 8 layers, 6 flags; X/Y orientations pruned
+# (height 46.00 > thickness 10.00); Bottom at sheet (20, 20), Top at
+# (96.4, 20) — 30.4 mm gap.
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_small_out --auto --material 150x100x5
+# expect: exit 1, named error ("no orientation fits material
+# 150.0 x 100.0 x 5.0 mm: smallest part dimension 9.50 mm; ..."),
+# and NO test/real_container_small_out directory is created —
+# nothing is written on a fit failure.
+.venv/bin/python step_to_vcarve.py test/test_part.step -o test/out_mat --mode full --material 500x300x19
+# expect: passes, 8 layers, 6 holes, 3 pockets, 1 flag (same as the
+# no-material run); manifest carries material + suggested null.
+.venv/bin/python step_to_vcarve.py test/test_part.step -o test/out_small --mode full --material 30x30x5
+# expect: exit 1, "ERROR: part does not fit material 30.0 x 30.0 x
+# 5.0 mm: height 12.00 mm > material thickness 5.00 mm", and the
+# out dir stays empty (no DXF/manifest written).
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_pins_out --auto --parts test/bra16_twosided.json --material 300x200x10
+# expect: 2 parts, 8 layers, 6 flags; manifest registration_pins =
+# [(276.0, 24.0), (24.0, 176.0)] D6, keep-out radius 18.7 mm
+# (= 12.7 mm profile tool + 3.0 mm pin radius + 3.0 mm clearance) —
+# the widest-separated clear pair inside the usable area.
+# Suggested sizes (no material given): two_part -> 200 x 80 x 10 mm;
+# real container -> 170 x 90 x 10 mm; eight parts -> 690 x 100 x 15 mm
+# (packed bounds + 20 mm clamp margin, rounded up to 10 mm).
+# Tool-dependent spacing (BRA-16, built 2026-11-09): gaps are
+# max(gap_mm, D_A + D_B + web_min_mm) from the per-part profile tools
+# (planner fit rule, computed before packing); the chosen plan's real
+# profile tools are re-checked against the packed gaps before
+# anything is written. A 150x100x10 sheet no longer fits the real
+# container with the default 1/2 in plan (needs 122.4 mm usable
+# width, has 110) — see the 170x100x10 check above. The layout is
+# computed for the per-part fit-rule maxima, which bound every
+# plan's tools from above, so it is valid for the chosen plan and
+# every fallback; a future step could pack from the chosen plan's
+# actual tools instead (tighter when the plan uses a smaller
+# endmill) — not built, see the BRA-16 issue comment 2026-11-09.
 
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"

@@ -502,8 +502,38 @@ each part's CAM orientation by measurement, not by a heuristic
   work) and the pruned orientations with reasons are recorded per
   part in the manifest (`orientation_search`) and the report, so a
   wrong pick is visible, not silent.
-- Layout: bottom-align (Zmin = 0), pack side by side in a row,
-  largest footprint first, gap from config (default 10 mm).
+- Layout (BRA-16, `layout.py`): bottom-align (Zmin = 0), shelf-pack
+  side by side — fill rows left-to-right, wrap when full, a part
+  may rotate 90 deg in Z to fit (recorded as `pack_rotate_z_deg`
+  in the manifest). The gap between two parts is tool-dependent,
+  not fixed: each part's profile endmill is computed first with the
+  planner fit rule (`toolplan.profile_tool_diameter` — an outer
+  profile takes the largest standard endmill, a through-cut slot
+  the largest that fits it), then gaps are `max(gap_mm, D_A + D_B
+  + web_min)` with `web_min_mm` default 5 mm (`gap_mm` stays as the
+  floor); the same rule sets the gap between rows, the clamp-margin
+  check (the margin must cover the largest profile tool + `web_min`,
+  or the kerf eats the sheet edge), and registration-pin clearance
+  (pin centre to a part outline ≥ D_p + pin radius +
+  `pin_clearance_mm`, default 3 mm). The chosen merged plan's real
+  profile tools are re-checked against the packed gaps before
+  anything is written — switching plans re-checks the fit.
+  With a material size given (`--material WxDxT`, or config
+  `material` / `stock_size_mm`), parts sit only inside the usable
+  area — material minus `clamp_margin_mm` (default 20 mm) on every
+  side — and the run fails with a named error (non-zero exit, no
+  DXF/manifest written) if a part is taller than the thickness, a
+  footprint does not fit the usable area, or the packed layout
+  overflows it. Without a material size the layout is a single row
+  and the report suggests a size (packed bounds + clamp margin,
+  rounded up to the next 10 mm). Single-part runs take `--material`
+  too (same fit-or-error, no clamp margin — there is no layout).
+  Two-sided jobs (`"two_sided": true` in parts.json/config)
+  reserve two registration-pin positions in the manifest
+  (`registration_pins`: x/y, diameter, keep-out radius) — clear of
+  every part, inside the usable area, the widest-separated pair
+  available; the keep-out radius is the largest profile tool +
+  pin radius + clearance; BRA-13 consumes them.
 - `parts.json` entries still override per part (any flip/rotate
   key, or `"auto": false`).
 - Single-part: `step_to_vcarve.py --auto-orient` still uses the

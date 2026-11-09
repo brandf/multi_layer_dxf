@@ -53,12 +53,23 @@ Layout / alignment (added for the container Top/Bottom, 2026-11-08):
     that part's own height; in VCarve set the job material to the
     thicker part (or cut each part from its own thickness of stock
     side by side on the same bed — see README).
-  - layout="side_by_side": parts are laid out in a row in XY with
-    gap_mm between them, Ymin aligned to 0. This is essential when
-    the scene is a closed assembly: Top and Bottom share the same
-    XY footprint in Onshape (concentric), so preserving scene XY
+  - layout="side_by_side": parts are shelf-packed in XY (BRA-16,
+    layout.py: fill rows left-to-right, wrap when full, a part may
+    rotate 90 deg in Z to fit — recorded as pack_rotate_z_deg).
+    The gap between two parts is tool-dependent, not fixed: each
+    part's profile endmill is computed first (planner fit rule),
+    then gaps are max(gap_mm, D_A + D_B + web_min) so the tabs
+    keep a web to hold onto; the same rule sets row gaps, the
+    clamp-margin check, and registration-pin clearance. With a
+    material size given, parts sit only inside the usable area
+    (material minus clamp_margin_mm, default 20 mm, on every
+    side); without one, the layout is a single row and the report
+    suggests a material size. The run fails with a named error if
+    the layout cannot fit. Side by side is essential when the
+    scene is a closed assembly: Top and Bottom share the same XY
+    footprint in Onshape (concentric), so preserving scene XY
     would put two profiles on top of each other in the DXF.
-    layout="scene" preserves scene XY instead (use it when the
+  - layout="scene" preserves scene XY instead (use it when the
     scene is already laid out flat for cutting).
 If --parts is omitted, every part is classified as-is, labelled
 P01, P02, ... — no flip, no rotation. That is the safe default:
@@ -110,12 +121,22 @@ def main():
     layout = parts_cfg.get("layout", "side_by_side")
     gap = float(parts_cfg.get("gap_mm", 10))
     auto_mode = bool(args.auto or parts_cfg.get("auto", False))
-    main._layout_x = 0.0
-
-    outdir = args.out
-    outdir.mkdir(parents=True, exist_ok=True)
-    parts_dir = outdir / "parts"
-    parts_dir.mkdir(exist_ok=True)
+    # Layout (BRA-16): clamp margin + two-sided pin reservation.
+    # parts.json wins, then config, then defaults (layout.py).
+    import layout as _layout
+    import toolplan as _tp
+    margin = _layout.clamp_margin_mm(cfg, parts_cfg)
+    usable = _layout.usable_area(material, margin)
+    web_min = _layout.web_min_mm(cfg, parts_cfg)
+    pin_clearance = _layout.pin_clearance_mm(cfg, parts_cfg)
+    two_sided = bool(parts_cfg.get("two_sided", cfg.get("two_sided", False)))
+    pin_dia = float(cfg.get("pin_diameter_mm",
+                            parts_cfg.get("pin_diameter_mm",
+                                          _layout.DEFAULT_PIN_DIAMETER_MM)))
+    if material:
+        print(f"clamp margin: {margin:.1f} mm, usable area: "
+              f"{usable[0]:.1f} x {usable[1]:.1f} mm"
+              + (" (two-sided: pin positions reserved)" if two_sided else ""))
 
     from build123d import import_step, Axis
     imported = import_step(str(args.step))
@@ -165,16 +186,29 @@ def main():
         items = sorted(items, key=_footprint, reverse=True)
     print(f"{len(solids)} part(s) in STEP, auto={auto_mode}")
 
-    combined_layers = []
-    combined_flags = []
-    parts_out = []
-    all_dxf_layers = {}  # prefixed layer -> segments (via ezdxf merge below)
+    from build123d import Location
+    def rot_about_centre(obj, axis, deg):
+        # Rotate about the BOUNDING-BOX centre, not obj.center()
+        # (the volume centre). A pocket / hole shifts the volume
+        # centre, so rotating about it would shift the part by
+        # 2x that offset after the flip — the lid in the first
+        # test came out Z 0.34..8.34 instead of 0..8 for exactly
+        # this reason. Bbox centre is the geometric centre.
+        # build123d rotate is about the origin, so translate to
+        # origin, rotate, translate back.
+        bb = obj.bounding_box()
+        ctr = (bb.min + bb.max) / 2
+        obj = obj.moved(Location((-ctr.X, -ctr.Y, -ctr.Z), (0, 0, 0)))
+        obj = obj.rotate(axis, deg)
+        obj = obj.moved(Location((ctr.X, ctr.Y, ctr.Z), (0, 0, 0)))
+        return obj
 
-    import ezdxf
-    combined_doc = ezdxf.new("R2010", setup=True)
-    combined_doc.units = 4
-    msp = combined_doc.modelspace()
-
+    # ---- prepare phase (BRA-16): apply the orientation search
+    # result + the part's own transform, then measure the footprint
+    # and height. NOTHING is classified or written yet, so a
+    # fit-or-error failure here fails the run before any output
+    # exists (no DXF / manifest written).
+    prepared = []
     for i, (solid, search_res) in enumerate(items):
         entry = part_entries[i] if i < len(part_entries) else {}
         label = entry.get("label", f"P{i+1:02d}")
@@ -183,9 +217,6 @@ def main():
         flip_y = bool(entry.get("flip_y", False))
         rot_z = float(entry.get("rotate_z_deg", 0))
 
-        # Orientation search result (BRA-17, run up front): the best
-        # rotated solid replaces the scene solid before the part's
-        # own transform / layout. Explicit entries skip the search.
         auto_search = None
         if search_res is not None:
             auto_search = {
@@ -199,8 +230,6 @@ def main():
                 "pruned": search_res["pruned"],
             }
             solid = search_res["best"]["solid"]
-            # Print here, not in the up-front search: the final label
-            # (prefix) is only known after the footprint sort.
             _best = search_res["best"]
             _others = "; ".join(f"{e['orientation']} {e['score']:.1f}"
                                 for e in search_res["ranked"] if e is not _best)
@@ -211,48 +240,205 @@ def main():
                   + (f" over {_others}" if _others else "")
                   + (f"; pruned {_pruned}" if _pruned else ""))
 
-        # transform about the part's own centre, in a copy
         s = solid
-        c = s.center()
-        # build123d rotate is about the origin, so translate to origin,
-        # rotate, translate back — per axis, in order X, Y, then Z
-        from build123d import Location
-        def rot_about_centre(obj, axis, deg):
-            # Rotate about the BOUNDING-BOX centre, not obj.center()
-            # (the volume centre). A pocket / hole shifts the volume
-            # centre, so rotating about it would shift the part by
-            # 2x that offset after the flip — the lid in the first
-            # test came out Z 0.34..8.34 instead of 0..8 for exactly
-            # this reason. Bbox centre is the geometric centre.
-            bb = obj.bounding_box()
-            ctr = (bb.min + bb.max) / 2
-            obj = obj.moved(Location((-ctr.X, -ctr.Y, -ctr.Z), (0, 0, 0)))
-            obj = obj.rotate(axis, deg)
-            obj = obj.moved(Location((ctr.X, ctr.Y, ctr.Z), (0, 0, 0)))
-            return obj
         if flip_x:
             s = rot_about_centre(s, Axis.X, 180)
         if flip_y:
             s = rot_about_centre(s, Axis.Y, 180)
         if rot_z:
             s = rot_about_centre(s, Axis.Z, rot_z)
+        bb = s.bounding_box()
+        fw = bb.max.X - bb.min.X
+        fd = bb.max.Y - bb.min.Y
+        height = bb.max.Z - bb.min.Z
+        if material and height > material["thickness"] + _layout.TOL_MM:
+            print(f"ERROR: part {prefix} height {height:.2f} mm > material thickness "
+                  f"{material['thickness']:.2f} mm "
+                  f"(overshoot {height - material['thickness']:.2f} mm) — "
+                  f"no orientation / fit for this material", file=sys.stderr)
+            return 1
+        if usable is not None:
+            try:
+                _layout.check_fits_usable(prefix, fw, fd, usable[0], usable[1])
+            except _layout.PackError as e:
+                print(f"ERROR: {e}", file=sys.stderr)
+                return 1
+        prepared.append({"entry": entry, "label": label, "prefix": prefix,
+                         "flip_x": flip_x, "flip_y": flip_y, "rot_z": rot_z,
+                         "solid": s, "auto_search": auto_search,
+                         "footprint": (fw, fd), "height": height})
 
-        # bottom-align + side-by-side layout (see module docstring)
+    # ---- profile tools first (BRA-16 spacing): classify each part
+    # once at the origin (manifest only) so the packer knows the
+    # profile endmill diameter before placing anything. The tool
+    # does not change under a Z rotation or a translation, so the
+    # pre-pass diameter holds for the placed part. Only needed for
+    # side-by-side packing; scene layout keeps scene XY and needs
+    # no gaps.
+    profile_dias = {}
+    if layout == "side_by_side":
+        import tempfile
+        from build123d import export_step as _export_step
+        with tempfile.TemporaryDirectory(prefix="profile_tools_") as tmp:
+            tmp = Path(tmp)
+            for p in prepared:
+                step_path = tmp / f"{p['prefix']}.step"
+                _export_step(p["solid"], str(step_path))
+                pre_out = tmp / f"{p['prefix']}_out"
+                cmd = [sys.executable, str(Path(__file__).parent / "step_to_vcarve.py"),
+                       str(step_path), "-o", str(pre_out),
+                       "--mode", "manifest", "--min-tool", str(args.min_tool),
+                       "--no-toolplan"]
+                if args.config:
+                    cmd += ["--config", str(args.config)]
+                if args.only:
+                    cmd += ["--only", args.only]
+                r = subprocess.run(cmd, capture_output=True, text=True)
+                if r.returncode != 0:
+                    print(f"ERROR: profile-tool pre-pass failed for {p['prefix']}:\n"
+                          f"{r.stdout}\n{r.stderr}", file=sys.stderr)
+                    return r.returncode
+                man = json.loads((pre_out / "manifest.json").read_text())
+                d = _tp.profile_tool_diameter(man["layers"], cfg)
+                profile_dias[p["prefix"]] = d
+                p["profile_tool_dia_mm"] = d
+                if d is not None:
+                    print(f"profile tool [{p['prefix']}]: {d:.2f} mm endmill")
+                else:
+                    print(f"profile tool [{p['prefix']}]: none (no profile layers) "
+                          f"— gaps use gap_mm")
+        # Part-to-edge (BRA-16 spacing rule): the clamp margin must
+        # cover the largest profile tool + the edge margin, or the
+        # kerf eats the sheet edge. Fails before any output exists.
+        if material:
+            edge_violation = _layout.check_edge_clearance(profile_dias, margin, web_min)
+            if edge_violation:
+                print(f"ERROR: {edge_violation}", file=sys.stderr)
+                return 1
+
+    # ---- pack phase (BRA-16): shelf packing inside the usable
+    # area (material minus clamp margin). Unbounded when no material
+    # is given: a single row, exactly the old behaviour, so the
+    # regressions do not move.
+    placements = None
+    if layout == "side_by_side":
+        rects = [{"name": p["prefix"], "w": p["footprint"][0], "d": p["footprint"][1],
+                  "tool_dia": profile_dias.get(p["prefix"])}
+                 for p in prepared]
+        try:
+            placements = _layout.pack_shelf(
+                rects, gap,
+                max_w=usable[0] if usable else None,
+                max_d=usable[1] if usable else None,
+                web_min_mm=web_min)
+        except _layout.PackError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 1
+        for p, pl in zip(prepared, placements):
+            p["placement"] = pl
+            p["pack_rot_z"] = pl["rotate_z"]
+        pw, pd = _layout.packed_bounds(placements)
+        print(f"layout: shelf-packed {len(placements)} part(s) into "
+              f"{pw:.1f} x {pd:.1f} mm"
+              + (f" of usable {usable[0]:.1f} x {usable[1]:.1f} mm" if usable else ""))
+    else:  # layout == "scene": keep scene XY; check the union fits
+        for p in prepared:
+            p["placement"] = None
+            p["pack_rot_z"] = 0
+        if usable is not None:
+            xs = [p["solid"].bounding_box().min.X for p in prepared]
+            xe = [p["solid"].bounding_box().max.X for p in prepared]
+            ys = [p["solid"].bounding_box().min.Y for p in prepared]
+            ye = [p["solid"].bounding_box().max.Y for p in prepared]
+            uw, ud = max(xe) - min(xs), max(ye) - min(ys)
+            if uw > usable[0] + _layout.TOL_MM or ud > usable[1] + _layout.TOL_MM:
+                print(f"ERROR: scene layout {uw:.2f} x {ud:.2f} mm does not fit "
+                      f"usable area {usable[0]:.2f} x {usable[1]:.2f} mm "
+                      f"(overshoot {max(0.0, uw - usable[0]):.2f} x "
+                      f"{max(0.0, ud - usable[1]):.2f} mm)", file=sys.stderr)
+                return 1
+
+    # Suggested size when none was given (BRA-16): packed bounds +
+    # clamp margin, rounded up to the next 10 mm.
+    suggested_material = None
+    if material is None and placements is not None:
+        pw, pd = _layout.packed_bounds(placements)
+        max_h = max((p["height"] for p in prepared), default=0.0)
+        suggested_material = _layout.suggest_material(pw, pd, max_h, margin)
+        print(f"suggested material: {suggested_material['x']:.0f} x "
+              f"{suggested_material['y']:.0f} x {suggested_material['thickness']:.0f} mm "
+              f"(packed {pw:.1f} x {pd:.1f} mm + {margin:.0f} mm clamp margin)")
+
+    # Registration pins (BRA-16 interface for BRA-13): two-sided
+    # jobs only; positions are a reservation recorded in the
+    # manifest, not a cut feature yet.
+    reg_pins = []
+    pin_note = None
+    if two_sided:
+        if placements is not None:
+            reg_pins, pin_note = _layout.pin_positions(
+                material, margin, placements, pin_dia=pin_dia,
+                tool_dias=profile_dias, pin_clearance_mm=pin_clearance)
+        else:
+            pin_note = "scene layout: pin positions not computed (BRA-13)"
+        if reg_pins:
+            print(f"registration pins: " +
+                  ", ".join(f"({p['x']:.1f}, {p['y']:.1f}) D{p['diameter_mm']:.0f}"
+                            for p in reg_pins))
+        elif pin_note:
+            print(f"registration pins: none — {pin_note}")
+
+    outdir = args.out
+    outdir.mkdir(parents=True, exist_ok=True)
+    parts_dir = outdir / "parts"
+    parts_dir.mkdir(exist_ok=True)
+
+    combined_layers = []
+    combined_flags = []
+    parts_out = []
+    all_dxf_layers = {}  # prefixed layer -> segments (via ezdxf merge below)
+
+    import ezdxf
+    combined_doc = ezdxf.new("R2010", setup=True)
+    combined_doc.units = 4
+    msp = combined_doc.modelspace()
+
+    for i, p in enumerate(prepared):
+        entry = p["entry"]
+        label = p["label"]
+        prefix = p["prefix"]
+        flip_x = p["flip_x"]
+        flip_y = p["flip_y"]
+        rot_z = p["rot_z"]
+        auto_search = p["auto_search"]
+        s = p["solid"]
+        pack_rot_z = p["pack_rot_z"]
+        placement = p["placement"]
+
+        # Packing rotation (90 deg in Z to fit the row) is applied
+        # to the solid before classification; it changes only the
+        # footprint orientation, not the cutting. The total Z
+        # rotation is recorded in the manifest.
+        if pack_rot_z:
+            s = rot_about_centre(s, Axis.Z, pack_rot_z)
+        total_rot_z = rot_z + pack_rot_z
+
+        # bottom-align + layout placement (see module docstring)
         bb = s.bounding_box()
         dx = dy = dz = 0.0
         if align_z == "bottom":
             dz = -bb.min.Z  # outside bottom face -> Z=0
         if layout == "side_by_side":
-            # X is placed in the loop below via _layout_x; Ymin -> 0
-            dy = -bb.min.Y
-            # stash the running X cursor on the function object
-            if not hasattr(main, "_layout_x"):
-                main._layout_x = 0.0
-            dx = main._layout_x - bb.min.X
-            main._layout_x = main._layout_x + (bb.max.X - bb.min.X) + gap
+            # placement origin is the usable area's lower-left
+            # corner (clamp margin in from the sheet edge)
+            ox = margin if material else 0.0
+            oy = margin if material else 0.0
+            dx = ox + placement["x"] - bb.min.X
+            dy = oy + placement["y"] - bb.min.Y
+        elif layout == "scene":
+            pass  # scene XY preserved, only bottom-align
         if dx or dy or dz:
-            from build123d import Location as _Loc
-            s = s.moved(_Loc((dx, dy, dz), (0, 0, 0)))
+            s = s.moved(Location((dx, dy, dz), (0, 0, 0)))
 
         part_step = parts_dir / f"{prefix}.step"
         from build123d import export_step
@@ -268,7 +454,8 @@ def main():
         if args.only:
             cmd += ["--only", args.only]
         r = subprocess.run(cmd, capture_output=True, text=True)
-        print(f"--- {prefix} (flip_x={flip_x} flip_y={flip_y} rot_z={rot_z}) ---")
+        print(f"--- {prefix} (flip_x={flip_x} flip_y={flip_y} rot_z={total_rot_z}"
+              + (f" incl. pack {pack_rot_z}" if pack_rot_z else "") + ") ---")
         print(r.stdout.strip())
         if r.returncode != 0:
             print(r.stderr, file=sys.stderr)
@@ -287,9 +474,22 @@ def main():
                 L2["depends_on"] = f"{prefix}__{L2['depends_on']}"
             combined_layers.append(L2)
         combined_flags.extend(f"[{prefix}] {f}" for f in man["flags"])
+        # Sheet coordinates: placement is inside the usable area,
+        # which starts one clamp margin in from the sheet edge.
+        _ox = margin if material else 0.0
+        _oy = margin if material else 0.0
+        _fp = p["footprint"]
+        if pack_rot_z:
+            _fp = (_fp[1], _fp[0])  # 90 deg in Z swaps the footprint
         p_out = {
             "name": prefix, "label": label,
-            "flip_x": flip_x, "flip_y": flip_y, "rotate_z_deg": rot_z,
+            "flip_x": flip_x, "flip_y": flip_y, "rotate_z_deg": total_rot_z,
+            "pack_rotate_z_deg": pack_rot_z,
+            "profile_tool_dia_mm": p.get("profile_tool_dia_mm"),
+            "x_mm": round(_ox + placement["x"], 3) if placement else None,
+            "y_mm": round(_oy + placement["y"], 3) if placement else None,
+            "footprint_mm": [round(_fp[0], 3), round(_fp[1], 3)],
+            "height_mm": round(p["height"], 3),
             "stock": man["stock"], "z_top": man["z_top"],
             "layers": [L["layer"] for L in man["layers"]],
             "holes": man["holes"], "pocket_count": man["pocket_count"],
@@ -314,7 +514,6 @@ def main():
     # ---- tool planning (BRA-12) on the MERGED job, so tool changes
     # are minimised across both parts, not per part. Per-part runs
     # used --no-toolplan; their layers carry the "est" inputs.
-    import toolplan as _tp
     tool_plan = _tp.plan_tools(combined_layers, cfg) if combined_layers else {"plans": [], "error": "no layers"}
     if tool_plan["plans"]:
         chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
@@ -325,16 +524,68 @@ def main():
         combined_flags.append(f"TOOL PLAN: {tool_plan['error']} — no tool recommendations; "
                               "gadget falls back to its TOOLS table")
 
+    # ---- spacing re-check (BRA-16 item 6): the layout was packed
+    # from the per-part fit-rule maxima, which bound every plan's
+    # profile tools from above — but the chosen plan is what
+    # actually cuts, so verify its real profile tools against the
+    # packed gaps before writing anything. Switching plans changes
+    # the spacing, so this re-check runs against the chosen plan.
+    spacing_check = None
+    if placements is not None and tool_plan["plans"]:
+        chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
+        tool_by_id = {t["id"]: t for t in chosen["tools"]}
+        actual_dias = {}
+        for e in chosen["layers"]:
+            if e["operation"] != "profile":
+                continue
+            part = e["layer"].split("__", 1)[0]
+            d = tool_by_id[e["tool_id"]]["dia_mm"]
+            actual_dias[part] = max(actual_dias.get(part, 0.0), d)
+        violations = _layout.verify_spacing(placements, actual_dias, gap, web_min)
+        if material:
+            edge_v = _layout.check_edge_clearance(actual_dias, margin, web_min)
+            if edge_v:
+                violations.append(edge_v)
+        if violations:
+            print(f"ERROR: spacing re-check failed against plan {chosen['id']} — "
+                  f"the packed layout does not fit the chosen plan's profile tools:",
+                  file=sys.stderr)
+            for v in violations:
+                print(f"ERROR: {v}", file=sys.stderr)
+            return 1
+        spacing_check = (f"verified against plan {chosen['id']} (profile tools " +
+                         ", ".join(f"{k} {v:.2f} mm"
+                                   for k, v in sorted(actual_dias.items())) + ")")
+
     stem = args.step.stem
     manifest = {
         "source_step": str(args.step),
         "units": "mm",
+        "material": material,
+        "clamp_margin_mm": margin,
+        "usable_area_mm": ({"x": round(usable[0], 3), "y": round(usable[1], 3)}
+                           if usable else None),
+        "layout": [{"name": p["prefix"],
+                    "x_mm": round((margin if material else 0.0) + pl["x"], 3),
+                    "y_mm": round((margin if material else 0.0) + pl["y"], 3),
+                    "w_mm": pl["w"], "d_mm": pl["d"],
+                    "rotate_z_deg": pl["rotate_z"],
+                    "profile_tool_dia_mm": profile_dias.get(p["prefix"])}
+                   for p, pl in zip(prepared, placements)] if placements else None,
+        "spacing": {"rule": "max(gap_mm, D_A + D_B + web_min_mm)",
+                    "gap_mm": gap, "web_min_mm": web_min,
+                    "pin_clearance_mm": pin_clearance,
+                    "check": spacing_check},
+        "suggested_material": suggested_material,
+        "registration_pins": reg_pins if two_sided else None,
         "parts": parts_out,
         "layers": combined_layers,
         "flags": combined_flags,
         "cut_order": ["drill", "pocket", "profile"],
         "tool_plan": tool_plan,
     }
+    if pin_note:
+        combined_flags.append(f"REGISTRATION PINS: {pin_note}")
     if args.mode in ("full", "manifest"):
         (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2))
         if tool_plan["plans"]:
@@ -354,10 +605,38 @@ def main():
     if args.mode in ("full", "dxf"):
         combined_doc.saveas(str(outdir / f"{stem}.dxf"))
     report = [f"# {stem} — multi-part VCarve report\n"]
+    if material:
+        report.append(f"Material: {material['x']:.1f} x {material['y']:.1f} x "
+                      f"{material['thickness']:.1f} mm; clamp margin {margin:.1f} mm, "
+                      f"usable area {usable[0]:.1f} x {usable[1]:.1f} mm "
+                      f"(parts sit inside the usable area, lower-left at the margin).")
+    elif suggested_material:
+        report.append(f"Material: none given — suggested "
+                      f"{suggested_material['x']:.0f} x {suggested_material['y']:.0f} x "
+                      f"{suggested_material['thickness']:.0f} mm "
+                      f"(packed layout + {margin:.0f} mm clamp margin, rounded up to 10 mm).")
+    if placements is not None:
+        tools_txt = ", ".join(
+            f"{p['prefix']} {profile_dias.get(p['prefix']):.2f} mm"
+            if profile_dias.get(p['prefix']) is not None else
+            f"{p['prefix']} no profile tool"
+            for p in prepared)
+        report.append(f"Spacing (BRA-16 tool rule): gaps are max({gap:.1f} mm, "
+                      f"D_A + D_B + {web_min:.1f} mm web); profile tools: {tools_txt}."
+                      + (f" {spacing_check}." if spacing_check else ""))
+    if two_sided:
+        if reg_pins:
+            report.append("Registration pins (two-sided flip, mirror about the flip axis): " +
+                          ", ".join(f"({p['x']:.1f}, {p['y']:.1f}) D{p['diameter_mm']:.0f}"
+                                    for p in reg_pins))
+        elif pin_note:
+            report.append(f"Registration pins: none — {pin_note}")
     for p in parts_out:
         line = (f"- {p['name']}: stock {p['stock']['x_max']-p['stock']['x_min']:.1f} x "
                 f"{p['stock']['y_max']-p['stock']['y_min']:.1f} x {p['stock']['thickness']:.1f} mm, "
                 f"flip_x={p['flip_x']} rot_z={p['rotate_z_deg']}, layers {len(p['layers'])}")
+        if p.get("x_mm") is not None:
+            line += f", at ({p['x_mm']:.1f}, {p['y_mm']:.1f})"
         if p.get("orientation_search"):
             a = p["orientation_search"]
             ranked = "; ".join(f"{e['orientation']} {e['score']:.1f}" for e in a["ranked"])

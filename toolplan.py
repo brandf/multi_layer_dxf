@@ -457,6 +457,36 @@ def _fits(tool_dia, min_width_mm):
     return tool_dia <= min_width_mm - 0.5
 
 
+def profile_tool_diameter(layers, cfg=None):
+    """The profile-cutting endmill diameter for one part (BRA-16
+    spacing rule): the largest standard endmill that cuts the
+    part's profile / through-cut layers, by the same fit rule the
+    planner uses — an outer profile takes the largest in the set,
+    a through-cut slot takes the largest that fits the slot. The
+    kerf eats one diameter outside the outline, so this is the
+    number the layout spaces by (gap = D_A + D_B + web_min).
+    Returns the diameter in mm, or None when the part has no
+    profile layers (e.g. --only filtered them out) or no standard
+    tool fits a through-cut slot — then the packer falls back to
+    gap_mm and the tool plan reports the missing tool (BRA-18)."""
+    st = settings(cfg)
+    em_sizes = [round(i * INCH_TO_MM, 4) for i in st["standard_endmills_in"]]
+    best = None
+    for L in layers:
+        if L["operation"] != "profile":
+            continue
+        if _is_outer_profile(L):
+            fitting = em_sizes
+        else:  # through-cut slot: the tool must fit the slot
+            mw = float(L.get("est", {}).get("min_width_mm", 0))
+            fitting = [d for d in em_sizes if _fits(d, mw)]
+        if not fitting:
+            return None
+        d = max(fitting)
+        best = d if best is None else max(best, d)
+    return best
+
+
 def plan_tools(layers, cfg=None):
     """Rank tool-set plans for these layers. Returns
     {"plans": [best, ...up to max_plans], "error": None} or
