@@ -225,6 +225,8 @@ def main():
                 "ranked": [{k: e[k] for k in ("orientation", "score", "layers", "flags")
                             if k in e} | {"cut_minutes": e["breakdown"]["cut_minutes"],
                                           "holes_not_from_top": e["breakdown"]["holes_not_from_top"],
+                                          "pockets_not_from_top": e["breakdown"]["pockets_not_from_top"],
+                                          "flip": e["breakdown"]["flip"],
                                           "post": e["breakdown"]["post"]}
                            for e in search_res["ranked"]],
                 "pruned": search_res["pruned"],
@@ -236,7 +238,8 @@ def main():
             _pruned = "; ".join(f"{p['orientation']} ({p['reason']})" for p in search_res["pruned"])
             print(f"orient search [{prefix}]: best {_best['orientation']} "
                   f"(score {_best['score']:.1f}, cut {_best['breakdown']['cut_minutes']:.1f} min, "
-                  f"{_best['breakdown']['holes_not_from_top']} un-cut holes)"
+                  f"{_best['breakdown']['holes_not_from_top']} un-cut holes, "
+                  f"{_best['breakdown']['pockets_not_from_top']} un-cut pockets)"
                   + (f" over {_others}" if _others else "")
                   + (f"; pruned {_pruned}" if _pruned else ""))
 

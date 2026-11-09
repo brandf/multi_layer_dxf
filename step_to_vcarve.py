@@ -5,7 +5,11 @@ STEP -> layered DXF + manifest.json for VCarve Pro (2.5D, prismatic).
 Reads the exact B-rep from a STEP file (no tessellation for
 classification — circles stay circles), finds:
   - outer profile (top face outer wire)
-  - pocket floors: planar faces with normal +/-Z, Zmin < Z < Zmax
+  - pocket floors: planar faces with normal +Z, Zmin < Z < Zmax.
+    A -Z face at an interior level is a downward-opening pocket
+    (or an undercut ceiling) — flagged POCKET NOT FROM TOP, no
+    toolpath (BRA-21: emitting it as a top pocket cuts into solid
+    material on the wrong side and destroys the part).
   - through / blind holes: cylindrical faces with axis Z, ~360 deg total
   - through cuts: top-face inner wires with no pocket floor below them
 and writes one layered DXF + manifest.json + report.md.
@@ -321,6 +325,8 @@ def main():
     ap.add_argument("--config", type=Path, default=None, help="JSON config file (see config.example.json)")
     ap.add_argument("--auto-orient", action="store_true",
                     help="auto-detect the prismatic axis and best side up, rotate/flip the solid before classifying (see auto_orient.py)")
+    ap.add_argument("--material", default=None,
+                    help="material WxDxT mm, e.g. 150x100x10 — fit-or-error (BRA-16): the part must fit the sheet and its thickness, or the run fails with a named error and writes nothing")
     ap.add_argument("--no-toolplan", action="store_true",
                     help="skip tool recommendations (multi_part.py plans the merged job itself)")
     ap.add_argument("--plan", default="",
@@ -338,6 +344,22 @@ def main():
         if cfg.get("only") and not args.only:
             args.only = ",".join(cfg["only"])
         print(f"config: {args.config} tol={args.tol} min_tool={args.min_tool} only={args.only or 'all'}")
+
+    # Material size (BRA-16 fit-or-error): CLI wins, else config
+    # "material" / "stock_size_mm". Validated up front so a bad
+    # spec fails before classification; the fit itself is checked
+    # after classification, once the bbox is known, and before
+    # anything is written.
+    import orient_search as _os
+    try:
+        material = _os.parse_material(args.material) if args.material \
+            else _os.material_from_cfg(cfg)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
+    if material:
+        print(f"material: {material['x']:.1f} x {material['y']:.1f} x "
+              f"{material['thickness']:.1f} mm")
 
     from build123d import import_step, GeomType
     from OCP.BRepAdaptor import BRepAdaptor_Surface
@@ -606,6 +628,26 @@ def main():
             continue
         for f in fs:
             if is_hole_bottom(f):
+                continue
+            # Opening side (BRA-21, 2026-11-09): a pocket floor's
+            # outward normal points INTO the cavity. +Z = the cavity
+            # opens upward and the pocket is cuttable from the top.
+            # -Z = the cavity opens on the bottom face (or the face
+            # is an undercut ceiling) — emitting it as a top pocket
+            # would cut into solid material on the wrong side and
+            # destroy the part (flipped container: POCKET_D3.00 +
+            # POCKET_D8.00_START3.00 bored into the Bottom's outside
+            # face). Flag it and emit nothing, exactly like a hole
+            # with no toolpath (HOLE NOT FROM TOP).
+            try:
+                nz = f.normal_at().Z
+            except Exception:
+                nz = 1.0  # if the normal cannot be read, keep the old behaviour
+            if nz < -0.5:
+                flags.append(
+                    f"POCKET NOT FROM TOP (cavity opens downward): floor Z {z:.2f}, "
+                    f"depth {z - zmin:.2f} from the bottom face — no toolpath emitted; "
+                    f"cut from the other side after a flip (BRA-13) or as post-processing")
                 continue
             poly = wire_sample_points(f.outer_wire())
             pockets.append({"z": z, "depth": zmax - z, "face": f,
@@ -1407,6 +1449,21 @@ def main():
             layers, lambda e: e.get("tool_id") or e["layer"])
         for w in _dep_warn:
             flags.append(f"CUT ORDER: {w}")
+    # ---- material fit-or-error (BRA-16): after classification,
+    # before anything is written. A part that cannot be cut from
+    # the given material fails here, named, with no outputs.
+    suggested_material = None
+    if material:
+        reason = _os.prune_reason(bb, material)
+        if reason is not None:
+            print(f"ERROR: part does not fit material "
+                  f"{material['x']:.1f} x {material['y']:.1f} x "
+                  f"{material['thickness']:.1f} mm: {reason}", file=sys.stderr)
+            return 1
+    else:
+        import layout as _layout
+        suggested_material = _layout.suggest_material(
+            bb.max.X - bb.min.X, bb.max.Y - bb.min.Y, thickness, 0.0)
     if args.mode == "check":
         print("mode=check: classification only, no DXF / manifest written")
         print(f"layers would be: {len(layers)}, holes: {len(holes)}, pockets: {len(pockets)}, flags: {len(flags)}")
@@ -1447,6 +1504,8 @@ def main():
     manifest = {
         "source_step": str(args.step),
         "units": "mm",
+        "material": material,
+        "suggested_material": suggested_material,
         "stock": {"x_min": round(bb.min.X, 3), "y_min": round(bb.min.Y, 3),
                   "x_max": round(bb.max.X, 3), "y_max": round(bb.max.Y, 3),
                   "z_min": round(zmin, 3), "z_max": round(zmax, 3),
@@ -1486,6 +1545,14 @@ def main():
     report = []
     report.append(f"# {stem} — VCarve report\n")
     report.append(f"Stock: {bb.max.X-bb.min.X:.2f} x {bb.max.Y-bb.min.Y:.2f} x {thickness:.2f} mm, Z {zmin:.2f}..{zmax:.2f}\n")
+    if material:
+        report.append(f"Material: {material['x']:.1f} x {material['y']:.1f} x "
+                      f"{material['thickness']:.1f} mm — part fits.\n")
+    elif suggested_material:
+        report.append(f"Material: none given — suggested "
+                      f"{suggested_material['x']:.0f} x {suggested_material['y']:.0f} x "
+                      f"{suggested_material['thickness']:.0f} mm "
+                      f"(footprint rounded up to 10 mm).\n")
     report.append(f"Layers ({len(layers)}):\n")
     for L in layers:
         report.append(f"- {L['layer']}: {L['operation']}, start {L['start_depth']:.2f}, cut {L['cut_depth']:.2f}, {L['segment_count']} segments")
@@ -1521,4 +1588,7 @@ def main():
         print(" FLAG:", f)
 
 if __name__ == "__main__":
-    main()
+    # SystemExit(main()): main() returns 1 on a fit-or-error
+    # failure (BRA-16) and 2 on a bad material spec — the exit
+    # code must reach the caller, not be swallowed.
+    raise SystemExit(main())

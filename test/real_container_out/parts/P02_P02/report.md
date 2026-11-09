@@ -2,6 +2,8 @@
 
 Stock: 46.00 x 46.00 x 8.00 mm, Z -0.00..8.00
 
+Material: none given — suggested 50 x 50 x 9 mm (footprint rounded up to 10 mm).
+
 Layers (4):
 
 - DRILL_D2.25_D1.55: drill, start 0.00, cut 1.55, 8 segments
@@ -10,14 +12,14 @@ Layers (4):
 - PROFILE_THRU: profile, start 0.00, cut 8.00, 1 segments
 
 Holes (8):
-- blind_top D2.25 at (58.50,23.00) Z 6.45..8.00
-- blind_top D2.25 at (64.50,8.50) Z 6.45..8.00
-- blind_top D2.25 at (64.50,37.50) Z 6.45..8.00
-- blind_top D2.25 at (79.00,2.50) Z 6.45..8.00
-- blind_top D2.25 at (79.00,43.50) Z 6.45..8.00
-- blind_top D2.25 at (93.50,8.50) Z 6.45..8.00
-- blind_top D2.25 at (93.50,37.50) Z 6.45..8.00
-- blind_top D2.25 at (99.50,23.00) Z 6.45..8.00
+- blind_top D2.25 at (78.90,23.00) Z 6.45..8.00
+- blind_top D2.25 at (84.90,8.50) Z 6.45..8.00
+- blind_top D2.25 at (84.90,37.50) Z 6.45..8.00
+- blind_top D2.25 at (99.40,2.50) Z 6.45..8.00
+- blind_top D2.25 at (99.40,43.50) Z 6.45..8.00
+- blind_top D2.25 at (113.90,8.50) Z 6.45..8.00
+- blind_top D2.25 at (113.90,37.50) Z 6.45..8.00
+- blind_top D2.25 at (119.90,23.00) Z 6.45..8.00
 
 Pockets (2):
 - floor Z 6.50, total depth 1.50, start 0.00, cut 1.50

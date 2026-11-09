@@ -4,9 +4,11 @@
  "min_tool_mm": 3.0,
  "only": null,
  "orientation_penalties": {
-  "hole_not_from_top": 15.0,
+  "flip": 25.0,
+  "hole_not_from_top": 0.5,
   "no_plan": 60.0,
-  "post_cnc_3d": 10.0,
+  "pocket_not_from_top": 5.0,
+  "post_cnc_3d": 30.0,
   "post_decision_needed": 5.0,
   "post_drill_press": 3.0,
   "post_hand_router": 3.0,

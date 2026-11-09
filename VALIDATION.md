@@ -114,13 +114,19 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step \
     -o test/external/kookabus_out --mode check
-# expect: no crash; post-BRA-14 layers 12 / 10 / 7, holes 18 / 5 / 7,
-# flags 30 / 67 / 9 (106 total, incl. 4 POCKET ISLAND flags — bosses
-# rising from pocket floors, plausible on an enclosure). Pre-BRA-14
-# numbers were 11 / 8 / 7 and 39 / 72 / 12: BRA-14's surface drills
-# added layers and its hole-floor fix removed bogus pockets and their
-# flags. Kookabus is a robustness sample, not ground truth; the check
-# is "no crash, flags identify the non-prismatic features".)
+# expect: no crash; post-BRA-21 layers 8 / 7 / 5, holes 18 / 5 / 7,
+# flags 39 / 122 / 29 (190 total + 1 TOOL PLAN flag = 191 combined).
+# Was 12 / 10 / 7 layers and 30 / 67 / 9 flags (106 total) before
+# BRA-21: 25 downward-opening pockets are now flagged POCKET NOT
+# FROM TOP instead of emitted as top pockets (9 wrong pocket layers
+# removed, 29 -> 20), which also exposes 5 through-cuts and 21
+# post-process items (16 decision_needed + 5 drill_press) that were
+# hidden behind those pockets, plus 40 spline-discretisation notes
+# on the new through-cut layers; the 4 POCKET ISLAND flags are gone
+# (they were artifacts of reading those pockets upside-down).
+# The old numbers were wrong, not a regression. Kookabus is a
+# robustness sample, not ground truth; the check is "no crash,
+# flags identify the non-prismatic features".)
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50
@@ -163,16 +169,23 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # Single-pass plans are dropped (final radius 3.18 > 1.0).
 
 # Real container (BRA-8, verified 2026-11-08; BRA-15 re-verified 2026-11-09;
-# BRA-17 re-verified 2026-11-09):
+# BRA-17 re-verified 2026-11-09; BRA-21 re-verified 2026-11-09):
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_out --auto
 # expect: 2 parts, 8 layers, 6 flags (see §2). P01 facing pocket
 # P01_P01__POCKET_D1.50 has 3 DXF circles (r 23.00 / 17.97 / 15.00);
 # P02 facing pocket has 1 (r 18.00 counterbore). Bottom drills are
 # surface drills START1.50 depending on POCKET_D1.50. Plan A (BRA-15):
 # Drill 2.25 + EM 1/2", 2 changes, est 5.6 min — cut order all pockets,
-# both drills, profiles last. Orientation search (BRA-17): Bottom
-# best +Z (score 6.9) over -Z (122.8); Top best -Z (4.7) over +Z
-# (122.5) — the same flip the explicit parts.json gives. With
+# both drills, profiles last. Orientation search (BRA-17, BRA-21):
+# Bottom best +Z (score 6.9) over -Z (41.4); Top best -Z (4.7) over
+# +Z (41.3) — the same flip the explicit parts.json gives; X/Y
+# orientations score 145.0 (no_plan + flip + pocket penalties).
+# Merged-job level (BRA-21): upright 9.6 vs flipped 46.1 — about
+# 4.8x, the difficulty Brandon expects (flip 25 + 8 holes x 0.5 +
+# 2 pockets x 5.0 + router_table 4, on top of 3.1 min of cutting).
+# Without --auto or parts.json the Top's pocket is now flagged
+# POCKET NOT FROM TOP and gets no layer (4 layers / 1 flag) instead
+# of being cut into the Top's outside face. With
 # --material 170x100x10 the X/Y orientations are pruned (height
 # 46.00 > thickness 10.00); with --material 150x100x10 the run now
 # fails at PACKING (named error, exit 1) instead: the 1/2 in profile
@@ -184,20 +197,22 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # (smallest dimension 9.50 > 5.00), exit 1.
 
 # Eight unrelated parts (generalisation, verified 2026-11-08;
-# BRA-15 re-verified 2026-11-09; BRA-17 re-verified 2026-11-09):
+# BRA-15 re-verified 2026-11-09; BRA-17 re-verified 2026-11-09;
+# BRA-21 re-verified 2026-11-09 — winners unchanged):
 .venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_out --auto
 # expect: 8 parts, 22 layers, 4 flags. All 8 classify exactly
 # right, including the sideways block (modelled on its side,
 # prismatic axis along X): the search orients it to +X (score 1.5
-# over -X 1.9, +Z/-Z 7.3) and reads it as POCKET_D4.00 +
-# DRILL_D5.00_THRU + PROFILE_THRU, 0 flags. The old AUTO-ORIENT
-# AMBIGUOUS flag and the spurious fillet flag from the as-is
-# classification are both gone. The 4 remaining flags are the
-# informational ones: 2x THROUGH CUT, 1x DRILL FROM SURFACE,
-# 1x COUNTERBORE THRU HOLE. Plan A: 2 tools, 1 change, est 9.0 min
-# (was 1 change / 9.7 min under the heuristic — the correct
-# orientation gives cleaner layers). The search runs the classifier
-# up to 6 times per part, so this takes ~4 minutes.
+# over -X 31.1, +Z 37.3 — the wrong orientations score worse after
+# BRA-21, correctly: their pockets open downward and are flagged)
+# and reads it as POCKET_D4.00 + DRILL_D5.00_THRU + PROFILE_THRU,
+# 0 flags. The old AUTO-ORIENT AMBIGUOUS flag and the spurious
+# fillet flag from the as-is classification are both gone. The 4
+# remaining flags are the informational ones: 2x THROUGH CUT, 1x
+# DRILL FROM SURFACE, 1x COUNTERBORE THRU HOLE. Plan A: 2 tools,
+# 1 change, est 9.0 min (was 1 change / 9.7 min under the heuristic
+# — the correct orientation gives cleaner layers). The search runs
+# the classifier up to 6 times per part, so this takes ~4 minutes.
 
 # Material size, packing, clamp margin, pins (BRA-16, verified 2026-11-09;
 # tool-dependent spacing verified 2026-11-09):

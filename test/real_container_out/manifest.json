@@ -1,6 +1,42 @@
 {
   "source_step": "test/real_container.step",
   "units": "mm",
+  "material": null,
+  "clamp_margin_mm": 20.0,
+  "usable_area_mm": null,
+  "layout": [
+    {
+      "name": "P01_P01",
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "w_mm": 46.0,
+      "d_mm": 46.0,
+      "rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7
+    },
+    {
+      "name": "P02_P02",
+      "x_mm": 76.4,
+      "y_mm": 0.0,
+      "w_mm": 46.0,
+      "d_mm": 46.0,
+      "rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7
+    }
+  ],
+  "spacing": {
+    "rule": "max(gap_mm, D_A + D_B + web_min_mm)",
+    "gap_mm": 10.0,
+    "web_min_mm": 5.0,
+    "pin_clearance_mm": 3.0,
+    "check": "verified against plan A (profile tools P01_P01 12.70 mm, P02_P02 12.70 mm)"
+  },
+  "suggested_material": {
+    "x": 170,
+    "y": 90,
+    "thickness": 10
+  },
+  "registration_pins": null,
   "parts": [
     {
       "name": "P01_P01",
@@ -8,6 +44,15 @@
       "flip_x": false,
       "flip_y": false,
       "rotate_z_deg": 0.0,
+      "pack_rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7,
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "footprint_mm": [
+        46.0,
+        46.0
+      ],
+      "height_mm": 9.5,
       "stock": {
         "x_min": 0.0,
         "y_min": 0.0,
@@ -102,60 +147,83 @@
             "flags": 4,
             "cut_minutes": 4.87,
             "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
             "post": {
               "router_table": 1
             }
           },
           {
             "orientation": "-Z",
-            "score": 122.8,
-            "layers": 3,
-            "flags": 11,
-            "cut_minutes": 0.8,
+            "score": 41.39,
+            "layers": 1,
+            "flags": 12,
+            "cut_minutes": 0.39,
             "holes_not_from_top": 8,
+            "pockets_not_from_top": 2,
+            "flip": true,
             "post": {
               "router_table": 1
             }
-          }
-        ],
-        "pruned": [
+          },
           {
             "orientation": "+X",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              9.5,
-              46.0
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           },
           {
             "orientation": "-X",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              9.5,
-              46.0
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           },
           {
             "orientation": "+Y",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              46.0,
-              9.5
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           },
           {
             "orientation": "-Y",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              46.0,
-              9.5
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           }
-        ]
+        ],
+        "pruned": []
       }
     },
     {
@@ -164,10 +232,19 @@
       "flip_x": false,
       "flip_y": false,
       "rotate_z_deg": 0.0,
+      "pack_rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7,
+      "x_mm": 76.4,
+      "y_mm": 0.0,
+      "footprint_mm": [
+        46.0,
+        46.0
+      ],
+      "height_mm": 8.0,
       "stock": {
-        "x_min": 56.0,
+        "x_min": 76.4,
         "y_min": -0.0,
-        "x_max": 102.0,
+        "x_max": 122.4,
         "y_max": 46.0,
         "z_min": -0.0,
         "z_max": 8.0,
@@ -182,7 +259,7 @@
       ],
       "holes": [
         {
-          "cx": 58.5,
+          "cx": 78.9,
           "cy": 23.0,
           "dia": 2.25,
           "z0": 6.45,
@@ -190,7 +267,7 @@
           "kind": "blind_top"
         },
         {
-          "cx": 64.5,
+          "cx": 84.9,
           "cy": 8.5,
           "dia": 2.25,
           "z0": 6.450000000000002,
@@ -198,7 +275,7 @@
           "kind": "blind_top"
         },
         {
-          "cx": 64.5,
+          "cx": 84.9,
           "cy": 37.5,
           "dia": 2.25,
           "z0": 6.449999999999998,
@@ -206,7 +283,7 @@
           "kind": "blind_top"
         },
         {
-          "cx": 79.0,
+          "cx": 99.4,
           "cy": 2.5,
           "dia": 2.25,
           "z0": 6.450000000000002,
@@ -214,7 +291,7 @@
           "kind": "blind_top"
         },
         {
-          "cx": 79.0,
+          "cx": 99.4,
           "cy": 43.5,
           "dia": 2.25,
           "z0": 6.449999999999998,
@@ -222,7 +299,7 @@
           "kind": "blind_top"
         },
         {
-          "cx": 93.5,
+          "cx": 113.9,
           "cy": 8.5,
           "dia": 2.25,
           "z0": 6.450000000000002,
@@ -230,7 +307,7 @@
           "kind": "blind_top"
         },
         {
-          "cx": 93.5,
+          "cx": 113.9,
           "cy": 37.5,
           "dia": 2.25,
           "z0": 6.449999999999998,
@@ -238,7 +315,7 @@
           "kind": "blind_top"
         },
         {
-          "cx": 99.5,
+          "cx": 119.9,
           "cy": 23.0,
           "dia": 2.25,
           "z0": 6.45,
@@ -258,60 +335,83 @@
             "flags": 2,
             "cut_minutes": 2.7,
             "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
             "post": {
               "router_table": 1
             }
           },
           {
             "orientation": "+Z",
-            "score": 122.54,
-            "layers": 3,
-            "flags": 10,
-            "cut_minutes": 0.54,
+            "score": 41.29,
+            "layers": 1,
+            "flags": 12,
+            "cut_minutes": 0.29,
             "holes_not_from_top": 8,
+            "pockets_not_from_top": 2,
+            "flip": true,
             "post": {
               "router_table": 1
             }
-          }
-        ],
-        "pruned": [
+          },
           {
             "orientation": "+X",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              8.0,
-              46.0
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           },
           {
             "orientation": "-X",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              8.0,
-              46.0
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           },
           {
             "orientation": "+Y",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              46.0,
-              8.0
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           },
           {
             "orientation": "-Y",
-            "reason": "height 46.00 mm > material thickness 10.00 mm",
-            "height_mm": 46.0,
-            "footprint_mm": [
-              46.0,
-              8.0
-            ]
+            "score": 145.0,
+            "layers": 0,
+            "flags": 13,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 11,
+              "cnc_3d": 1
+            }
           }
-        ]
+        ],
+        "pruned": []
       }
     }
   ],
@@ -443,35 +543,35 @@
       "segment_count": 8,
       "centres": [
         [
-          58.5,
+          78.9,
           23.0
         ],
         [
-          64.5,
+          84.9,
           8.5
         ],
         [
-          64.5,
+          84.9,
           37.5
         ],
         [
-          79.0,
+          99.4,
           2.5
         ],
         [
-          79.0,
+          99.4,
           43.5
         ],
         [
-          93.5,
+          113.9,
           8.5
         ],
         [
-          93.5,
+          113.9,
           37.5
         ],
         [
-          99.5,
+          119.9,
           23.0
         ]
       ],

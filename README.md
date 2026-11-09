@@ -481,17 +481,32 @@ each part's CAM orientation by measurement, not by a heuristic
   from that material at any orientation.
 - Score the survivors by running the full classifier + tool plan
   on each: cut time from the chosen plan (incl. tool-change
-  penalties) + 15 per HOLE NOT FROM TOP flag (a hole with no
-  toolpath — that orientation needs a double-sided job or
-  extensive post-processing) + post-processing penalties per
-  method (cnc_3d 10, decision_needed 5, hand_router 3,
+  penalties) + a FIXED flip penalty (default 25: flip + re-clamp
+  + re-zero + second setup) charged once when the orientation
+  leaves ANY feature un-cuttable from the top — holes or pockets
+  not from the top — plus small per-feature back-side cutting
+  costs (hole 0.5, pocket 5.0) + post-processing penalties per
+  method (cnc_3d 30, decision_needed 5, hand_router 3,
   drill_press 3, router_table 2) + 60 if no standard tool plan
-  exists. Weights are config `orientation_penalties`. No
-  special-casing for magnets or insides-up: the difference falls
-  out of the penalties — the flipped container is FASTER on the
-  clock (3.5 vs 5.6 min) because it skips the Bottom's 8 magnet
-  holes, so cut-time-only scoring would pick the wrong
-  orientation. The flipped orientation is priced, not
+  exists. Weights are config `orientation_penalties`. The flip
+  is fixed, not per-hole (BRA-21): the old +15/hole priced a
+  1-hole flip at 15 and a 16-hole flip at 240, when the flip
+  itself costs the same either way. No special-casing for
+  magnets or insides-up: the difference falls out of the
+  penalties — the flipped container is FASTER on the clock
+  (3.5 vs 5.6 min) because it skips the Bottom's 8 magnet
+  holes, and worse, its pockets were cut on the WRONG side
+  (BRA-21: a downward-opening pocket was emitted as a top
+  pocket, which would bore into the Bottom's outside face).
+  With the fix the flipped job scores 46.1 against the
+  upright's 9.6 at the merged-job level — about 4.8x, the
+  difficulty Brandon expects — for the right reasons: a real
+  flip cost plus real back-side work. (The search charges the
+  flip per part — exact when orientations are mixed, since a
+  single flipped part needs its own second setup — but an
+  all-flipped sheet shares one flip, so the sum of per-part
+  scores overstates that case; 4.8x is the sheet-level
+  number.) The flipped orientation is priced, not
   disqualified.
 - Ties: if the original orientation (+Z) is within
   `orientation_tie_minutes` (default 0.5) of the best, prefer it
@@ -552,6 +567,21 @@ change / 9.0 min. Kookabus is classify-only (no `--auto` search
 — 6x ~90 s per part is too slow); it does not crash.
 Runtime note: the search runs the classifier up to 6 times per
 part, so the 8-part test takes ~4 minutes.
+
+BRA-21 (2026-11-09) fixed the cost model and a classifier bug
+it exposed. A pocket is only emitted when its floor face's
+outward normal points up (+Z): a downward-opening pocket is
+flagged POCKET NOT FROM TOP and gets no toolpath — the pocket
+equivalent of HOLE NOT FROM TOP. Before the fix the flipped
+container's Bottom pockets were emitted as top pockets and
+would have bored into the outside face. The scorer now charges
+the flip once (25) plus small per-feature back-side costs
+instead of +15 per un-cut hole, and cnc_3d is 30, not 10.
+Kookabus moved with the fix (20 layers / 191 flags, was 29 /
+107): 25 downward pockets flagged, 9 wrong pocket layers
+removed, 5 through-cuts and 21 post-process items that were
+hidden behind those pockets now visible — the old numbers
+were wrong, not a regression.
 
 ## Beveled STEP in, prismatic blank + post-processing plan out (built 2026-11-08)
 

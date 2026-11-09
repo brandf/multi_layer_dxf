@@ -1,10 +1,16 @@
 {
   "source_step": "test/eight_parts_out/parts/P04_P04.step",
   "units": "mm",
+  "material": null,
+  "suggested_material": {
+    "x": 50,
+    "y": 40,
+    "thickness": 8
+  },
   "stock": {
-    "x_min": 220.0,
+    "x_min": 281.2,
     "y_min": 0.0,
-    "x_max": 270.0,
+    "x_max": 331.2,
     "y_max": 40.0,
     "z_min": 0.0,
     "z_max": 8.0,
@@ -25,11 +31,11 @@
       "segment_count": 2,
       "centres": [
         [
-          230.0,
+          291.2,
           10.0
         ],
         [
-          260.0,
+          321.2,
           10.0
         ]
       ],
@@ -54,7 +60,7 @@
   ],
   "holes": [
     {
-      "cx": 230.0,
+      "cx": 291.2,
       "cy": 10.0,
       "dia": 6.0,
       "z0": 0.0,
@@ -62,7 +68,7 @@
       "kind": "thru"
     },
     {
-      "cx": 260.0,
+      "cx": 321.2,
       "cy": 10.0,
       "dia": 6.0,
       "z0": 0.0,

@@ -1,13 +1,15 @@
 # eight_parts — multi-part VCarve report
 
-- P01_P01: stock 60.0 x 60.0 x 10.0 mm, flip_x=False rot_z=0.0, layers 2 [search: best +Z (+Z 0.8; -Z 0.8; +X 70.0; -X 70.0; +Y 70.0; -Y 70.0)]
-- P02_P02: stock 60.0 x 60.0 x 15.0 mm, flip_x=False rot_z=0.0, layers 4 [search: best +Z (+Z 2.9; -Z 18.6; +X 24.4; -X 24.4; +Y 24.4; -Y 24.4)]
-- P03_P03: stock 70.0 x 50.0 x 10.0 mm, flip_x=False rot_z=0.0, layers 3 [search: best +Z (+Z 3.0; -Z 3.0; +Y 26.4; -Y 26.4; +X 26.6; -X 26.6)]
-- P04_P04: stock 50.0 x 40.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 2 [search: best +Z (+Z 0.7; -Z 0.7; +Y 9.5; -Y 9.5; +X 11.6; -X 11.6)]
-- P05_P05: stock 40.0 x 40.0 x 6.0 mm, flip_x=False rot_z=0.0, layers 2 [search: best +Z (+Z 0.2; -Z 0.2; +X 70.0; -X 70.0; +Y 70.0; -Y 70.0)]
-- P06_P06: stock 80.0 x 20.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 3 [search: best +Z (+Z 2.3; -Z 2.3; +X 7.9; -X 7.9; +Y 11.2; -Y 11.2)]
-- P07_P07: stock 40.0 x 40.0 x 12.0 mm, flip_x=False rot_z=0.0, layers 3 [search: best +Z (+Z 0.9; +Y 8.0; -Y 8.0; +X 11.0; -X 11.0; -Z 15.8)]
-- P08_P08: stock 30.0 x 20.0 x 12.0 mm, flip_x=False rot_z=0.0, layers 3 [search: best +X (+X 1.5; -X 1.9; +Y 7.0; -Y 7.0; +Z 7.3; -Z 7.3)]
+Material: none given — suggested 690 x 100 x 15 mm (packed layout + 20 mm clamp margin, rounded up to 10 mm).
+Spacing (BRA-16 tool rule): gaps are max(10.0 mm, D_A + D_B + 5.0 mm web); profile tools: P01_P01 12.70 mm, P02_P02 12.70 mm, P03_P03 12.70 mm, P04_P04 12.70 mm, P05_P05 12.70 mm, P06_P06 12.70 mm, P07_P07 12.70 mm, P08_P08 12.70 mm. verified against plan A (profile tools P01_P01 6.35 mm, P02_P02 6.35 mm, P03_P03 6.35 mm, P04_P04 6.35 mm, P05_P05 6.35 mm, P06_P06 6.35 mm, P07_P07 6.35 mm, P08_P08 6.35 mm).
+- P01_P01: stock 60.0 x 60.0 x 10.0 mm, flip_x=False rot_z=0.0, layers 2, at (0.0, 0.0) [search: best +Z (+Z 0.8; -Z 0.8; +X 70.0; -X 70.0; +Y 70.0; -Y 70.0)]
+- P02_P02: stock 60.0 x 60.0 x 15.0 mm, flip_x=False rot_z=0.0, layers 4, at (90.4, 0.0) [search: best +Z (+Z 2.9; -Z 32.1; +X 54.3; -X 54.3; +Y 54.3; -Y 54.3)]
+- P03_P03: stock 70.0 x 50.0 x 10.0 mm, flip_x=False rot_z=0.0, layers 3, at (180.8, 0.0) [search: best +Z (+Z 3.0; -Z 32.5; +Y 56.4; -Y 56.4; +X 56.6; -X 56.6)]
+- P04_P04: stock 50.0 x 40.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 2, at (281.2, 0.0) [search: best +Z (+Z 0.7; -Z 0.7; +Y 9.5; +X 11.6; -Y 41.1; -X 41.2)]
+- P05_P05: stock 40.0 x 40.0 x 6.0 mm, flip_x=False rot_z=0.0, layers 2, at (361.6, 0.0) [search: best +Z (+Z 0.2; -Z 0.2; +X 70.0; -X 70.0; +Y 70.0; -Y 70.0)]
+- P06_P06: stock 80.0 x 20.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 3, at (432.0, 0.0) [search: best +Z (+Z 2.3; -Z 2.3; +X 34.9; -X 34.9; +Y 41.2; -Y 41.2)]
+- P07_P07: stock 40.0 x 40.0 x 12.0 mm, flip_x=False rot_z=0.0, layers 3, at (542.4, 0.0) [search: best +Z (+Z 0.9; +Y 8.0; -Y 8.0; +X 11.0; -X 11.0; -Z 26.4)]
+- P08_P08: stock 30.0 x 20.0 x 12.0 mm, flip_x=False rot_z=0.0, layers 3, at (612.8, 0.0) [search: best +X (+X 1.5; -X 31.1; +Y 37.0; -Y 37.0; +Z 37.3; -Z 42.3)]
 
 Tool plan (recommendations from standard sizes — review against your VCarve library):
 Tool plan A (chosen, fastest estimate): 2 tool(s), 1 manual change(s), est 9.0 min total (cutting 7.0 + changes 2.0). Times are estimates, not promises.
@@ -45,6 +47,6 @@ Review the tools against your VCarve library before cutting — the gadget asks 
 
 Flags — read before cutting:
 - [P01_P01] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
-- [P02_P02] DRILL FROM SURFACE: dia 8.00 at (100.00,30.00) opens on the Z 10.00 face — POCKET_D5.00 faces it down first (start depth 5.00 mm), then drill 6.00 mm from there
+- [P02_P02] DRILL FROM SURFACE: dia 8.00 at (120.40,30.00) opens on the Z 10.00 face — POCKET_D5.00 faces it down first (start depth 5.00 mm), then drill 6.00 mm from there
 - [P06_P06] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
-- [P07_P07] COUNTERBORE THRU HOLE: dia 6.00 at (440.00,20.00) under D12.00 counterbore — treated as thru
+- [P07_P07] COUNTERBORE THRU HOLE: dia 6.00 at (562.40,20.00) under D12.00 counterbore — treated as thru

@@ -29,20 +29,35 @@ be cut from that material at any orientation.
 
 Scorer (config "orientation_penalties", equivalent minutes):
 cut time from the chosen plan (incl. tool-change penalties)
-+ 15 per HOLE NOT FROM TOP flag (a hole with no toolpath — that
-orientation needs a double-sided job or extensive post-processing
-instead) + post-processing penalties per method (cnc_3d 10,
-decision_needed 5, hand_router 3, drill_press 3, router_table 2)
-+ 60 if no standard tool plan exists. No special-casing for
++ a FIXED flip penalty (default 25: flip + re-clamp + re-zero +
+second setup) charged once when the orientation leaves ANY
+feature un-cuttable from the top — holes or pockets not from
+the top — plus small per-feature back-side cutting costs
+(hole 0.5, pocket 5.0) + post-processing penalties per method
+(cnc_3d 30, decision_needed 5, hand_router 3, drill_press 3,
+router_table 2) + 60 if no standard tool plan exists. The flip
+is fixed, not per-hole (BRA-21): the old +15/hole priced a
+1-hole flip at 15 and a 16-hole flip at 240, when the flip
+itself costs the same either way. No special-casing for
 magnets or for insides-up: the difference falls out of the
 penalties. Evidence (measured 2026-11-09, real container both
-parts flipped = magnets on bottom): the flipped job is FASTER on
-the clock (Plan A 1 change / 3.5 min vs upright 2 / 5.6) because
-it skips the Bottom's 8 magnet holes — cut-time-only scoring
-would pick the wrong orientation. With the penalty the upright
-wins by ~118 min. The flipped orientation is priced, not
-disqualified: if a part only works double-sided, the search
-still picks the least-bad and the report says why.
+parts flipped = magnets on bottom): the flipped job is FASTER
+on the clock (Plan A 1 change / 3.5 min vs upright 2 / 5.6)
+because it skips the Bottom's 8 magnet holes — and worse, its
+pockets are cut on the WRONG side (BRA-21: a downward-opening
+pocket was emitted as a top pocket, which would bore into the
+Bottom's outside face). With the fix the flipped job scores
+46.1 against the upright's 9.6 at the merged-job level — about
+4.8x, the difficulty Brandon expects — for the right reasons:
+a real flip cost (25) plus real back-side work (8 holes x 0.5
++ 2 pockets x 5.0). Note the accounting: the search charges the
+flip per part (exact when orientations are mixed — a single
+flipped part needs its own second setup — but an all-flipped
+sheet shares one flip, so the sum of per-part scores overstates
+that case; the 4.8x above is the sheet-level number). The
+flipped orientation is priced, not disqualified: if a part
+only works double-sided, the search still picks the least-bad
+and the report says why.
 
 Ties: if the original orientation (+Z, identity) scores within
 "orientation_tie_minutes" (default 0.5) of the best, prefer it —
@@ -70,8 +85,24 @@ ORIENTATIONS = [
 ]
 
 DEFAULT_PENALTIES = {
-    "hole_not_from_top": 15.0,
-    "post_cnc_3d": 10.0,
+    # The flip is a FIXED setup cost, not a per-hole one (BRA-21,
+    # 2026-11-09 — Brandon: the flipped orientation should cost
+    # 4-5x, not just skip work). The old model charged +15 per
+    # un-cut hole, which priced a 1-hole flip at 15 and a 16-hole
+    # flip at 240, when the flip itself costs the same either way:
+    # unclamp, flip the stock, re-clamp, re-zero, second setup.
+    # So: one fixed flip penalty when ANY feature is un-cuttable
+    # from the top, plus small per-feature back-side costs for the
+    # actual cutting (a Ø2.25 hole is seconds; a pocket takes
+    # minutes). All in equivalent minutes, all configurable.
+    "flip": 25.0,
+    "hole_not_from_top": 0.5,
+    "pocket_not_from_top": 5.0,
+    # A 3D surfacing pass is slow (small stepover, ball nose) — the
+    # flat weight is coarse. A proper area-based 3D time estimate
+    # is a follow-up; it needs the non-prismatic face area in the
+    # post_process entries, which the classifier does not record yet.
+    "post_cnc_3d": 30.0,
     "post_decision_needed": 5.0,
     "post_hand_router": 3.0,
     "post_drill_press": 3.0,
@@ -178,6 +209,7 @@ def score_manifest(man, cfg=None):
     penalties = dict(DEFAULT_PENALTIES)
     penalties.update(cfg.get("orientation_penalties", {}))
     breakdown = {"cut_minutes": 0.0, "holes_not_from_top": 0,
+                 "pockets_not_from_top": 0, "flip": False,
                  "post": {}, "no_plan": False}
     layers = man.get("layers", [])
     tp = _tp.plan_tools(layers, cfg)
@@ -191,8 +223,18 @@ def score_manifest(man, cfg=None):
         score += penalties["no_plan"]
     n_hole = sum(1 for f in man.get("flags", [])
                  if f.startswith("HOLE NOT FROM TOP"))
+    n_pocket = sum(1 for f in man.get("flags", [])
+                   if f.startswith("POCKET NOT FROM TOP"))
     breakdown["holes_not_from_top"] = n_hole
+    breakdown["pockets_not_from_top"] = n_pocket
+    if n_hole > 0 or n_pocket > 0:
+        # One flip + re-register + second setup, however many
+        # features live on the other side — plus the actual
+        # back-side cutting time per feature.
+        breakdown["flip"] = True
+        score += penalties["flip"]
     score += n_hole * penalties["hole_not_from_top"]
+    score += n_pocket * penalties["pocket_not_from_top"]
     post_counts = {}
     for e in man.get("post_process", []):
         m = e.get("method", "decision_needed")
@@ -319,7 +361,8 @@ def main():
         for e in res["ranked"]:
             b = e["breakdown"]
             print(f"  {e['orientation']:>3} score {e['score']:6.2f}  cut {b['cut_minutes']:5.2f} min  "
-                  f"holes-not-from-top {b['holes_not_from_top']}  post {b['post']}  "
+                  f"holes-not-from-top {b['holes_not_from_top']}  pockets-not-from-top {b['pockets_not_from_top']}  "
+                  f"flip {b['flip']}  post {b['post']}  "
                   f"layers {e['layers']} flags {e['flags']}  "
                   f"{'BEST' if e is res['best'] else ''}")
         for p in res["pruned"]:

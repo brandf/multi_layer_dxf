@@ -1,10 +1,16 @@
 {
   "source_step": "test/eight_parts_out/parts/P02_P02.step",
   "units": "mm",
+  "material": null,
+  "suggested_material": {
+    "x": 60,
+    "y": 60,
+    "thickness": 15
+  },
   "stock": {
-    "x_min": 70.0,
+    "x_min": 90.4,
     "y_min": 0.0,
-    "x_max": 130.0,
+    "x_max": 150.4,
     "y_max": 60.0,
     "z_min": 0.0,
     "z_max": 15.0,
@@ -25,11 +31,11 @@
       "segment_count": 2,
       "centres": [
         [
-          80.0,
+          100.4,
           10.0
         ],
         [
-          120.0,
+          140.4,
           50.0
         ]
       ],
@@ -64,7 +70,7 @@
       "segment_count": 1,
       "centres": [
         [
-          100.0,
+          120.4,
           30.0
         ]
       ],
@@ -90,7 +96,7 @@
   ],
   "holes": [
     {
-      "cx": 80.0,
+      "cx": 100.4,
       "cy": 10.0,
       "dia": 6.0,
       "z0": 0.0,
@@ -98,7 +104,7 @@
       "kind": "thru"
     },
     {
-      "cx": 100.0,
+      "cx": 120.4,
       "cy": 30.0,
       "dia": 8.0,
       "z0": 4.0,
@@ -106,7 +112,7 @@
       "kind": "internal"
     },
     {
-      "cx": 120.0,
+      "cx": 140.4,
       "cy": 50.0,
       "dia": 6.0,
       "z0": 0.0,
@@ -117,6 +123,6 @@
   "pocket_count": 1,
   "post_process": [],
   "flags": [
-    "DRILL FROM SURFACE: dia 8.00 at (100.00,30.00) opens on the Z 10.00 face \u2014 POCKET_D5.00 faces it down first (start depth 5.00 mm), then drill 6.00 mm from there"
+    "DRILL FROM SURFACE: dia 8.00 at (120.40,30.00) opens on the Z 10.00 face \u2014 POCKET_D5.00 faces it down first (start depth 5.00 mm), then drill 6.00 mm from there"
   ]
 }

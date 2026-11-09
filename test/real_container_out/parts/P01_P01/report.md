@@ -2,6 +2,8 @@
 
 Stock: 46.00 x 46.00 x 9.50 mm, Z 0.00..9.50
 
+Material: none given — suggested 50 x 50 x 10 mm (footprint rounded up to 10 mm).
+
 Layers (4):
 
 - POCKET_D1.50: pocket, start 0.00, cut 1.50, 3 segments

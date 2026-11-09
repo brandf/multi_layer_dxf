@@ -1,6 +1,12 @@
 {
   "source_step": "test/eight_parts_out/parts/P01_P01.step",
   "units": "mm",
+  "material": null,
+  "suggested_material": {
+    "x": 60,
+    "y": 60,
+    "thickness": 10
+  },
   "stock": {
     "x_min": 0.0,
     "y_min": 0.0,

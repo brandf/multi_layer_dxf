@@ -2,6 +2,8 @@
 
 Stock: 60.00 x 60.00 x 10.00 mm, Z 0.00..10.00
 
+Material: none given — suggested 60 x 60 x 10 mm (footprint rounded up to 10 mm).
+
 Layers (2):
 
 - PROFILE_THRU: profile, start 0.00, cut 10.00, 1 segments

@@ -1,7 +1,9 @@
 # real_container — multi-part VCarve report
 
-- P01_P01: stock 46.0 x 46.0 x 9.5 mm, flip_x=False rot_z=0.0, layers 4 [search: best +Z (+Z 6.9; -Z 122.8); pruned +X (height 46.00 mm > material thickness 10.00 mm); -X (height 46.00 mm > material thickness 10.00 mm); +Y (height 46.00 mm > material thickness 10.00 mm); -Y (height 46.00 mm > material thickness 10.00 mm)]
-- P02_P02: stock 46.0 x 46.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 4 [search: best -Z (-Z 4.7; +Z 122.5); pruned +X (height 46.00 mm > material thickness 10.00 mm); -X (height 46.00 mm > material thickness 10.00 mm); +Y (height 46.00 mm > material thickness 10.00 mm); -Y (height 46.00 mm > material thickness 10.00 mm)]
+Material: none given — suggested 170 x 90 x 10 mm (packed layout + 20 mm clamp margin, rounded up to 10 mm).
+Spacing (BRA-16 tool rule): gaps are max(10.0 mm, D_A + D_B + 5.0 mm web); profile tools: P01_P01 12.70 mm, P02_P02 12.70 mm. verified against plan A (profile tools P01_P01 12.70 mm, P02_P02 12.70 mm).
+- P01_P01: stock 46.0 x 46.0 x 9.5 mm, flip_x=False rot_z=0.0, layers 4, at (0.0, 0.0) [search: best +Z (+Z 6.9; -Z 41.4; +X 145.0; -X 145.0; +Y 145.0; -Y 145.0)]
+- P02_P02: stock 46.0 x 46.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 4, at (76.4, 0.0) [search: best -Z (-Z 4.7; +Z 41.3; +X 145.0; -X 145.0; +Y 145.0; -Y 145.0)]
 
 Tool plan (recommendations from standard sizes — review against your VCarve library):
 Tool plan A (chosen, fastest estimate): 2 tool(s), 2 manual change(s), est 5.6 min total (cutting 1.6 + changes 4.0). Times are estimates, not promises.

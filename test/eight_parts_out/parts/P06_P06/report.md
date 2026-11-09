@@ -2,6 +2,8 @@
 
 Stock: 80.00 x 20.00 x 8.00 mm, Z 0.00..8.00
 
+Material: none given — suggested 80 x 20 x 8 mm (footprint rounded up to 10 mm).
+
 Layers (3):
 
 - DRILL_D4.00_THRU: drill, start 0.00, cut 8.00, 2 segments
@@ -9,8 +11,8 @@ Layers (3):
 - THROUGH_CUT: profile, start 0.00, cut 8.00, 4 segments
 
 Holes (2):
-- thru D4.00 at (340.00,10.00) Z 0.00..8.00
-- thru D4.00 at (400.00,10.00) Z 0.00..8.00
+- thru D4.00 at (442.00,10.00) Z 0.00..8.00
+- thru D4.00 at (502.00,10.00) Z 0.00..8.00
 
 Pockets (0):
 
