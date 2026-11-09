@@ -168,6 +168,16 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # P02 facing pocket has 1 (r 18.00 counterbore). Bottom drills are
 # surface drills START1.50 depending on POCKET_D1.50.
 
+# Eight unrelated parts (generalisation, verified 2026-11-08):
+.venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_out --auto
+# expect: 8 parts, 22 layers, 6 flags. 7 of 8 classify exactly
+# right (L-bracket, disc, pocketed plate, slot bar, counterbore
+# block, donut, stepped plate with surface drill). The sideways
+# block (modelled on its side, prismatic axis along X) is flagged
+# AUTO-ORIENT AMBIGUOUS (X share 49% vs the 50% dominant
+# threshold) and classified as-is — flagged, never silently
+# re-oriented. Plan A: 2 tools, 3 changes, est 13.7 min.
+
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"
 # expect: [('A', 2, 1, 5.4), ('B', 2, 1, 5.7), ('C', 2, 1, 6.1)] — A is

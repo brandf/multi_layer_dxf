@@ -1,0 +1,90 @@
+{
+  "source_step": "test/eight_parts_out/parts/P06_P06.step",
+  "units": "mm",
+  "stock": {
+    "x_min": 330.0,
+    "y_min": 0.0,
+    "x_max": 410.0,
+    "y_max": 20.0,
+    "z_min": 0.0,
+    "z_max": 8.0,
+    "thickness": 8.0
+  },
+  "z_top": 8.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D4.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 8.0,
+      "segment_count": 2,
+      "centres": [
+        [
+          340.0,
+          10.0
+        ],
+        [
+          400.0,
+          10.0
+        ]
+      ],
+      "diameter": 4.0,
+      "est": {
+        "hole_count": 2,
+        "hole_dia_mm": 4.0,
+        "depth_mm": 8.0
+      }
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 8.0,
+      "segment_count": 4,
+      "est": {
+        "perimeter_mm": 200.0,
+        "depth_mm": 8.0
+      }
+    },
+    {
+      "layer": "THROUGH_CUT",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 8.0,
+      "segment_count": 4,
+      "est": {
+        "perimeter_mm": 96.0,
+        "min_width_mm": 8.0,
+        "depth_mm": 8.0
+      }
+    }
+  ],
+  "holes": [
+    {
+      "cx": 340.0,
+      "cy": 10.0,
+      "dia": 4.0,
+      "z0": 0.0,
+      "z1": 8.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 400.0,
+      "cy": 10.0,
+      "dia": 4.0,
+      "z0": 0.0,
+      "z1": 8.0,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 0,
+  "post_process": [],
+  "flags": [
+    "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
+  ]
+}

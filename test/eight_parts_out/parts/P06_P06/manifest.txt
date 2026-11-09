@@ -1,0 +1,4 @@
+# dxf: P06_P06.dxf
+DRILL_D4.00_THRU|drill|0.000|8.000
+PROFILE_THRU|profile|0.000|8.000
+THROUGH_CUT|profile|0.000|8.000

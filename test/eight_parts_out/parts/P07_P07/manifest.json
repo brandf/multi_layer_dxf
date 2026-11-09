@@ -1,0 +1,93 @@
+{
+  "source_step": "test/eight_parts_out/parts/P07_P07.step",
+  "units": "mm",
+  "stock": {
+    "x_min": 420.0,
+    "y_min": 0.0,
+    "x_max": 460.0,
+    "y_max": 40.0,
+    "z_min": 0.0,
+    "z_max": 12.0,
+    "thickness": 12.0
+  },
+  "z_top": 12.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D12.00_D4.00",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 4.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          440.0,
+          20.0
+        ]
+      ],
+      "diameter": 12.0,
+      "est": {
+        "hole_count": 1,
+        "hole_dia_mm": 12.0,
+        "depth_mm": 4.0
+      }
+    },
+    {
+      "layer": "DRILL_D6.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          440.0,
+          20.0
+        ]
+      ],
+      "diameter": 6.0,
+      "est": {
+        "hole_count": 1,
+        "hole_dia_mm": 6.0,
+        "depth_mm": 12.0
+      }
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 4,
+      "est": {
+        "perimeter_mm": 160.0,
+        "depth_mm": 12.0
+      }
+    }
+  ],
+  "holes": [
+    {
+      "cx": 440.0,
+      "cy": 20.0,
+      "dia": 6.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 440.0,
+      "cy": 20.0,
+      "dia": 12.0,
+      "z0": 8.0,
+      "z1": 12.0,
+      "kind": "blind_top"
+    }
+  ],
+  "pocket_count": 0,
+  "post_process": [],
+  "flags": [
+    "COUNTERBORE THRU HOLE: dia 6.00 at (440.00,20.00) under D12.00 counterbore \u2014 treated as thru"
+  ]
+}

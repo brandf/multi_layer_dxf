@@ -1,0 +1,4 @@
+# dxf: P03_P03.dxf
+DRILL_D5.00_THRU|drill|0.000|10.000
+POCKET_D4.00|pocket|0.000|4.000
+PROFILE_THRU|profile|0.000|10.000
