@@ -1,0 +1,381 @@
+{
+  "source_step": "test/beveled_sideways.step",
+  "units": "mm",
+  "stock": {
+    "x_min": -44.0,
+    "y_min": -50.0,
+    "x_max": 56.0,
+    "y_max": 50.0,
+    "z_min": 44.0,
+    "z_max": 56.0,
+    "thickness": 12.0
+  },
+  "z_top": 56.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D5.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 8,
+      "centres": [
+        [
+          -36.0,
+          0.0
+        ],
+        [
+          -23.7,
+          -29.7
+        ],
+        [
+          -23.7,
+          29.7
+        ],
+        [
+          6.0,
+          -42.0
+        ],
+        [
+          6.0,
+          42.0
+        ],
+        [
+          35.7,
+          -29.7
+        ],
+        [
+          35.7,
+          29.7
+        ],
+        [
+          48.0,
+          0.0
+        ]
+      ],
+      "diameter": 5.0,
+      "est": {
+        "hole_count": 8,
+        "hole_dia_mm": 5.0,
+        "depth_mm": 12.0
+      }
+    },
+    {
+      "layer": "POCKET_D6.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 6.0,
+      "segment_count": 1,
+      "floor_z": 50.0,
+      "depth_total": 6.0,
+      "est": {
+        "area_mm2": 2352.0,
+        "min_width_mm": 56.0,
+        "depth_mm": 6.0
+      }
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 1,
+      "est": {
+        "perimeter_mm": 314.159,
+        "depth_mm": 12.0
+      }
+    }
+  ],
+  "holes": [
+    {
+      "cx": -36.0,
+      "cy": 0.0,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    },
+    {
+      "cx": -23.7,
+      "cy": -29.7,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    },
+    {
+      "cx": -23.7,
+      "cy": 29.7,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 6.0,
+      "cy": -42.0,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 6.0,
+      "cy": 42.0,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 35.7,
+      "cy": -29.7,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 35.7,
+      "cy": 29.7,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 48.0,
+      "cy": 0.0,
+      "dia": 5.0,
+      "z0": 44.0,
+      "z1": 56.0,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 1,
+  "post_process": [
+    {
+      "feature": "fillet",
+      "location": "pocket floor (Z 50.00)",
+      "params": "R2.00 mm",
+      "method": "cnc_3d",
+      "tool": "roundover bit R2.00 mm",
+      "step": "Cut the pocket-floor fillet on the CNC with a ball-nose 3D finish pass \u2014 a router table cannot reach a floor fillet. Or leave the corner sharp.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "pocket top edge (floor Z 50.00)",
+      "params": "45 deg, 2.00 mm tall",
+      "method": "hand_router",
+      "tool": "chamfer bit 45 deg",
+      "step": "Chamfer the pocket's top edge with a handheld router (bearing-guided bit).",
+      "cnc_alternative": "CNC: chamfer tool."
+    },
+    {
+      "feature": "fillet",
+      "location": "outer top edge",
+      "params": "R3.00 mm",
+      "method": "router_table",
+      "tool": "roundover bit R3.00 mm",
+      "step": "Round over the top outer edge on the router table after the CNC cut.",
+      "cnc_alternative": "CNC: roundover bit in the spindle, or a ball-nose 3D finish pass."
+    }
+  ],
+  "flags": [
+    "PROFILE OUTLINE DIFFERS top vs bottom by 12% (top 6627 mm2, bottom 7500 mm2) \u2014 profile taken from Z 44.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "POST-PROCESS [cnc_3d]: fillet R2.00 mm at pocket floor (Z 50.00) \u2014 Cut the pocket-floor fillet on the CNC with a ball-nose 3D finish pass \u2014 a router table cannot reach a floor fillet. Or leave the corner sharp.",
+    "POST-PROCESS [hand_router]: chamfer 45 deg, 2.00 mm tall at pocket top edge (floor Z 50.00) \u2014 Chamfer the pocket's top edge with a handheld router (bearing-guided bit).",
+    "POST-PROCESS [router_table]: fillet R3.00 mm at outer top edge \u2014 Round over the top outer edge on the router table after the CNC cut."
+  ],
+  "tool_plan": {
+    "plans": [
+      {
+        "total_seconds": 239.6,
+        "cutting_seconds": 119.6,
+        "tool_changes": 1,
+        "change_seconds": 120.0,
+        "tools": [
+          {
+            "id": "D5.00",
+            "kind": "drill",
+            "dia_mm": 5.0,
+            "name": "Drill 5.00 mm",
+            "feed_mm_s": 7.5,
+            "plunge_mm_s": 7.5,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 2.5,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 1
+          },
+          {
+            "id": "EM12.70",
+            "kind": "endmill",
+            "dia_mm": 12.7,
+            "name": "End Mill 1/2 in (12.70 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 5.08,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D5.00_THRU",
+            "operation": "drill",
+            "tool_id": "D5.00",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 40.8
+          },
+          {
+            "layer": "POCKET_D6.00",
+            "operation": "pocket",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 32.9
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 45.9
+          }
+        ],
+        "id": "A"
+      },
+      {
+        "total_seconds": 249.8,
+        "cutting_seconds": 129.8,
+        "tool_changes": 1,
+        "change_seconds": 120.0,
+        "tools": [
+          {
+            "id": "D5.00",
+            "kind": "drill",
+            "dia_mm": 5.0,
+            "name": "Drill 5.00 mm",
+            "feed_mm_s": 7.5,
+            "plunge_mm_s": 7.5,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 2.5,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 1
+          },
+          {
+            "id": "EM9.53",
+            "kind": "endmill",
+            "dia_mm": 9.525,
+            "name": "End Mill 3/8 in (9.53 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 3.81,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D5.00_THRU",
+            "operation": "drill",
+            "tool_id": "D5.00",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 40.8
+          },
+          {
+            "layer": "POCKET_D6.00",
+            "operation": "pocket",
+            "tool_id": "EM9.53",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 43.2
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM9.53",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 45.9
+          }
+        ],
+        "id": "B"
+      },
+      {
+        "total_seconds": 270.4,
+        "cutting_seconds": 150.4,
+        "tool_changes": 1,
+        "change_seconds": 120.0,
+        "tools": [
+          {
+            "id": "D5.00",
+            "kind": "drill",
+            "dia_mm": 5.0,
+            "name": "Drill 5.00 mm",
+            "feed_mm_s": 7.5,
+            "plunge_mm_s": 7.5,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 2.5,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 1
+          },
+          {
+            "id": "EM6.35",
+            "kind": "endmill",
+            "dia_mm": 6.35,
+            "name": "End Mill 1/4 in (6.35 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 2.54,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D5.00_THRU",
+            "operation": "drill",
+            "tool_id": "D5.00",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 40.8
+          },
+          {
+            "layer": "POCKET_D6.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 63.7
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 45.9
+          }
+        ],
+        "id": "C"
+      }
+    ],
+    "error": null,
+    "chosen": "A"
+  }
+}

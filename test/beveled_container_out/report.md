@@ -8,6 +8,20 @@ Layers (3):
 - POCKET_D6.00: pocket, start 0.00, cut 6.00, 1 segments
 - PROFILE_THRU: profile, start 0.00, cut 12.00, 1 segments
 
+Tool plan (recommendations from standard sizes — review against your VCarve library):
+Tool plan A (chosen, fastest estimate): 2 tool(s), 1 manual change(s), est 4.0 min total (cutting 2.0 + changes 2.0). Times are estimates, not promises.
+- T1: Drill 5.00 mm — feed 7.5 mm/s, plunge 7.5 mm/s, 20000 rpm, stepdown 2.5 mm, peck drilling
+- T2: End Mill 1/2 in (12.70 mm) — feed 30.0 mm/s, plunge 10.0 mm/s, 20000 rpm, stepdown 3.0 mm, stepover 5.08 mm
+Cut order (tool changes marked):
+- DRILL_D5.00_THRU (drill, drill): est 41 s — drill
+  — change to T2 (End Mill 1/2 in (12.70 mm)) —
+- POCKET_D6.00 (pocket, endmill): est 33 s — largest endmill that fits
+- PROFILE_THRU (profile, endmill): est 46 s — largest endmill that fits
+Fallback plans (same DXF, run manifest_plan_<id>.txt instead):
+- Plan B: 2 tool(s), 1 change(s), est 4.2 min — T1 Drill 5.00 mm, T2 End Mill 3/8 in (9.53 mm)
+- Plan C: 2 tool(s), 1 change(s), est 4.5 min — T1 Drill 5.00 mm, T2 End Mill 1/4 in (6.35 mm)
+Review the tools against your VCarve library before cutting — the gadget asks you to pick each one from the library, or uses the recommendation above if you cancel.
+
 Holes (8):
 - thru D5.00 at (-42.00,0.00) Z 0.00..12.00
 - thru D5.00 at (-29.70,-29.70) Z 0.00..12.00

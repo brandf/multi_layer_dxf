@@ -4,15 +4,35 @@ Stock: 120.00 x 80.00 x 14.00 mm, Z 0.00..14.00
 
 Layers (9):
 
-- DRILL_D8.00_D5.00: drill, start 0.00, cut 5.00, 1 segments
-- DRILL_D12.00_D3.00: drill, start 0.00, cut 3.00, 1 segments
 - DRILL_D5.00_THRU: drill, start 0.00, cut 14.00, 4 segments
 - DRILL_D6.00_THRU: drill, start 0.00, cut 14.00, 1 segments
+- DRILL_D8.00_D5.00: drill, start 0.00, cut 5.00, 1 segments
+- DRILL_D12.00_D3.00: drill, start 0.00, cut 3.00, 1 segments
 - POCKET_D3.00: pocket, start 0.00, cut 3.00, 4 segments
 - POCKET_D5.00: pocket, start 0.00, cut 5.00, 6 segments
 - POCKET_D9.00_START5.00: pocket, start 5.00, cut 4.00, 4 segments
 - THROUGH_CUT: profile, start 0.00, cut 14.00, 4 segments
 - PROFILE_THRU: profile, start 0.00, cut 14.00, 8 segments
+
+Tool plan (recommendations from standard sizes — review against your VCarve library):
+Tool plan A (chosen, fastest estimate): 2 tool(s), 1 manual change(s), est 5.7 min total (cutting 3.7 + changes 2.0). Times are estimates, not promises.
+- T1: End Mill 1/8 in (3.17 mm) — feed 15.88 mm/s, plunge 5.29 mm/s, 20000 rpm, stepdown 1.587 mm, stepover 1.27 mm
+- T2: End Mill 1/4 in (6.35 mm) — feed 30.0 mm/s, plunge 10.0 mm/s, 20000 rpm, stepdown 3.0 mm, stepover 2.54 mm
+Cut order (tool changes marked):
+- DRILL_D5.00_THRU (drill, bore): est 48 s — bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)
+- DRILL_D6.00_THRU (drill, bore): est 14 s — bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)
+  — change to T2 (End Mill 1/4 in (6.35 mm)) —
+- DRILL_D8.00_D5.00 (drill, bore): est 3 s — bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)
+- DRILL_D12.00_D3.00 (drill, bore): est 2 s — bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)
+- POCKET_D3.00 (pocket, endmill): est 6 s — largest endmill that fits
+- POCKET_D5.00 (pocket, endmill): est 53 s — largest endmill that fits
+- POCKET_D9.00_START5.00 (pocket, endmill): est 12 s — largest endmill that fits
+- THROUGH_CUT (profile, endmill): est 16 s — largest endmill that fits
+- PROFILE_THRU (profile, endmill): est 69 s — largest endmill that fits
+Fallback plans (same DXF, run manifest_plan_<id>.txt instead):
+- Plan B: 3 tool(s), 2 change(s), est 7.2 min — T1 Drill 5.00 mm, T2 Drill 6.00 mm, T3 End Mill 1/4 in (6.35 mm)
+- Plan C: 3 tool(s), 2 change(s), est 7.2 min — T1 Drill 5.00 mm, T2 End Mill 3/16 in (4.76 mm), T3 End Mill 1/4 in (6.35 mm)
+Review the tools against your VCarve library before cutting — the gadget asks you to pick each one from the library, or uses the recommendation above if you cancel.
 
 Holes (8):
 - thru D5.00 at (-50.00,-30.00) Z 0.00..14.00

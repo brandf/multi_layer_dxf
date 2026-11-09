@@ -1,0 +1,8 @@
+# dxf: beveled_sideways.dxf
+# plan: A — 2 tool(s), 1 change(s), est 4.0 min (cutting 2.0 + changes 2.0)
+# tool: D5.00|drill|5.0000|1|7.5|7.5|20000|2.5|0.0
+# tool: EM12.70|endmill|12.7000|2|30.0|10.0|20000|3.0|5.08
+# tabs: PROFILE_THRU|4|5.0|1.0
+DRILL_D5.00_THRU|drill|0.000|12.000||D5.00
+POCKET_D6.00|pocket|0.000|6.000||EM12.70
+PROFILE_THRU|profile|0.000|12.000||EM12.70

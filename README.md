@@ -255,6 +255,61 @@ The VCarve gadget is flexible the same way: `MODE`, `ONLY`,
 You can run it for drills only, skip the profile, preview without
 saving, etc. Nothing is all-or-nothing.
 
+## Tool plan — recommendations, not a library (built 2026-11-08, BRA-12)
+
+Brandon has no automatic tool changer and does not want to maintain
+a tool library (bits wear out and get replaced). So the pipeline
+does not ask for one. Instead `toolplan.py` recommends tools from
+standard sizes — his bits are imperial Bits & Bits wood bits,
+1/16"–1/2", any given bit may be missing — and the manifest carries
+the recommendation plus fallback plans:
+
+- **Per layer:** drills get an exact-diameter drill as primary and
+  an endmill bore (largest standard endmill that fits inside the
+  hole) as fallback. Pockets get the largest standard endmill that
+  fits the narrowest spot; profiles get the largest that fits (outer
+  profiles take any size, slots must fit the slot).
+- **Plans, not one answer:** a plan is a tool set (endmills + per
+  hole-diameter drill-or-bore). Total time = estimated cutting time
+  (MRR model — volume/(feed·stepover·stepdown) for pockets,
+  length·passes/feed for profiles, plunge+peck for drills) +
+  `tool_change_seconds` per manual change (default 120 s, set it in
+  `config.json` → `toolplan.tool_change_seconds` to match your real
+  change time). The fastest plan is chosen; the next two distinct
+  plans are kept as fallbacks. Each plan is writable as its own
+  `manifest_plan_<id>.txt` — the gadget runs whichever file you pick.
+  `--plan B` writes plan B as `manifest.txt` instead.
+- **The change penalty is the point:** with no ATC, one smaller
+  endmill for everything can beat the optimal tool per operation
+  plus a manual change. Verified on the test models: the container
+  picks Drill Ø5 + 1/2" endmill (5.4 min, 1 change) over all-bore
+  (6.1 min); the synthetic test part picks Drill Ø6 + 1/4" (4.3 min)
+  over a single 3/16" endmill for everything (4.4 min, 0 changes) —
+  nearly tied, and the estimate says so. Times are estimates, not
+  promises; the report shows the comparison so you can judge.
+- **Tabs:** outer profiles get tabs by default (4 tabs, 5 mm long,
+  1 mm thick — `config.json` → `toolplan.tabs`), so parts don't go
+  flying when the profile cut finishes. Through-cut slots are
+  openings, not parts — no tabs. Tab length is clamped to a tenth of
+  the profile perimeter. The tab count is not settable through the
+  documented ProfileParameterData fields; the gadget tries it in a
+  guarded call and VCarve's default applies if ignored.
+- **Matching to your VCarve library:** the SDK has no silent
+  lookup-by-diameter — `ToolDatabase` only offers `SelectTool()`
+  (interactive dialog) and `GetTool(id)`. So gadget v0.3 asks once
+  per distinct tool to pick the matching tool from your library;
+  Cancel uses the recommendation as-is (a tool created with the
+  recommended diameter/feeds). It warns in the final message if the
+  tool you picked differs in diameter from the recommendation.
+  Set `MATCH_TO_LIBRARY = false` at the top of the gadget to skip
+  the dialogs. Either way, review the plan in `report.md` first.
+- **Tool numbers** are assigned in first-use order — this fixes the
+  v0.2 bug where every toolpath was Tool 1 and the posted code
+  called no tool change.
+- Feeds are conservative wood defaults, scaling with tool diameter
+  (small tools go slower); stepdown is capped at half the tool
+  diameter. Override any of it in `config.json` → `toolplan`.
+
 ## Quick start (Python side)
 
 Linux / Mac:

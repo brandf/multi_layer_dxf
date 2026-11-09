@@ -104,6 +104,16 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 .venv/bin/python step_to_vcarve.py test/beveled_sideways.step -o test/beveled_sideways_out --auto-orient --mode full
 # expect: axis X detected, rotated back, 3 layers, 8 holes, 1 pocket,
 # same post-process plan as the unrotated beveled container
+
+# Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
+.venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"
+# expect: [('A', 2, 1, 5.4), ('B', 2, 1, 5.7), ('C', 2, 1, 6.1)] — A is
+# Drill 5.00 + End Mill 1/2 in; C is the all-bore fallback (no drill).
+# manifest.txt must carry # tool lines (T1 drill, T2 endmill, distinct
+# numbers) and # tabs lines for both PROFILE_THRU layers, and
+# manifest_plan_B.txt / _C.txt must exist in the same folder.
+# --plan B must write plan B as manifest.txt; --no-toolplan must write
+# the old 4-field manifest.txt with no tool_plan in manifest.json.
 ```
 
 ## 5. VCarve gadget test (BRA-5, on Windows)

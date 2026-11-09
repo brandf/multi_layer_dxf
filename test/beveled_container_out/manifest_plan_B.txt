@@ -1,0 +1,8 @@
+# dxf: beveled_container.dxf
+# plan: B — 2 tool(s), 1 change(s), est 4.2 min (cutting 2.2 + changes 2.0)
+# tool: D5.00|drill|5.0000|1|7.5|7.5|20000|2.5|0.0
+# tool: EM9.53|endmill|9.5250|2|30.0|10.0|20000|3.0|3.81
+# tabs: PROFILE_THRU|4|5.0|1.0
+DRILL_D5.00_THRU|drill|0.000|12.000||D5.00
+POCKET_D6.00|pocket|0.000|6.000||EM9.53
+PROFILE_THRU|profile|0.000|12.000||EM9.53

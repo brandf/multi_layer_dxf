@@ -1,6 +1,11 @@
 # dxf: container.dxf
-P01_Bottom__DRILL_D5.00_THRU|drill|0.000|12.000|P01_Bottom
-P01_Bottom__POCKET_D6.00|pocket|0.000|6.000|P01_Bottom
-P01_Bottom__PROFILE_THRU|profile|0.000|12.000|P01_Bottom
-P02_Top__POCKET_D5.00|pocket|0.000|5.000|P02_Top
-P02_Top__PROFILE_THRU|profile|0.000|10.000|P02_Top
+# plan: A — 2 tool(s), 1 change(s), est 5.4 min (cutting 3.4 + changes 2.0)
+# tool: D5.00|drill|5.0000|1|7.5|7.5|20000|2.5|0.0
+# tool: EM12.70|endmill|12.7000|2|30.0|10.0|20000|3.0|5.08
+# tabs: P01_Bottom__PROFILE_THRU|4|5.0|1.0
+# tabs: P02_Top__PROFILE_THRU|4|5.0|1.0
+P01_Bottom__DRILL_D5.00_THRU|drill|0.000|12.000|P01_Bottom|D5.00
+P01_Bottom__POCKET_D6.00|pocket|0.000|6.000|P01_Bottom|EM12.70
+P02_Top__POCKET_D5.00|pocket|0.000|5.000|P02_Top|EM12.70
+P01_Bottom__PROFILE_THRU|profile|0.000|12.000|P01_Bottom|EM12.70
+P02_Top__PROFILE_THRU|profile|0.000|10.000|P02_Top|EM12.70

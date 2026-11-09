@@ -60,6 +60,50 @@ def dist_to_poly_boundary(px, py, poly):
         best = min(best, d)
     return best
 
+def segs_perimeter(segs):
+    """Total cut length of a segment list (toolplan time estimate).
+    Arc angles are stored in degrees (see edge_segments); the sweep
+    is taken CCW from start to end, which is how ezdxf draws them.
+    Good enough for an estimate — a major/minor arc mix-up on a rare
+    big arc moves the estimate by seconds, not minutes."""
+    total = 0.0
+    for s in segs:
+        if s[0] == 'line':
+            total += math.hypot(s[2][0] - s[1][0], s[2][1] - s[1][1])
+        elif s[0] == 'circle':
+            total += 2 * math.pi * s[2]
+        elif s[0] == 'arc':
+            sweep = (s[4] - s[3]) % 360.0
+            if sweep == 0:
+                sweep = 360.0
+            total += s[2] * math.radians(sweep)
+        elif s[0] == 'poly':
+            pts = s[1]
+            for i in range(len(pts)):
+                x1, y1 = pts[i]
+                x2, y2 = pts[(i + 1) % len(pts)]
+                total += math.hypot(x2 - x1, y2 - y1)
+    return total
+
+def segs_bbox(segs):
+    """(min_x, min_y, max_x, max_y) over segment endpoints / centres.
+    Used for the narrowest-width fit test (tool must fit the slot)."""
+    xs, ys = [], []
+    for s in segs:
+        if s[0] == 'line':
+            xs += [s[1][0], s[2][0]]
+            ys += [s[1][1], s[2][1]]
+        elif s[0] in ('circle', 'arc'):
+            cx, cy, r = s[1][0], s[1][1], s[2]
+            xs += [cx - r, cx + r]
+            ys += [cy - r, cy + r]
+        elif s[0] == 'poly':
+            xs += [p[0] for p in s[1]]
+            ys += [p[1] for p in s[1]]
+    if not xs:
+        return (0.0, 0.0, 0.0, 0.0)
+    return (min(xs), min(ys), max(xs), max(ys))
+
 # ---------------------------------------------------------------- OCP edge extraction
 def edge_segments(edge):
     """
@@ -219,6 +263,10 @@ def main():
     ap.add_argument("--config", type=Path, default=None, help="JSON config file (see config.example.json)")
     ap.add_argument("--auto-orient", action="store_true",
                     help="auto-detect the prismatic axis and best side up, rotate/flip the solid before classifying (see auto_orient.py)")
+    ap.add_argument("--no-toolplan", action="store_true",
+                    help="skip tool recommendations (multi_part.py plans the merged job itself)")
+    ap.add_argument("--plan", default="",
+                    help="which tool plan to write as manifest.txt (A/B/C — default fastest, A)")
     args = ap.parse_args()
 
     # Config file overrides CLI defaults (CLI wins if explicitly set is
@@ -947,6 +995,15 @@ def main():
             if extra and "centre" in extra:
                 d.setdefault("centres", []).append(extra["centre"])
                 d.pop("centre", None)
+            if extra and "est" in extra:
+                # Two pockets/slots sharing one layer (same depth):
+                # time estimates add, the fit test takes the narrowest.
+                e0 = d.setdefault("est", {})
+                for k, v in extra["est"].items():
+                    if k in ("perimeter_mm", "area_mm2"):
+                        e0[k] = round(e0.get(k, 0.0) + v, 3)
+                    elif k == "min_width_mm":
+                        e0[k] = round(min(e0.get(k, v), v), 3)
             return
         d = {"layer": name, "operation": operation, "start_depth": round(start, 3),
              "cut_depth": round(cut, 3), "segment_count": len(segs)}
@@ -1028,8 +1085,12 @@ def main():
             name = f"POCKET_D{fmt(p['depth'])}"
         else:
             name = f"POCKET_D{fmt(p['depth'])}_START{fmt(p['start'])}"
+        pbb = p["face"].bounding_box()
         add_layer(name, "pocket", p["start"], p["cut"], p["segs"],
-                  {"floor_z": round(p["z"], 3), "depth_total": round(p["depth"], 3)})
+                  {"floor_z": round(p["z"], 3), "depth_total": round(p["depth"], 3),
+                   "est": {"area_mm2": round(abs(poly_area(p["poly"])), 3) if p.get("poly") else 0.0,
+                           "min_width_mm": round(min(pbb.max.X - pbb.min.X, pbb.max.Y - pbb.min.Y), 3),
+                           "depth_mm": round(p["cut"], 3)}})
         for inner_segs, inner_poly in zip(p["inner"], p["inner_polys"]):
             # inner wire is usually the opening of a deeper pocket
             # (pocket-in-pocket) or a hole through the floor — both are
@@ -1052,11 +1113,17 @@ def main():
     # through cuts (slots etc.)
     for i, tc in enumerate(through_cuts):
         name = "THROUGH_CUT"
-        add_layer(name, "profile", 0.0, thickness, tc["segs"])
+        tbb = segs_bbox(tc["segs"])
+        add_layer(name, "profile", 0.0, thickness, tc["segs"],
+                  {"est": {"perimeter_mm": round(segs_perimeter(tc["segs"]), 3),
+                           "min_width_mm": round(min(tbb[2] - tbb[0], tbb[3] - tbb[1]), 3),
+                           "depth_mm": round(thickness, 3)}})
         flags.append("THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening")
 
     # profile last
-    add_layer("PROFILE_THRU", "profile", 0.0, thickness, profile_segs)
+    add_layer("PROFILE_THRU", "profile", 0.0, thickness, profile_segs,
+              {"est": {"perimeter_mm": round(segs_perimeter(profile_segs), 3),
+                       "depth_mm": round(thickness, 3)}})
 
     # small-feature flags
     if args.min_tool > 0:
@@ -1076,11 +1143,41 @@ def main():
         dxf_layers = {k: v for k, v in dxf_layers.items()
                       if any(L["layer"] == k for L in layers)}
         print(f"--only {sorted(wanted)}: {len(layers)} layers kept")
+
+    # Time-estimate inputs for tool planning (attached even with
+    # --no-toolplan: multi_part.py plans the merged job from these).
+    for L in layers:
+        if L["operation"] == "drill":
+            n = len(L.get("centres", [])) or 1
+            L["est"] = {"hole_count": n, "hole_dia_mm": L.get("diameter", 0),
+                        "depth_mm": L["cut_depth"]}
+
+    # ---- tool planning (BRA-12): recommend tools from standard
+    # sizes, rank plans by estimated time including manual tool
+    # changes, order layers to minimise changes. Additive — the
+    # classification above is unchanged by this block.
+    import toolplan as _tp
+    tool_plan = None
+    if not args.no_toolplan:
+        tool_plan = _tp.plan_tools(layers, cfg)
+        if tool_plan["plans"]:
+            chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
+            tool_plan["chosen"] = chosen["id"]
+            # reorder layers into the chosen plan's cut order
+            order = {e["layer"]: i for i, e in enumerate(chosen["layers"])}
+            layers = sorted(layers, key=lambda L: order.get(L["layer"], 99))
+        else:
+            flags.append(f"TOOL PLAN: {tool_plan['error']} — no tool recommendations; "
+                         "gadget falls back to its TOOLS table")
     if args.mode == "check":
         print("mode=check: classification only, no DXF / manifest written")
         print(f"layers would be: {len(layers)}, holes: {len(holes)}, pockets: {len(pockets)}, flags: {len(flags)}")
         for f in flags:
             print(" FLAG:", f)
+        if tool_plan and tool_plan.get("plans"):
+            print("TOOL PLAN:")
+            for line in _tp.format_tool_plan_report(tool_plan):
+                print("  " + line)
         return
 
     # ---- write DXF with ezdxf (skipped in mode=manifest)
@@ -1124,17 +1221,29 @@ def main():
         "post_process": post_process,
         "flags": flags,
     }
+    if tool_plan is not None:
+        manifest["tool_plan"] = tool_plan
     if args.mode in ("full", "manifest"):
         (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-        # manifest.txt — simple pipe format for the VCarve Lua gadget,
-        # which has no JSON parser. One line per layer, in cut order.
-        # layer|operation|start_depth|cut_depth
-        lines = [f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|{L['cut_depth']:.3f}"
-                 for L in layers]
-        # First line tells the VCarve gadget which DXF belongs to this
-        # manifest (same folder). The gadget skips '#' lines.
-        (outdir / "manifest.txt").write_text(
-            f"# dxf: {stem}.dxf\n" + "\n".join(lines) + "\n")
+        # manifest.txt — v2 with tool lines when a plan exists, else the
+        # old pipe format (gadget falls back to its TOOLS table).
+        # layer|operation|start_depth|cut_depth|part|tool_id
+        if tool_plan and tool_plan.get("plans"):
+            chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
+            st = _tp.settings(cfg)
+            (outdir / "manifest.txt").write_text(
+                _tp.manifest_txt(chosen, layers, f"{stem}.dxf", st))
+            for p in tool_plan["plans"]:
+                if p["id"] != chosen["id"]:
+                    (outdir / f"manifest_plan_{p['id']}.txt").write_text(
+                        _tp.manifest_txt(p, layers, f"{stem}.dxf", st))
+        else:
+            lines = [f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|{L['cut_depth']:.3f}"
+                     for L in layers]
+            # First line tells the VCarve gadget which DXF belongs to this
+            # manifest (same folder). The gadget skips '#' lines.
+            (outdir / "manifest.txt").write_text(
+                f"# dxf: {stem}.dxf\n" + "\n".join(lines) + "\n")
 
     report = []
     report.append(f"# {stem} — VCarve report\n")
@@ -1142,6 +1251,9 @@ def main():
     report.append(f"Layers ({len(layers)}):\n")
     for L in layers:
         report.append(f"- {L['layer']}: {L['operation']}, start {L['start_depth']:.2f}, cut {L['cut_depth']:.2f}, {L['segment_count']} segments")
+    if tool_plan is not None:
+        report.append("\nTool plan (recommendations from standard sizes — review against your VCarve library):")
+        report.extend(_tp.format_tool_plan_report(tool_plan))
     report.append(f"\nHoles ({len(holes)}):")
     for h in holes:
         report.append(f"- {h['kind']} D{h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f}) Z {h['z0']:.2f}..{h['z1']:.2f}")

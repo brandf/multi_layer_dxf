@@ -75,9 +75,16 @@ def main():
     ap.add_argument("--mode", choices=["full", "check", "dxf", "manifest"], default="full")
     ap.add_argument("--only", default="")
     ap.add_argument("--min-tool", type=float, default=0.0)
+    ap.add_argument("--config", type=Path, default=None, help="JSON config file (see config.example.json)")
+    ap.add_argument("--plan", default="",
+                    help="which tool plan to write as manifest.txt (A/B/C — default fastest, A)")
     ap.add_argument("--auto", action="store_true",
                     help="auto-orient each part (prismatic axis to Z, best side up) and lay out largest first; explicit parts.json entries override per part")
     args = ap.parse_args()
+
+    cfg = {}
+    if args.config and args.config.exists():
+        cfg = json.loads(args.config.read_text())
 
     parts_cfg = {"parts": []}
     if args.parts and args.parts.exists():
@@ -209,7 +216,10 @@ def main():
         part_out = parts_dir / f"{prefix}"
         cmd = [sys.executable, str(Path(__file__).parent / "step_to_vcarve.py"),
                str(part_step), "-o", str(part_out),
-               "--mode", args.mode, "--min-tool", str(args.min_tool)]
+               "--mode", args.mode, "--min-tool", str(args.min_tool),
+               "--no-toolplan"]  # the merged job is planned once, below
+        if args.config:
+            cmd += ["--config", str(args.config)]
         if args.only:
             cmd += ["--only", args.only]
         r = subprocess.run(cmd, capture_output=True, text=True)
@@ -252,6 +262,20 @@ def main():
         print("mode=check: multi-part classification only")
         return 0
 
+    # ---- tool planning (BRA-12) on the MERGED job, so tool changes
+    # are minimised across both parts, not per part. Per-part runs
+    # used --no-toolplan; their layers carry the "est" inputs.
+    import toolplan as _tp
+    tool_plan = _tp.plan_tools(combined_layers, cfg) if combined_layers else {"plans": [], "error": "no layers"}
+    if tool_plan["plans"]:
+        chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
+        tool_plan["chosen"] = chosen["id"]
+        order = {e["layer"]: i for i, e in enumerate(chosen["layers"])}
+        combined_layers = sorted(combined_layers, key=lambda L: order.get(L["layer"], 99))
+    else:
+        combined_flags.append(f"TOOL PLAN: {tool_plan['error']} — no tool recommendations; "
+                              "gadget falls back to its TOOLS table")
+
     stem = args.step.stem
     manifest = {
         "source_step": str(args.step),
@@ -260,13 +284,24 @@ def main():
         "layers": combined_layers,
         "flags": combined_flags,
         "cut_order": ["drill", "pocket", "profile"],
+        "tool_plan": tool_plan,
     }
     if args.mode in ("full", "manifest"):
         (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-        (outdir / "manifest.txt").write_text(
-            f"# dxf: {stem}.dxf\n" +
-            "\n".join(f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|{L['cut_depth']:.3f}|{L.get('part','')}"
-                      for L in combined_layers) + "\n")
+        if tool_plan["plans"]:
+            chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
+            st = _tp.settings(cfg)
+            (outdir / "manifest.txt").write_text(
+                _tp.manifest_txt(chosen, combined_layers, f"{stem}.dxf", st))
+            for p in tool_plan["plans"]:
+                if p["id"] != chosen["id"]:
+                    (outdir / f"manifest_plan_{p['id']}.txt").write_text(
+                        _tp.manifest_txt(p, combined_layers, f"{stem}.dxf", st))
+        else:
+            (outdir / "manifest.txt").write_text(
+                f"# dxf: {stem}.dxf\n" +
+                "\n".join(f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|{L['cut_depth']:.3f}|{L.get('part','')}"
+                          for L in combined_layers) + "\n")
     if args.mode in ("full", "dxf"):
         combined_doc.saveas(str(outdir / f"{stem}.dxf"))
     report = [f"# {stem} — multi-part VCarve report\n"]
@@ -280,6 +315,8 @@ def main():
                      f"openings +{a['up_area_mm2']:.0f} vs -{a['down_area_mm2']:.0f} mm2, "
                      f"flip={a['flip']}, ambiguous={a['ambiguous']}]")
         report.append(line)
+    report.append("\nTool plan (recommendations from standard sizes — review against your VCarve library):")
+    report.extend(_tp.format_tool_plan_report(tool_plan))
     report.append("\nFlags — read before cutting:")
     report.append("\n".join(f"- {f}" for f in combined_flags) if combined_flags else "- none")
     (outdir / "report.md").write_text("\n".join(report) + "\n")

@@ -18,20 +18,6 @@
   ],
   "layers": [
     {
-      "layer": "DRILL_D8.00_D5.00",
-      "operation": "drill",
-      "start_depth": 0.0,
-      "cut_depth": 5.0,
-      "segment_count": 1,
-      "centres": [
-        [
-          0.0,
-          -25.0
-        ]
-      ],
-      "diameter": 8.0
-    },
-    {
       "layer": "DRILL_D6.00_THRU",
       "operation": "drill",
       "start_depth": 0.0,
@@ -55,7 +41,31 @@
           25.0
         ]
       ],
-      "diameter": 6.0
+      "diameter": 6.0,
+      "est": {
+        "hole_count": 4,
+        "hole_dia_mm": 6.0,
+        "depth_mm": 12.0
+      }
+    },
+    {
+      "layer": "DRILL_D8.00_D5.00",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 5.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          0.0,
+          -25.0
+        ]
+      ],
+      "diameter": 8.0,
+      "est": {
+        "hole_count": 1,
+        "hole_dia_mm": 8.0,
+        "depth_mm": 5.0
+      }
     },
     {
       "layer": "DRILL_D10.00_THRU",
@@ -69,7 +79,12 @@
           -20.0
         ]
       ],
-      "diameter": 10.0
+      "diameter": 10.0,
+      "est": {
+        "hole_count": 1,
+        "hole_dia_mm": 10.0,
+        "depth_mm": 12.0
+      }
     },
     {
       "layer": "POCKET_D4.00",
@@ -78,7 +93,12 @@
       "cut_depth": 4.0,
       "segment_count": 5,
       "floor_z": 8.0,
-      "depth_total": 4.0
+      "depth_total": 4.0,
+      "est": {
+        "area_mm2": 486.201,
+        "min_width_mm": 20.0,
+        "depth_mm": 4.0
+      }
     },
     {
       "layer": "POCKET_D6.00",
@@ -87,7 +107,12 @@
       "cut_depth": 6.0,
       "segment_count": 4,
       "floor_z": 6.0,
-      "depth_total": 6.0
+      "depth_total": 6.0,
+      "est": {
+        "area_mm2": 1195.833,
+        "min_width_mm": 30.0,
+        "depth_mm": 6.0
+      }
     },
     {
       "layer": "POCKET_D9.00_START6.00",
@@ -96,21 +121,35 @@
       "cut_depth": 3.0,
       "segment_count": 4,
       "floor_z": 3.0,
-      "depth_total": 9.0
+      "depth_total": 9.0,
+      "est": {
+        "area_mm2": 298.958,
+        "min_width_mm": 15.0,
+        "depth_mm": 3.0
+      }
     },
     {
       "layer": "THROUGH_CUT",
       "operation": "profile",
       "start_depth": 0.0,
       "cut_depth": 12.0,
-      "segment_count": 4
+      "segment_count": 4,
+      "est": {
+        "perimeter_mm": 76.0,
+        "min_width_mm": 8.0,
+        "depth_mm": 12.0
+      }
     },
     {
       "layer": "PROFILE_THRU",
       "operation": "profile",
       "start_depth": 0.0,
       "cut_depth": 12.0,
-      "segment_count": 4
+      "segment_count": 4,
+      "est": {
+        "perimeter_mm": 360.0,
+        "depth_mm": 12.0
+      }
     }
   ],
   "holes": [
@@ -167,5 +206,297 @@
   "post_process": [],
   "flags": [
     "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
-  ]
+  ],
+  "tool_plan": {
+    "plans": [
+      {
+        "total_seconds": 259.8,
+        "cutting_seconds": 139.8,
+        "tool_changes": 1,
+        "change_seconds": 120.0,
+        "tools": [
+          {
+            "id": "D6.00",
+            "kind": "drill",
+            "dia_mm": 6.0,
+            "name": "Drill 6.00 mm",
+            "feed_mm_s": 9.0,
+            "plunge_mm_s": 9.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 1
+          },
+          {
+            "id": "EM6.35",
+            "kind": "endmill",
+            "dia_mm": 6.35,
+            "name": "End Mill 1/4 in (6.35 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 2.54,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D6.00_THRU",
+            "operation": "drill",
+            "tool_id": "D6.00",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 16.3
+          },
+          {
+            "layer": "DRILL_D8.00_D5.00",
+            "operation": "drill",
+            "tool_id": "EM6.35",
+            "kind": "bore",
+            "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
+            "seconds": 2.7
+          },
+          {
+            "layer": "DRILL_D10.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM6.35",
+            "kind": "bore",
+            "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
+            "seconds": 5.9
+          },
+          {
+            "layer": "POCKET_D4.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 10.5
+          },
+          {
+            "layer": "POCKET_D6.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 33.4
+          },
+          {
+            "layer": "POCKET_D9.00_START6.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 4.9
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 14.1
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 52.0
+          }
+        ],
+        "id": "A"
+      },
+      {
+        "total_seconds": 262.9,
+        "cutting_seconds": 262.9,
+        "tool_changes": 0,
+        "change_seconds": 0.0,
+        "tools": [
+          {
+            "id": "EM4.76",
+            "kind": "endmill",
+            "dia_mm": 4.7625,
+            "name": "End Mill 3/16 in (4.76 mm)",
+            "feed_mm_s": 23.81,
+            "plunge_mm_s": 7.94,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 2.381,
+            "stepover_mm": 1.905,
+            "tool_number": 1
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D8.00_D5.00",
+            "operation": "drill",
+            "tool_id": "EM4.76",
+            "kind": "bore",
+            "note": "bore with End Mill 3/16 in (4.76 mm) (no drill in this plan)",
+            "seconds": 4.3
+          },
+          {
+            "layer": "DRILL_D6.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM4.76",
+            "kind": "bore",
+            "note": "bore with End Mill 3/16 in (4.76 mm) (no drill in this plan)",
+            "seconds": 27.0
+          },
+          {
+            "layer": "DRILL_D10.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM4.76",
+            "kind": "bore",
+            "note": "bore with End Mill 3/16 in (4.76 mm) (no drill in this plan)",
+            "seconds": 9.9
+          },
+          {
+            "layer": "POCKET_D4.00",
+            "operation": "pocket",
+            "tool_id": "EM4.76",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 20.0
+          },
+          {
+            "layer": "POCKET_D6.00",
+            "operation": "pocket",
+            "tool_id": "EM4.76",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 69.4
+          },
+          {
+            "layer": "POCKET_D9.00_START6.00",
+            "operation": "pocket",
+            "tool_id": "EM4.76",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 10.3
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM4.76",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 25.2
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM4.76",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 96.7
+          }
+        ],
+        "id": "B"
+      },
+      {
+        "total_seconds": 270.6,
+        "cutting_seconds": 150.6,
+        "tool_changes": 1,
+        "change_seconds": 120.0,
+        "tools": [
+          {
+            "id": "EM4.76",
+            "kind": "endmill",
+            "dia_mm": 4.7625,
+            "name": "End Mill 3/16 in (4.76 mm)",
+            "feed_mm_s": 23.81,
+            "plunge_mm_s": 7.94,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 2.381,
+            "stepover_mm": 1.905,
+            "tool_number": 1
+          },
+          {
+            "id": "EM6.35",
+            "kind": "endmill",
+            "dia_mm": 6.35,
+            "name": "End Mill 1/4 in (6.35 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 2.54,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D6.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM4.76",
+            "kind": "bore",
+            "note": "bore with End Mill 3/16 in (4.76 mm) (no drill in this plan)",
+            "seconds": 27.0
+          },
+          {
+            "layer": "DRILL_D8.00_D5.00",
+            "operation": "drill",
+            "tool_id": "EM6.35",
+            "kind": "bore",
+            "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
+            "seconds": 2.7
+          },
+          {
+            "layer": "DRILL_D10.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM6.35",
+            "kind": "bore",
+            "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
+            "seconds": 5.9
+          },
+          {
+            "layer": "POCKET_D4.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 10.5
+          },
+          {
+            "layer": "POCKET_D6.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 33.4
+          },
+          {
+            "layer": "POCKET_D9.00_START6.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 4.9
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 14.1
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 52.0
+          }
+        ],
+        "id": "C"
+      }
+    ],
+    "error": null,
+    "chosen": "A"
+  }
 }

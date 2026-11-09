@@ -1,0 +1,12 @@
+# dxf: two_part.dxf
+# plan: B — 2 tool(s), 1 change(s), est 3.2 min (cutting 1.2 + changes 2.0)
+# tool: EM4.76|endmill|4.7625|1|23.81|7.94|20000|2.381|1.905
+# tool: EM12.70|endmill|12.7000|2|30.0|10.0|20000|3.0|5.08
+# tabs: P01_bottom__PROFILE_THRU|4|5.0|1.0
+# tabs: P02_lid__PROFILE_THRU|4|5.0|1.0
+P01_bottom__DRILL_D6.00_THRU|drill|0.000|10.000|P01_bottom|EM4.76
+P02_lid__DRILL_D8.00_THRU|drill|0.000|8.000|P02_lid|EM4.76
+P01_bottom__POCKET_D4.00|pocket|0.000|4.000|P01_bottom|EM12.70
+P02_lid__POCKET_D3.00|pocket|0.000|3.000|P02_lid|EM12.70
+P01_bottom__PROFILE_THRU|profile|0.000|10.000|P01_bottom|EM12.70
+P02_lid__PROFILE_THRU|profile|0.000|8.000|P02_lid|EM12.70

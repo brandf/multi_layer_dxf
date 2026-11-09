@@ -1,0 +1,8 @@
+# dxf: beveled_plate.dxf
+# plan: C — 2 tool(s), 1 change(s), est 2.8 min (cutting 0.8 + changes 2.0)
+# tool: D8.00|drill|8.0000|1|10.0|10.0|20000|3.0|0.0
+# tool: EM12.70|endmill|12.7000|2|30.0|10.0|20000|3.0|5.08
+# tabs: PROFILE_THRU|4|5.0|1.0
+DRILL_D8.00_THRU|drill|0.000|10.000||D8.00
+POCKET_D4.00|pocket|0.000|4.000||EM12.70
+PROFILE_THRU|profile|0.000|10.000||EM12.70
