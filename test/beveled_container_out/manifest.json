@@ -1,0 +1,181 @@
+{
+  "source_step": "test/beveled_container.step",
+  "units": "mm",
+  "stock": {
+    "x_min": -50.0,
+    "y_min": -50.0,
+    "x_max": 50.0,
+    "y_max": 50.0,
+    "z_min": 0.0,
+    "z_max": 12.0,
+    "thickness": 12.0
+  },
+  "z_top": 12.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D5.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 8,
+      "centres": [
+        [
+          -42.0,
+          0.0
+        ],
+        [
+          -29.7,
+          -29.7
+        ],
+        [
+          -29.7,
+          29.7
+        ],
+        [
+          -0.0,
+          -42.0
+        ],
+        [
+          0.0,
+          42.0
+        ],
+        [
+          29.7,
+          -29.7
+        ],
+        [
+          29.7,
+          29.7
+        ],
+        [
+          42.0,
+          0.0
+        ]
+      ],
+      "diameter": 5.0
+    },
+    {
+      "layer": "POCKET_D6.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 6.0,
+      "segment_count": 1,
+      "floor_z": 6.0,
+      "depth_total": 6.0
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 12.0,
+      "segment_count": 1
+    }
+  ],
+  "holes": [
+    {
+      "cx": -42.0,
+      "cy": 0.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": -29.7,
+      "cy": -29.7,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": -29.7,
+      "cy": 29.7,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": -0.0,
+      "cy": -42.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 0.0,
+      "cy": 42.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 29.7,
+      "cy": -29.7,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 29.7,
+      "cy": 29.7,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 42.0,
+      "cy": 0.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 12.0,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 1,
+  "post_process": [
+    {
+      "feature": "fillet",
+      "location": "pocket floor (Z 6.00)",
+      "params": "R2.00 mm",
+      "method": "cnc_3d",
+      "tool": "roundover bit R2.00 mm",
+      "step": "Cut the pocket-floor fillet on the CNC with a ball-nose 3D finish pass \u2014 a router table cannot reach a floor fillet. Or leave the corner sharp.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "pocket top edge (floor Z 6.00)",
+      "params": "45 deg, 2.00 mm tall",
+      "method": "hand_router",
+      "tool": "chamfer bit 45 deg",
+      "step": "Chamfer the pocket's top edge with a handheld router (bearing-guided bit).",
+      "cnc_alternative": "CNC: chamfer tool."
+    },
+    {
+      "feature": "fillet",
+      "location": "outer top edge",
+      "params": "R3.00 mm",
+      "method": "router_table",
+      "tool": "roundover bit R3.00 mm",
+      "step": "Round over the top outer edge on the router table after the CNC cut.",
+      "cnc_alternative": "CNC: roundover bit in the spindle, or a ball-nose 3D finish pass."
+    }
+  ],
+  "flags": [
+    "PROFILE OUTLINE DIFFERS top vs bottom by 12% (top 6627 mm2, bottom 7500 mm2) \u2014 profile taken from Z 0.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "POST-PROCESS [cnc_3d]: fillet R2.00 mm at pocket floor (Z 6.00) \u2014 Cut the pocket-floor fillet on the CNC with a ball-nose 3D finish pass \u2014 a router table cannot reach a floor fillet. Or leave the corner sharp.",
+    "POST-PROCESS [hand_router]: chamfer 45 deg, 2.00 mm tall at pocket top edge (floor Z 6.00) \u2014 Chamfer the pocket's top edge with a handheld router (bearing-guided bit).",
+    "POST-PROCESS [router_table]: fillet R3.00 mm at outer top edge \u2014 Round over the top outer edge on the router table after the CNC cut."
+  ]
+}

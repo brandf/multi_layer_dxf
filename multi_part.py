@@ -75,6 +75,8 @@ def main():
     ap.add_argument("--mode", choices=["full", "check", "dxf", "manifest"], default="full")
     ap.add_argument("--only", default="")
     ap.add_argument("--min-tool", type=float, default=0.0)
+    ap.add_argument("--auto", action="store_true",
+                    help="auto-orient each part (prismatic axis to Z, best side up) and lay out largest first; explicit parts.json entries override per part")
     args = ap.parse_args()
 
     parts_cfg = {"parts": []}
@@ -84,6 +86,7 @@ def main():
     align_z = parts_cfg.get("align_z", "bottom")
     layout = parts_cfg.get("layout", "side_by_side")
     gap = float(parts_cfg.get("gap_mm", 10))
+    auto_mode = bool(args.auto or parts_cfg.get("auto", False))
     main._layout_x = 0.0
 
     outdir = args.out
@@ -105,7 +108,20 @@ def main():
         bb = s.bounding_box()
         return (round(bb.min.X, 1), round(bb.min.Y, 1), round(bb.min.Z, 1))
     solids = sorted(solids, key=_key)
-    print(f"{len(solids)} part(s) in STEP")
+    if auto_mode and not part_entries:
+        # Sort by footprint area AFTER orientation (largest first) so
+        # the side-by-side row packs tidily. Only when there are no
+        # explicit part entries — re-sorting would mismatch entries
+        # to parts. (auto_orient.py)
+        import auto_orient as _ao
+        def _footprint(s):
+            d = _ao.analyze_orientation(s)
+            if d["dominant"] and not d["ambiguous"]:
+                s, _ = _ao.orient_solid(s, d)
+            bb = s.bounding_box()
+            return (bb.max.X - bb.min.X) * (bb.max.Y - bb.min.Y)
+        solids = sorted(solids, key=_footprint, reverse=True)
+    print(f"{len(solids)} part(s) in STEP, auto={auto_mode}")
 
     combined_layers = []
     combined_flags = []
@@ -124,6 +140,24 @@ def main():
         flip_x = bool(entry.get("flip_x", False))
         flip_y = bool(entry.get("flip_y", False))
         rot_z = float(entry.get("rotate_z_deg", 0))
+
+        # Auto-orientation (2026-11-08): unless this part has an
+        # explicit entry (flip/rotate keys, or "auto": false), decide
+        # its CAM orientation from the geometry — prismatic axis to Z,
+        # most-open side up. Ambiguous parts are classified as-is and
+        # flagged, never silently re-oriented.
+        auto_decision = None
+        explicit = any(k in entry for k in ("flip_x", "flip_y", "rotate_z_deg")) or entry.get("auto") is False
+        if auto_mode and not explicit:
+            import auto_orient as _ao
+            auto_decision = _ao.analyze_orientation(solid)
+            if auto_decision["dominant"] and not auto_decision["ambiguous"]:
+                solid, applied = _ao.orient_solid(solid, auto_decision)
+                print(f"auto-orient {prefix}: axis {auto_decision['axis']} "
+                      f"(share {auto_decision['axis_share']:.0%}), flip={auto_decision['flip']} — {applied}")
+            else:
+                print(f"auto-orient {prefix}: AMBIGUOUS — classified as-is: {'; '.join(auto_decision['notes'])}")
+                combined_flags.append(f"[{prefix}] AUTO-ORIENT AMBIGUOUS — classified as-is: {'; '.join(auto_decision['notes'])}")
 
         # transform about the part's own centre, in a copy
         s = solid
@@ -194,13 +228,16 @@ def main():
             L2["part"] = prefix
             combined_layers.append(L2)
         combined_flags.extend(f"[{prefix}] {f}" for f in man["flags"])
-        parts_out.append({
+        p_out = {
             "name": prefix, "label": label,
             "flip_x": flip_x, "flip_y": flip_y, "rotate_z_deg": rot_z,
             "stock": man["stock"], "z_top": man["z_top"],
             "layers": [L["layer"] for L in man["layers"]],
             "holes": man["holes"], "pocket_count": man["pocket_count"],
-        })
+        }
+        if auto_decision is not None:
+            p_out["auto_orientation"] = auto_decision
+        parts_out.append(p_out)
         # merge DXF entities, renaming layers
         if args.mode in ("full", "dxf"):
             doc = ezdxf.readfile(str(part_out / f"{prefix}.dxf"))
@@ -234,9 +271,15 @@ def main():
         combined_doc.saveas(str(outdir / f"{stem}.dxf"))
     report = [f"# {stem} — multi-part VCarve report\n"]
     for p in parts_out:
-        report.append(f"- {p['name']}: stock {p['stock']['x_max']-p['stock']['x_min']:.1f} x "
-                      f"{p['stock']['y_max']-p['stock']['y_min']:.1f} x {p['stock']['thickness']:.1f} mm, "
-                      f"flip_x={p['flip_x']} rot_z={p['rotate_z_deg']}, layers {len(p['layers'])}")
+        line = (f"- {p['name']}: stock {p['stock']['x_max']-p['stock']['x_min']:.1f} x "
+                f"{p['stock']['y_max']-p['stock']['y_min']:.1f} x {p['stock']['thickness']:.1f} mm, "
+                f"flip_x={p['flip_x']} rot_z={p['rotate_z_deg']}, layers {len(p['layers'])}")
+        if p.get("auto_orientation"):
+            a = p["auto_orientation"]
+            line += (f" [auto: axis {a['axis']} {a['axis_share']:.0%}, "
+                     f"openings +{a['up_area_mm2']:.0f} vs -{a['down_area_mm2']:.0f} mm2, "
+                     f"flip={a['flip']}, ambiguous={a['ambiguous']}]")
+        report.append(line)
     report.append("\nFlags — read before cutting:")
     report.append("\n".join(f"- {f}" for f in combined_flags) if combined_flags else "- none")
     (outdir / "report.md").write_text("\n".join(report) + "\n")

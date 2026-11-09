@@ -77,7 +77,33 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step \
     -o test/external/kookabus_out --mode check
-# expect: no crash; layers 11 / 7 / 6, flags 70 / 631 / 22
+# expect: no crash; layers 11 / 8 / 7, holes 18 / 5 / 7, flags 39 / 72 / 12
+# (updated 2026-11-08 from 11 / 7 / 6 and 70 / 631 / 22: the
+# wire-orientation fix changed containment results, and bottom-face
+# outer circles now exclude P02's two D6.5 bosses from the hole list —
+# they are bosses, not holes. Kookabus is a robustness sample, not
+# ground truth; the check is "no crash, flags identify the
+# non-prismatic features".)
+
+.venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
+# expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50
+# (true profile, not the filleted top), post-process plan =
+# [R3 outer fillet -> router_table, pocket chamfer 45 deg -> hand_router,
+#  R2 floor fillet -> cnc_3d], 4 flags
+
+.venv/bin/python step_to_vcarve.py test/beveled_plate.step -o test/beveled_plate_out --mode full
+# expect: 3 layers, 1 hole (D8 countersunk, still thru), 1 pocket,
+# no spurious THROUGH_CUT, post-process =
+# [chamfer -> router_table, countersink -> drill_press,
+#  floor fillet R2 -> cnc_3d], 5 flags
+
+.venv/bin/python multi_part.py test/rotated_container.step -o test/rotated_out --auto --mode full
+# expect: same as parts.container.json — Bottom no flip, Top flip,
+# 2 parts, 5 layers, 0 flags
+
+.venv/bin/python step_to_vcarve.py test/beveled_sideways.step -o test/beveled_sideways_out --auto-orient --mode full
+# expect: axis X detected, rotated back, 3 layers, 8 holes, 1 pocket,
+# same post-process plan as the unrotated beveled container
 ```
 
 ## 5. VCarve gadget test (BRA-5, on Windows)

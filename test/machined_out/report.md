@@ -30,17 +30,17 @@ Pockets (4):
 - floor Z 8.00, total depth 6.00, start 0.00, cut 6.00 — SUPPRESSED, no toolpath (non-vertical walls)
 - floor Z 5.00, total depth 9.00, start 5.00, cut 4.00
 
+Post-processing plan (1 steps — features the prismatic blank does not have):
+- [cnc_3d] tapered wall non-vertical wall at pocket top edge (floor Z 8.00) (x4 faces): Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.
+
 Flags — read before cutting:
-- NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05 (area 139.8 mm2, centre (10.0, 20.52084970183144, 11.04611455525064))
-- NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.07 (area 91.0 mm2, centre (21.48350378206738, 28.0, 11.070804389338019))
-- NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05 (area 139.8 mm2, centre (10.0, 35.47915029816856, 11.04611455525064))
-- NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.07 (area 91.0 mm2, centre (-1.4835037820673818, 28.0, 11.070804389338019))
 - PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (-52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00
 - PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (-52.00,32.00) r=8.00 span=90deg Z 0.00..14.00
 - PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00
 - PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,32.00) r=8.00 span=90deg Z 0.00..14.00
 - COUNTERBORE THRU HOLE: dia 6.00 at (35.00,-20.00) under D12.00 counterbore — treated as thru
 - THROUGH FEATURE MERGED WITH POCKET on top face — recovered from bottom face as THROUGH_CUT (verify the outline in VCarve)
+- POST-PROCESS [cnc_3d]: tapered wall non-vertical wall at pocket top edge (floor Z 8.00) (x4 faces) — Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.
 - HOLE NOT FROM TOP (blind_bottom): dia 5.00 at (-45.00,-28.00) Z 0.00..4.00 — no toolpath emitted
-- POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 — surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05
+- POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 — freeform wall, Z span 6.00 mm
 - THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening

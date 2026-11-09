@@ -1,3 +1,4 @@
+# dxf: test_part.dxf
 DRILL_D8.00_D5.00|drill|0.000|5.000
 DRILL_D6.00_THRU|drill|0.000|12.000
 DRILL_D10.00_THRU|drill|0.000|12.000

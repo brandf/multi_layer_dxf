@@ -305,21 +305,100 @@ recalculates all. It does not save the job or post G-code —
 preview, File > Save As the `.crv`, then post. Always preview
 before posting G-code.
 
-## Auto-orientation and layout (proposed, not built yet)
+## Auto-orientation and layout (built 2026-11-08, Brandon approved)
 
-Brandon asked 2026-11-08 whether one STEP with multiple parts could
-be auto-oriented and auto-laid-out for CAM instead of hand-writing
-`parts.json`. Feasible, for prismatic parts: find the prismatic axis
-(the axis most planar faces are normal to), then pick the face-up
-side by counting what opens on each side (pocket / blind-hole
-openings — through holes count for both sides), bottom-align every
-part (Zmin = 0), and pack them side by side. Cases that must be
-flagged, not guessed: features on both sides (needs a two-setup cut),
-a tie between sides, or a cosmetic face choice. `parts.json` would
-stay as an explicit override, and the report would show the auto
-choice per part with its reasoning. Not built yet — waiting on
-Brandon's go-ahead; the current `parts.json` flow is the working
-version until then.
+`multi_part.py --auto` (or `"auto": true` in `parts.json`) decides
+each part's CAM orientation from the geometry — no `parts.json`
+entry needed. `auto_orient.py`:
+- Prismatic axis: the axis (X, Y or Z) that most planar-face area
+  is normal to, plus most cylinder area runs along. Must be >50%
+  of face area, else the part is reported ambiguous and classified
+  as-is — a plain box has no dominant axis and is never guessed.
+- Best side up: among planar faces normal to that axis, excluding
+  the two outer faces, a face whose normal points +axis is the
+  floor of a cavity opening toward +axis. Opening area per side
+  decides; through holes count for both sides and are ignored.
+  A tie (within 10%) is ambiguous — no flip, flagged with both
+  scores.
+- Layout: bottom-align (Zmin = 0), pack side by side in a row,
+  largest footprint first, gap from config (default 10 mm).
+- `parts.json` entries still override per part (any flip/rotate
+  key, or `"auto": false`), and the report + manifest record the
+  auto decision per part with axis share and opening areas.
+- Single-part: `step_to_vcarve.py --auto-orient` does the same
+  before classifying.
+
+Verified 2026-11-08: the container STEP rotated 90 deg about X
+(`test/rotated_container.step`) auto-orients back to the exact
+`parts.container.json` result — Bottom no flip, Top flip, 5 layers,
+0 flags. The plain container with `--auto` gives the same 5 layers
+/ 0 flags. Kookabus (3D-print design) does not crash: axis Z, lid
+parts flip because their openings face down.
+
+## Beveled STEP in, prismatic blank + post-processing plan out (built 2026-11-08)
+
+No rollback needed any more. Give the classifier a STEP of the
+FINISHED part — fillets, chamfers, bevels included — and it
+recovers the prismatic blank the CNC cuts, then proposes how to
+put each removed feature back:
+- Profile: the largest outer wire among ALL planar Z faces, not
+  just the top face. A filleted top edge shrinks the top face; the
+  bottom face still carries the true Ø100. If top and bottom
+  outlines differ by >1%, the report says so. If vertical walls
+  stick out beyond the profile (both edges filleted), it flags
+  that the profile may be undersized instead of guessing.
+- Pockets are read from their floors, which a top-edge fillet or
+  chamfer does not touch. A small floor fillet does NOT suppress
+  the pocket (it becomes a ball-nose post-process item); a tapered
+  wall spanning most of the pocket depth still suppresses it.
+- Countersunk holes are still thru holes (a coaxial cone from the
+  hole's top to the part top is recognised, same as a counterbore).
+- Every non-prismatic face is measured and filed into
+  `manifest.json` → `post_process` and a "Post-processing plan"
+  section in `report.md`, with a default CNC-vs-post call:
+  outer-edge fillet/chamfer → router table; pocket top-edge
+  fillet/chamfer → handheld router; pocket-floor fillet, tapered
+  wall, sculpted surface → CNC 3D (ball-nose); countersink →
+  drill press; non-Z hole → drill press from the side. Brandon's
+  rule (2026-11-08): use the CNC for non-prismatic features when
+  it makes sense, post-process when it is simpler — the defaults
+  encode that, and `config.json` → `post_method_overrides`
+  (`"fillet/outer_top": "cnc_3d"`, …) changes any call.
+- Limits, stated plainly: a fillet that consumes a whole face, a
+  blended multi-face corner, and a both-edges-filleted profile are
+  flagged for a human, not silently reconstructed. Full B-rep
+  de-featuring (extending adjacent faces to their sharp
+  intersection) is the next step if these cases matter; the
+  face-based recovery above covers the common ones.
+
+Verified 2026-11-08 (`make_test_beveled.py`):
+- Beveled container (Ø100, pocket Ø60 D6, 8× Ø5, R3 top-edge
+  fillet, 2 mm pocket-top chamfer, R2 floor fillet): 3 layers,
+  8 holes, 1 pocket, profile CIRCLE r=50 in the DXF, post-process
+  plan exactly [R3 outer → router table, pocket chamfer →
+  hand router, R2 floor → CNC ball-nose], 4 flags, all explainable.
+- Beveled plate (80×60×10, chamfered top edges, Ø8 hole with
+  90° countersink, 20×20 pocket D4 with R2 floor fillet):
+  3 layers, 1 hole (countersunk, still thru), 1 pocket,
+  post-process [chamfer → router table, countersink →
+  drill press, floor fillet → CNC ball-nose], 5 flags.
+- Bugs found and fixed in this round: a chamfer on a circular
+  edge is a CONE, not a plane (small cones are reclassified as
+  chamfers); a countersink's top circle was emitted as a spurious
+  THROUGH_CUT (hole-coaxial circles are now skipped regardless of
+  radius); outer-wall circles are taken from top/bottom faces only
+  (taking them from all Z faces made blind-hole bottom discs and
+  counterbore floors delete 3 holes from the machined test);
+  wire edges whose parametrisation runs opposite the wire created
+  phantom chords that mislocated features and could flip DXF arcs
+  — `wire_segments` / `wire_sample_points` now orient every edge
+  to the wire direction (machined DXF profile arcs verified as
+  correct 90° R8 arcs after the fix).
+
+Regressions after this round (all clean): test_part 8 layers /
+6 holes / 3 pockets / 1 flag; machined 9 layers / 8 holes /
+4 pockets / 10 flags (tapered wall now one entry, floor Z 8.00);
+container multi 5 layers / 0 flags; two_part 6 layers / 0 flags.
 
 Option B — toolpath template (only if your depths are standard):
 import the layered DXF, load a VCarve toolpath template that

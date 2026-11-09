@@ -1,0 +1,4 @@
+# dxf: beveled_container.dxf
+DRILL_D5.00_THRU|drill|0.000|12.000
+POCKET_D6.00|pocket|0.000|6.000
+PROFILE_THRU|profile|0.000|12.000

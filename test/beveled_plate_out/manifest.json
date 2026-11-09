@@ -1,0 +1,100 @@
+{
+  "source_step": "test/beveled_plate.step",
+  "units": "mm",
+  "stock": {
+    "x_min": -40.0,
+    "y_min": -30.0,
+    "x_max": 40.0,
+    "y_max": 30.0,
+    "z_min": 0.0,
+    "z_max": 10.0,
+    "thickness": 10.0
+  },
+  "z_top": 10.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D8.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          20.0,
+          15.0
+        ]
+      ],
+      "diameter": 8.0
+    },
+    {
+      "layer": "POCKET_D4.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 4.0,
+      "segment_count": 4,
+      "floor_z": 6.0,
+      "depth_total": 4.0
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 4
+    }
+  ],
+  "holes": [
+    {
+      "cx": 20.0,
+      "cy": 15.0,
+      "dia": 8.0,
+      "z0": 0.0,
+      "z1": 10.000000000000007,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 1,
+  "post_process": [
+    {
+      "feature": "fillet",
+      "location": "pocket floor (Z 6.00)",
+      "params": "R2.00 mm",
+      "method": "cnc_3d",
+      "tool": "roundover bit R2.00 mm",
+      "step": "Cut the pocket-floor fillet on the CNC with a ball-nose 3D finish pass \u2014 a router table cannot reach a floor fillet. Or leave the corner sharp.",
+      "cnc_alternative": null,
+      "count": 4
+    },
+    {
+      "feature": "chamfer",
+      "location": "outer top edge",
+      "params": "45 deg, 2.00 mm tall",
+      "method": "router_table",
+      "tool": "chamfer bit 45 deg",
+      "step": "Chamfer the top outer edge on the router table after the CNC cut.",
+      "cnc_alternative": "CNC: chamfer tool / V-bit.",
+      "count": 4
+    },
+    {
+      "feature": "countersink",
+      "location": "hole D8.00 at (20.00,15.00)",
+      "params": "semi-angle 45.0 deg",
+      "method": "drill_press",
+      "tool": "countersink bit 45.0 deg",
+      "step": "Countersink the hole on the drill press after drilling.",
+      "cnc_alternative": "CNC: chamfer tool."
+    }
+  ],
+  "flags": [
+    "COUNTERSUNK THRU HOLE: dia 8.00 at (20.00,15.00) under a 45 deg countersink \u2014 treated as thru",
+    "PROFILE OUTLINE DIFFERS top vs bottom by 11% (top 4241 mm2, bottom 4783 mm2) \u2014 profile taken from Z 0.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "POST-PROCESS [cnc_3d]: fillet R2.00 mm at pocket floor (Z 6.00) (x4 faces) \u2014 Cut the pocket-floor fillet on the CNC with a ball-nose 3D finish pass \u2014 a router table cannot reach a floor fillet. Or leave the corner sharp.",
+    "POST-PROCESS [router_table]: chamfer 45 deg, 2.00 mm tall at outer top edge (x4 faces) \u2014 Chamfer the top outer edge on the router table after the CNC cut.",
+    "POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D8.00 at (20.00,15.00) \u2014 Countersink the hole on the drill press after drilling."
+  ]
+}

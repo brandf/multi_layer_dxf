@@ -96,26 +96,100 @@ def edge_segments(edge):
         pts.append((v.X(), v.Y()))
     return [('poly', pts)]
 
+def _reverse_segs(segs):
+    """Reverse segments of one edge (its parametrisation runs opposite
+    the wire direction): lines swap ends, arcs swap start/end angles
+    (ezdxf draws arcs CCW, so swapping angles keeps the same arc)."""
+    out = []
+    for s in segs:
+        if s[0] == 'line':
+            out.append(('line', s[2], s[1]))
+        elif s[0] == 'arc':
+            out.append(('arc', s[1], s[2], s[4], s[3]))
+        elif s[0] == 'poly':
+            out.append(('poly', s[1][::-1]))
+        else:  # circle — direction-independent
+            out.append(s)
+    return out
+
+
 def wire_segments(wire):
     segs = []
-    for e in wire.edges():
-        segs.extend(edge_segments(e))
+    edges = wire.edges()
+    prev_end = None
+    first_edge_segs = None
+    for k, e in enumerate(edges):
+        es = edge_segments(e)
+        try:
+            sp = (e.start_point().X, e.start_point().Y)
+            ep = (e.end_point().X, e.end_point().Y)
+        except Exception:
+            sp = ep = None
+        if k == 0:
+            first_edge_segs = es
+        if prev_end is not None and sp is not None:
+            d_sp = math.hypot(sp[0] - prev_end[0], sp[1] - prev_end[1])
+            d_ep = math.hypot(ep[0] - prev_end[0], ep[1] - prev_end[1])
+            if d_ep < d_sp - 1e-9:
+                es = _reverse_segs(es)
+                sp, ep = ep, sp
+        segs.extend(es)
+        if ep is not None:
+            prev_end = ep
+    # first edge: orient by the closing check (it must meet prev_end)
+    if first_edge_segs is not None and prev_end is not None and len(edges) > 1:
+        try:
+            e0 = edges[0]
+            sp0 = (e0.start_point().X, e0.start_point().Y)
+            ep0 = (e0.end_point().X, e0.end_point().Y)
+            d_sp = math.hypot(sp0[0] - prev_end[0], sp0[1] - prev_end[1])
+            d_ep = math.hypot(ep0[0] - prev_end[0], ep0[1] - prev_end[1])
+            if d_ep < d_sp - 1e-9:
+                # the first edge's segments are at the head of segs
+                n0 = len(first_edge_segs)
+                segs[:n0] = _reverse_segs(segs[:n0])
+        except Exception:
+            pass
     return segs
 
 def wire_sample_points(wire, per_edge=12):
-    """Sample points around a wire for containment / area tests."""
-    pts = []
+    """Sample points around a wire for containment / area tests.
+    Each edge's samples are oriented to the wire direction (see
+    wire_segments): without this, phantom chords between
+    non-adjacent edge samples corrupt point-in-polygon and
+    distance tests."""
+    raw = []
     for e in wire.edges():
         try:
             from OCP.BRepAdaptor import BRepAdaptor_Curve
             ad = BRepAdaptor_Curve(e.wrapped)
             p0, p1 = ad.FirstParameter(), ad.LastParameter()
+            ep = []
             for i in range(per_edge):
                 v = ad.Value(p0 + (p1 - p0) * i / per_edge)
-                pts.append((v.X(), v.Y()))
+                ep.append((v.X(), v.Y()))
         except Exception:
-            for v in (e.start_point(), e.end_point()):
-                pts.append((v.X, v.Y))
+            ep = [(v.X, v.Y) for v in (e.start_point(), e.end_point())]
+        raw.append(ep)
+    if not raw:
+        return []
+    pts = list(raw[0])
+    for ep in raw[1:]:
+        if not ep:
+            continue
+        d_first = math.hypot(ep[0][0] - pts[-1][0], ep[0][1] - pts[-1][1])
+        d_last = math.hypot(ep[-1][0] - pts[-1][0], ep[-1][1] - pts[-1][1])
+        if d_last < d_first - 1e-9:
+            ep = ep[::-1]
+        pts.extend(ep)
+    # orient the first edge by the closing check
+    n0 = len(raw[0])
+    if n0 > 1 and len(pts) > n0:
+        first = pts[:n0]
+        d_first = math.hypot(first[0][0] - pts[-1][0], first[0][1] - pts[-1][1])
+        d_last = math.hypot(first[-1][0] - pts[-1][0], first[-1][1] - pts[-1][1])
+        if d_last < d_first - 1e-9:
+            pts = first[::-1] + pts[n0:]
     return pts
 
 def wire_is_single_circle(wire):
@@ -143,10 +217,13 @@ def main():
     ap.add_argument("--mode", choices=["full", "check", "dxf", "manifest"], default="full")
     ap.add_argument("--only", default="", help="comma list: drill,pocket,profile — only emit those operations")
     ap.add_argument("--config", type=Path, default=None, help="JSON config file (see config.example.json)")
+    ap.add_argument("--auto-orient", action="store_true",
+                    help="auto-detect the prismatic axis and best side up, rotate/flip the solid before classifying (see auto_orient.py)")
     args = ap.parse_args()
 
     # Config file overrides CLI defaults (CLI wins if explicitly set is
     # out of scope for v1 — config is for tools / defaults you reuse)
+    cfg = {}
     if args.config and args.config.exists():
         cfg = json.loads(args.config.read_text())
         args.tol = cfg.get("tol_mm", args.tol)
@@ -158,7 +235,8 @@ def main():
 
     from build123d import import_step, GeomType
     from OCP.BRepAdaptor import BRepAdaptor_Surface
-    from OCP.GeomAbs import GeomAbs_Plane, GeomAbs_Cylinder
+    from OCP.GeomAbs import (GeomAbs_Plane, GeomAbs_Cylinder, GeomAbs_Torus,
+                             GeomAbs_Cone, GeomAbs_BSplineSurface)
 
     outdir = args.out
     outdir.mkdir(parents=True, exist_ok=True)
@@ -172,6 +250,30 @@ def main():
         solids = [solid]
     if len(solids) != 1:
         print(f"WARNING: {len(solids)} solids in STEP, using first / all faces merged", file=sys.stderr)
+    # Auto-orientation (2026-11-08): a STEP exported from Onshape in
+    # any orientation, or a part modelled on its side, is rotated so
+    # its prismatic axis is Z and its most-open side faces up, before
+    # any classification runs. Ambiguous parts are classified as-is
+    # and flagged — never silently re-oriented.
+    auto_decision = None
+    if args.auto_orient:
+        import auto_orient as _ao
+        auto_decision = _ao.analyze_orientation(solids[0])
+        print(f"auto-orient: axis {auto_decision['axis']} "
+              f"(share {auto_decision['axis_share']:.0%}), "
+              f"openings +{auto_decision['up_area_mm2']:.0f} vs -{auto_decision['down_area_mm2']:.0f} mm2, "
+              f"flip={auto_decision['flip']}, ambiguous={auto_decision['ambiguous']}")
+        for n in auto_decision["notes"]:
+            print(f" auto-orient note: {n}")
+        if auto_decision["dominant"] and not auto_decision["ambiguous"]:
+            solid, applied = _ao.orient_solid(solids[0], auto_decision)
+            print(f"auto-orient applied: {applied}")
+            solids = [solid]
+        elif auto_decision["ambiguous"]:
+            flags_note = "AUTO-ORIENT AMBIGUOUS — classified as-is, check orientation: " + "; ".join(auto_decision["notes"])
+            print(f" {flags_note}")
+            # flags list is created below; stash for now
+            auto_decision["flags_note"] = flags_note
     faces = []
     for s in solids:
         faces.extend(s.faces())
@@ -182,9 +284,17 @@ def main():
     print(f"bbox Z {zmin:.3f} .. {zmax:.3f}  thickness {thickness:.3f} mm, {len(faces)} faces")
 
     flags = []
+    if auto_decision and auto_decision.get("flags_note"):
+        flags.append(auto_decision["flags_note"])
     planar_z = []   # (z, face)
     cyl_z = []      # dicts
     other_faces = []
+    # Structured measurements for non-prismatic faces, used by the
+    # post-processing planner (below): each entry is a dict with
+    # kind + measured parameters + face, so the planner can say
+    # "round over the top outer edge with an R3 bit" instead of
+    # just "non-prismatic face". Added 2026-11-08 (de-bevel work).
+    nonprism_info = []
 
     for f in faces:
         try:
@@ -201,6 +311,13 @@ def main():
                 pass  # vertical wall — expected in a prismatic part
             else:
                 other_faces.append((f, f"slanted planar face, normal {n}"))
+                fb = f.bounding_box()
+                nonprism_info.append({
+                    "kind": "chamfer", "face": f,
+                    "angle_deg": round(math.degrees(math.acos(min(1.0, abs(n.Z)))), 1),
+                    "z_span": round(fb.max.Z - fb.min.Z, 3),
+                    "xy_span": round(max(fb.max.X - fb.min.X, fb.max.Y - fb.min.Y), 3),
+                })
         elif st == GeomAbs_Cylinder:
             cyl = ad.Cylinder()
             ax = cyl.Axis().Direction()
@@ -214,10 +331,47 @@ def main():
                 })
             else:
                 other_faces.append((f, f"non-Z cylinder, axis {ax.X():.2f},{ax.Y():.2f},{ax.Z():.2f}"))
+                # A horizontal cylinder is usually an edge fillet
+                # (roundover) — its radius is the fillet radius.
+                nonprism_info.append({
+                    "kind": "fillet", "face": f,
+                    "radius": round(cyl.Radius(), 3),
+                    "axis": (round(ax.X(), 2), round(ax.Y(), 2), round(ax.Z(), 2)),
+                })
+        elif st == GeomAbs_Torus:
+            tor = ad.Torus()
+            other_faces.append((f, f"torus face (fillet), minor radius {tor.MinorRadius():.2f}"))
+            nonprism_info.append({
+                "kind": "fillet", "face": f,
+                "radius": round(tor.MinorRadius(), 3),
+                "major_radius": round(tor.MajorRadius(), 3),
+            })
+        elif st == GeomAbs_Cone:
+            cone = ad.Cone()
+            cax = cone.Axis().Direction()
+            cloc = cone.Axis().Location()
+            fb = f.bounding_box()
+            other_faces.append((f, f"cone, semi-angle {math.degrees(cone.SemiAngle()):.1f} deg, axis {cax.X():.2f},{cax.Y():.2f},{cax.Z():.2f}"))
+            nonprism_info.append({
+                "kind": "taper", "face": f,
+                "semi_angle_deg": round(math.degrees(cone.SemiAngle()), 1),
+                "axis": (round(cax.X(), 2), round(cax.Y(), 2), round(cax.Z(), 2)),
+                "cx": round(cloc.X(), 3), "cy": round(cloc.Y(), 3),
+                "z0": round(fb.min.Z, 3), "z1": round(fb.max.Z, 3),
+            })
         else:
             other_faces.append((f, f"surface type {st}, centre Z {f.center().Z:.2f}"))
+            nonprism_info.append({
+                "kind": "freeform", "face": f, "surface_type": str(st),
+            })
 
     for f, why in other_faces:
+        # Faces measured into the post-processing plan (nonprism_info)
+        # get a POST-PROCESS entry instead of this generic flag — the
+        # plan says what to do about them, this flag only said they
+        # exist. Faces the planner could not measure keep the flag.
+        if any(info["face"] is f for info in nonprism_info):
+            continue
         flags.append(f"NON-PRISMATIC / REVIEW: {why} (area {f.area:.1f} mm2, centre {f.center()})")
 
     # ---- holes: group cylinders by centre + radius, sum angular span
@@ -231,9 +385,17 @@ def main():
     #     pocketed with an endmill. Cylinders over --max-drill
     #     (default 20 mm) are left to the pocket / profile code, whose
     #     floor face is the disc at the pocket bottom.
+    # Outer-wall circles from the TOP and BOTTOM faces only — not from
+    # every planar Z face. On a beveled part the top face is shrunk by
+    # the fillet, so the outer wall cylinder (true radius) only matches
+    # the bottom face's circle; without it, the outer wall would be
+    # misclassified as a thru hole. But intermediate faces must NOT be
+    # included: a blind hole's bottom disc and a counterbore floor are
+    # circles too, and including them made the classifier skip those
+    # holes entirely (machined.step lost 3 holes, 2026-11-08).
     top_outer_circles = set()
     for z, f in planar_z:
-        if abs(z - zmax) < 0.05:
+        if abs(z - zmax) < 0.05 or abs(z - zmin) < 0.05:
             circ = wire_is_single_circle(f.outer_wire())
             if circ:
                 (ccx, ccy), cr = circ
@@ -286,6 +448,27 @@ def main():
                         f"COUNTERBORE THRU HOLE: dia {h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f}) "
                         f"under D{w['dia']:.2f} counterbore — treated as thru")
                     break
+            if h["kind"] != "thru":
+                # Countersunk thru hole: the cylinder ends where a
+                # coaxial Z cone (the countersink) starts, and the cone
+                # reaches the top — the hole still goes through.
+                # Found on the beveled plate test (2026-11-08).
+                for info in nonprism_info:
+                    if info["kind"] != "taper":
+                        continue
+                    ax = info.get("axis")
+                    if not ax or abs(abs(ax[2]) - 1.0) > 1e-3:
+                        continue
+                    if (abs(info.get("cx", 1e9) - h["cx"]) < 0.05
+                            and abs(info.get("cy", 1e9) - h["cy"]) < 0.05
+                            and abs(info.get("z0", 0) - h["z1"]) < 0.5
+                            and abs(info.get("z1", 0) - zmax) < 0.05):
+                        h["kind"] = "thru"
+                        h["z1"] = zmax
+                        flags.append(
+                            f"COUNTERSUNK THRU HOLE: dia {h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f}) "
+                            f"under a {info['semi_angle_deg']:.0f} deg countersink — treated as thru")
+                        break
 
     # ---- planar Z faces: group by Z
     by_z = defaultdict(list)
@@ -337,14 +520,74 @@ def main():
                     p["start"] = q["depth"]
         p["cut"] = p["depth"] - p["start"]
 
-    # ---- profile: largest outer wire on top face
+    # ---- profile: largest outer wire among ALL planar Z faces
+    # A beveled / filleted top edge shrinks the top face, so the top
+    # face no longer carries the true profile — the bottom face does
+    # (or vice versa for a bottom-edge fillet). Taking the largest
+    # outer-wire area over every planar Z face recovers the true
+    # prismatic profile from a beveled STEP with no rollback.
+    # (2026-11-08 de-bevel work.)
+    def _outer_wire_area(f):
+        try:
+            return abs(poly_area(wire_sample_points(f.outer_wire())))
+        except Exception:
+            return 0.0
+
     profile_segs = []
-    if top_faces:
-        best = max(top_faces, key=lambda f: f.area)
-        profile_segs = wire_segments(best.outer_wire())
+    profile_poly = []
+    profile_source = None
+    if planar_z:
+        prof_face = max((f for _, f in planar_z), key=_outer_wire_area)
+        profile_segs = wire_segments(prof_face.outer_wire())
+        profile_poly = wire_sample_points(prof_face.outer_wire())
+        profile_source = f"Z {prof_face.center().Z:.2f} face"
+        # Top vs bottom outline mismatch = an edge fillet/chamfer ate
+        # one side. Report it; the post-process plan (below) says how
+        # to put the edge back.
+        top_area = max((_outer_wire_area(f) for f in top_faces), default=0.0)
+        bot_area = max((_outer_wire_area(f) for f in bottom_faces), default=0.0)
+        if top_area > 0 and bot_area > 0:
+            diff = abs(top_area - bot_area) / max(top_area, bot_area)
+            if diff > 0.01:
+                flags.append(
+                    f"PROFILE OUTLINE DIFFERS top vs bottom by {diff:.0%} "
+                    f"(top {top_area:.0f} mm2, bottom {bot_area:.0f} mm2) — "
+                    f"profile taken from {profile_source}; an edge fillet/chamfer "
+                    "is in the post-processing plan, not in the DXF")
+        # Vertical-wall check: if any vertical face sticks out beyond
+        # the profile (both top and bottom edges filleted), the profile
+        # is undersized and must not be trusted silently.
+        if profile_poly:
+            px = [x for x, _ in profile_poly]; py = [y for _, y in profile_poly]
+            wall = [1e18, 1e18, -1e18, -1e18]  # xmin, ymin, xmax, ymax
+            for f in faces:
+                try:
+                    ad2 = BRepAdaptor_Surface(f.wrapped)
+                    st2 = ad2.GetType()
+                except Exception:
+                    continue
+                is_vert = False
+                if st2 == GeomAbs_Plane:
+                    n2 = f.normal_at()
+                    is_vert = abs(abs(n2.X) - 1.0) < 1e-3 or abs(abs(n2.Y) - 1.0) < 1e-3
+                elif st2 == GeomAbs_Cylinder:
+                    ax2 = ad2.Cylinder().Axis().Direction()
+                    is_vert = abs(abs(ax2.Z()) - 1.0) < 1e-3
+                if is_vert:
+                    fb = f.bounding_box()
+                    wall[0] = min(wall[0], fb.min.X); wall[1] = min(wall[1], fb.min.Y)
+                    wall[2] = max(wall[2], fb.max.X); wall[3] = max(wall[3], fb.max.Y)
+            if wall[2] > -1e17:
+                over = max(min(px) - wall[0], min(py) - wall[1],
+                           wall[2] - max(px), wall[3] - max(py))
+                if over > 0.05:
+                    flags.append(
+                        f"VERTICAL WALLS EXTEND {over:.2f} mm BEYOND PROFILE — "
+                        "edge fillet/chamfer on both top and bottom, profile "
+                        "may be undersized; check the wall footprint before cutting")
         top_inner = [w for f in top_faces for w in f.inner_wires()]
     else:
-        flags.append("NO TOP FACE FOUND — check Z-up / orientation")
+        flags.append("NO PLANAR Z FACE FOUND — check Z-up / orientation")
         top_inner = []
 
     # ---- through-cut helpers (shared by top and bottom scans) ----
@@ -371,6 +614,18 @@ def main():
                   and dist_to_poly_boundary(x, y, pocket_poly) > 2.0
                   and not _on_hole_circle(x, y))
         return far / len(poly)
+
+    def _max_far_dist(poly, pocket_poly):
+        # Deepest excursion of a wire outside a pocket outline (mm).
+        # A merged slot sticks out 6+ mm; a pocket whose FLOOR corners
+        # are rounded by a fillet sticks out <3 mm at the corners only
+        # (beveled plate test) — fraction alone cannot tell them apart.
+        if not poly or not pocket_poly:
+            return 0.0
+        return max((dist_to_poly_boundary(x, y, pocket_poly)
+                    for (x, y) in poly
+                    if not point_in_polygon(x, y, pocket_poly)
+                    and not _on_hole_circle(x, y)), default=0.0)
 
     def _explained_by_pocket(poly):
         # (explained, pocket, far_frac): does a pocket floor have
@@ -403,7 +658,12 @@ def main():
         circ = wire_is_single_circle(w)
         if circ:
             (cx, cy), r = circ
-            if any(abs(h["cx"] - cx) < 0.05 and abs(h["cy"] - cy) < 0.05 and abs(h["dia"] / 2 - r) < 0.05 for h in holes):
+            # Any circle coaxial with a hole is that hole's opening —
+            # a countersink / counterbore opening is WIDER than the
+            # drill, so radius must not be part of the match. Without
+            # this, a countersunk hole's top circle was emitted as a
+            # spurious THROUGH_CUT. (2026-11-08 beveled plate test.)
+            if any(abs(h["cx"] - cx) < 0.05 and abs(h["cy"] - cy) < 0.05 for h in holes):
                 continue
         poly = wire_sample_points(w)
         if not poly:
@@ -416,7 +676,10 @@ def main():
             # cut the pocket through) — it is a candidate for bottom-face
             # recovery below. Found on the machined test (2026-11-08):
             # a through slot overlapping Pocket A vanished.
-            if 0.05 < far_frac < 0.95:
+            # The >3 mm excursion test separates a real merged slot
+            # (sticks out 6+ mm) from a pocket whose floor corners are
+            # merely rounded by a fillet (<3 mm at the corners only).
+            if 0.05 < far_frac < 0.95 and _max_far_dist(poly, pocket["poly"]) > 3.0:
                 merged_candidates.append((poly, pocket, far_frac))
         else:
             through_cuts.append({"segs": wire_segments(w), "poly": poly, "source": "top"})
@@ -434,8 +697,8 @@ def main():
         circ = wire_is_single_circle(w)
         if circ:
             (cx, cy), r = circ
-            if any(abs(h["cx"] - cx) < 0.05 and abs(h["cy"] - cy) < 0.05 and abs(h["dia"] / 2 - r) < 0.05 for h in holes):
-                continue
+            if any(abs(h["cx"] - cx) < 0.05 and abs(h["cy"] - cy) < 0.05 for h in holes):
+                continue  # hole opening (incl. countersink / counterbore)
         poly = wire_sample_points(w)
         if not poly:
             continue
@@ -462,6 +725,209 @@ def main():
                 f"({far_frac:.0%} of its outline is >2 mm outside the pocket) "
                 "and partly a through opening — the through part is NOT in the DXF, "
                 "add it manually in VCarve")
+
+    # ---- post-processing plan: from the prismatic blank to the final shape
+    # The DXF above is the prismatic blank — what the CNC cuts in 2.5D.
+    # Every non-prismatic face is a feature the blank does NOT have.
+    # This plan says how to put each one back, and whether the CNC or a
+    # post-process step is the better place. The default call per
+    # feature is a starting point, not a rule:
+    #   - outer-edge fillet/chamfer -> router table (one setup, the
+    #     bit is already there, no CNC tool change or 3D toolpath)
+    #   - pocket top-edge fillet/chamfer -> handheld router (a table
+    #     cannot reach inside a pocket)
+    #   - pocket-floor fillet, tapered wall, sculpted surface ->
+    #     CNC 3D (a router table cannot reach them at all)
+    #   - countersink -> drill press (one bit, after drilling)
+    #   - non-Z hole -> drill press from the side (or a 2nd CNC setup)
+    # Brandon's call (2026-11-08): use the CNC for non-prismatic
+    # features when it makes sense, post-process when it is simpler.
+    # config.json "post_method_overrides" maps "kind/location" to a
+    # method to change the default call.
+    _POST = {
+        ("fillet", "outer_top"): ("router_table",
+            "Round over the top outer edge on the router table after the CNC cut.",
+            "CNC: roundover bit in the spindle, or a ball-nose 3D finish pass."),
+        ("chamfer", "outer_top"): ("router_table",
+            "Chamfer the top outer edge on the router table after the CNC cut.",
+            "CNC: chamfer tool / V-bit."),
+        ("fillet", "outer_bottom"): ("router_table",
+            "Round over the bottom outer edge on the router table (flip the part over) after the CNC cut.",
+            "CNC: roundover bit in the spindle."),
+        ("chamfer", "outer_bottom"): ("router_table",
+            "Chamfer the bottom outer edge on the router table (flip the part over) after the CNC cut.",
+            "CNC: chamfer tool / V-bit."),
+        ("fillet", "pocket_top"): ("hand_router",
+            "Round over the pocket's top edge with a handheld router (bearing-guided bit) — a router table cannot reach inside a pocket.",
+            "CNC: roundover bit."),
+        ("chamfer", "pocket_top"): ("hand_router",
+            "Chamfer the pocket's top edge with a handheld router (bearing-guided bit).",
+            "CNC: chamfer tool."),
+        ("fillet", "pocket_floor"): ("cnc_3d",
+            "Cut the pocket-floor fillet on the CNC with a ball-nose 3D finish pass — a router table cannot reach a floor fillet. Or leave the corner sharp.",
+            None),
+        ("chamfer", "pocket_floor"): ("cnc_3d",
+            "Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) — a router table cannot reach it.",
+            None),
+        ("taper", "pocket_top"): ("cnc_3d",
+            "Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.",
+            None),
+        ("taper", "pocket_floor"): ("cnc_3d",
+            "Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.",
+            None),
+        ("taper", "hole"): ("drill_press",
+            "Countersink the hole on the drill press after drilling.",
+            "CNC: chamfer tool."),
+        ("taper", "outer_top"): ("cnc_3d",
+            "Tapered outer wall: 3D finishing pass on the CNC (ball-nose), or redesign as vertical + post chamfer.",
+            None),
+        ("taper", "outer_bottom"): ("cnc_3d",
+            "Tapered outer wall: 3D finishing pass on the CNC (ball-nose), or redesign as vertical + post chamfer.",
+            None),
+        ("fillet", "outer_edge"): ("router_table",
+            "Round over the outer edge on the router table after the CNC cut.",
+            "CNC: roundover bit in the spindle."),
+        ("chamfer", "outer_edge"): ("router_table",
+            "Chamfer the outer edge on the router table after the CNC cut.",
+            "CNC: chamfer tool / V-bit."),
+        ("chamfer", "hole"): ("drill_press",
+            "Break / countersink the hole edge on the drill press after drilling.",
+            "CNC: chamfer tool."),
+        ("freeform", "other"): ("cnc_3d",
+            "Sculpted surface: 3D rough + finish from an STL in VCarve, or hand shaping.",
+            None),
+        ("fillet", "hole"): ("hand",
+            "Break the hole edge by hand (deburring tool / sanding) — small edge fillet.",
+            None),
+    }
+
+    def _locate_feature(cx, cy, cz, z_low=None):
+        # (location key, location text) for a non-prismatic face centre.
+        # z_low is the face's lowest Z (its bbox min): when a wall face
+        # sits flush against two pockets, the pocket whose floor Z
+        # matches the face's low edge owns it — the machined test's
+        # tapered pocket wall is flush with Pocket A (floor Z 9) but its
+        # low edge is at Z 8, its own pocket's floor.
+        if profile_poly and dist_to_poly_boundary(cx, cy, profile_poly) < 2.0:
+            if cz > zmax - 3.0:
+                return "outer_top", "outer top edge"
+            if cz < zmin + 3.0:
+                return "outer_bottom", "outer bottom edge"
+            return "outer_edge", "outer edge"
+        best_pocket = None
+        best_score = None
+        for p in pockets:
+            if not p["poly"]:
+                continue
+            if point_in_polygon(cx, cy, p["poly"]) or dist_to_poly_boundary(cx, cy, p["poly"]) < 2.0:
+                score = abs(z_low - p["z"]) if z_low is not None else 0.0
+                if best_score is None or score < best_score:
+                    best_score = score
+                    best_pocket = p
+        if best_pocket is not None:
+            p = best_pocket
+            if abs(cz - p["z"]) < 2.0:
+                return "pocket_floor", f"pocket floor (Z {p['z']:.2f})"
+            return "pocket_top", f"pocket top edge (floor Z {p['z']:.2f})"
+        for h in holes:
+            if math.hypot(cx - h["cx"], cy - h["cy"]) < h["dia"] / 2 + 1.0:
+                return "hole", f"hole D{h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f})"
+        return "other", f"face at ({cx:.1f},{cy:.1f}), Z {cz:.2f}"
+
+    post_process = []
+    _seen_pp = {}
+    _overrides = cfg.get("post_method_overrides", {}) if isinstance(cfg, dict) else {}
+    for info in nonprism_info:
+        f = info["face"]
+        kind = info["kind"]
+        # Location: for a cone, the FACE centre is unreliable — it is
+        # the centre of mass of the conical surface, which sits off the
+        # axis (the beveled plate's countersink face centred at
+        # (14.5,15) instead of on its (20,15) axis). Use the cone's
+        # axis location instead. Other faces use their centre.
+        if kind == "taper":
+            c = (info.get("cx", f.center().X), info.get("cy", f.center().Y),
+                 (info.get("z0", 0) + info.get("z1", 0)) / 2)
+            loc_key, loc_text = _locate_feature(c[0], c[1], c[2], z_low=info.get("z0"))
+            # A chamfer on a CIRCULAR edge is a cone, not a plane: a
+            # short cone (Z span <= 3 mm) that is not a countersink is
+            # a chamfer, not a tapered wall. (Beveled container test:
+            # the pocket-top 2 mm chamfer was misread as a taper.)
+            if loc_key != "hole" and (info.get("z1", 0) - info.get("z0", 0)) <= 3.0:
+                kind = "chamfer"
+                info = dict(info)
+                info["angle_deg"] = round(90.0 - info["semi_angle_deg"], 1)
+                info["z_span"] = round(info["z1"] - info["z0"], 3)
+        else:
+            c = f.center()
+            loc_key, loc_text = _locate_feature(c.X, c.Y, c.Z,
+                                                z_low=f.bounding_box().min.Z)
+        if kind == "taper" and loc_key == "hole":
+            feature = "countersink"
+        elif kind == "taper":
+            feature = "tapered wall"
+        elif kind == "freeform" and loc_key in ("pocket_top", "pocket_floor"):
+            # A non-vertical pocket wall built as a loft/spline (the
+            # machined test's 10 deg tapered pocket) — it is a taper,
+            # not a sculpted surface.
+            feature = "tapered wall"
+        elif kind == "freeform":
+            feature = "sculpted surface"
+        else:
+            feature = kind
+        if kind == "fillet":
+            params = f"R{info['radius']:.2f} mm"
+            tool = f"roundover bit R{info['radius']:.2f} mm"
+        elif kind == "chamfer":
+            params = f"{info['angle_deg']:.0f} deg, {info['z_span']:.2f} mm tall"
+            tool = f"chamfer bit {info['angle_deg']:.0f} deg"
+        elif kind == "taper" and loc_key == "hole":
+            params = f"semi-angle {info['semi_angle_deg']:.1f} deg"
+            tool = f"countersink bit {info['semi_angle_deg']:.1f} deg"
+        elif kind == "taper":
+            params = f"semi-angle {info['semi_angle_deg']:.1f} deg"
+            tool = "ball-nose endmill, 3D finish pass"
+        elif kind == "freeform":
+            params = info.get("surface_type", "freeform")
+            tool = "ball-nose endmill, 3D rough + finish from STL"
+        else:
+            params = ""
+            tool = ""
+        if feature == "tapered wall" and kind == "freeform":
+            params = "non-vertical wall"
+            tool = "ball-nose endmill, 3D finish pass"
+        if feature == "tapered wall":
+            method, step, alt = _POST.get(("taper", loc_key), _POST[("taper", "pocket_top")])
+        elif kind == "freeform":
+            method, step, alt = _POST[("freeform", "other")]
+        else:
+            method, step, alt = _POST.get(
+                (kind, loc_key),
+                _POST.get((kind, "other"),
+                          ("decision_needed",
+                           "No automatic call — decide CNC vs post-process by hand for this feature.",
+                           None)))
+        override_key = f"{kind}/{loc_key}"
+        if override_key in _overrides:
+            method = _overrides[override_key]
+            step = step + " (method overridden from config)"
+        # Dedup by location TEXT, not just key: two faces can share
+        # the key "pocket_top" while belonging to different pockets
+        # (different floor Z) — collapsing them would print the wrong
+        # floor Z for one of them.
+        dedup_key = (feature, loc_text, params)
+        if dedup_key in _seen_pp:
+            _seen_pp[dedup_key]["count"] = _seen_pp[dedup_key].get("count", 1) + 1
+            continue
+        entry = {"feature": feature, "location": loc_text, "params": params,
+                 "method": method, "tool": tool, "step": step,
+                 "cnc_alternative": alt}
+        _seen_pp[dedup_key] = entry
+        post_process.append(entry)
+    for e in post_process:
+        cnt = e.get("count", 1)
+        suffix = f" (x{cnt} faces)" if cnt > 1 else ""
+        flags.append(f"POST-PROCESS [{e['method']}]: {e['feature']} {e['params']} at {e['location']}{suffix} — {e['step']}")
 
     # ---- build layers / manifest
     layers = []  # dicts for manifest, in cutting order
@@ -523,7 +989,26 @@ def main():
             # machined test the tapered pocket sits flush against Pocket A,
             # and its wall's centre is 0.5 mm from Pocket A's outline too,
             # which falsely suppressed Pocket A as well.)
-            for f, why in other_faces:
+            for info in nonprism_info:
+                f = info["face"]
+                # A small floor fillet (Z span << pocket depth) does not
+                # make the pocket un-cuttable — the endmill leaves a
+                # sharp corner and the fillet becomes a post-process
+                # item (ball-nose) instead. A taper / freeform wall
+                # spanning most of the depth does suppress the pocket.
+                fb = f.bounding_box()
+                zspan = fb.max.Z - fb.min.Z
+                if info["kind"] in ("taper", "freeform"):
+                    substantial = True
+                else:
+                    # 0.6, not 0.5: a floor fillet's Z span is exactly
+                    # its radius, and R2 on a 4 mm pocket is 0.5 — that
+                    # must NOT suppress the pocket (floating point
+                    # would flip it). A wall that is mostly round
+                    # (span > 60% of depth) does suppress.
+                    substantial = zspan > 0.6 * p["depth"]
+                if not substantial:
+                    continue
                 try:
                     low_edge = min(f.edges(), key=lambda e: e.center().Z)
                 except Exception:
@@ -535,7 +1020,7 @@ def main():
                     p["suppressed"] = True
                     flags.append(
                         f"POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z {p['z']:.2f}, "
-                        f"depth {p['depth']:.2f} — {why}")
+                        f"depth {p['depth']:.2f} — {info['kind']} wall, Z span {zspan:.2f} mm")
                     break
         if p["suppressed"]:
             continue
@@ -636,6 +1121,7 @@ def main():
         "layers": layers,
         "holes": holes,
         "pocket_count": len(pockets),
+        "post_process": post_process,
         "flags": flags,
     }
     if args.mode in ("full", "manifest"):
@@ -663,6 +1149,14 @@ def main():
     for p in pockets:
         sup = " — SUPPRESSED, no toolpath (non-vertical walls)" if p.get("suppressed") else ""
         report.append(f"- floor Z {p['z']:.2f}, total depth {p['depth']:.2f}, start {p['start']:.2f}, cut {p['cut']:.2f}{sup}")
+    report.append(f"\nPost-processing plan ({len(post_process)} steps — features the prismatic blank does not have):")
+    for e in post_process:
+        cnt = e.get("count", 1)
+        suffix = f" (x{cnt} faces)" if cnt > 1 else ""
+        report.append(f"- [{e['method']}] {e['feature']} {e['params']} at {e['location']}{suffix}: {e['step']}"
+                      + (f" Alternative: {e['cnc_alternative']}" if e.get("cnc_alternative") else ""))
+    if not post_process:
+        report.append("- none — part is fully prismatic")
     report.append("\nFlags — read before cutting:")
     report.append("\n".join(f"- {f}" for f in flags) if flags else "- none")
     (outdir / "report.md").write_text("\n".join(report) + "\n")

@@ -164,6 +164,7 @@
     }
   ],
   "pocket_count": 3,
+  "post_process": [],
   "flags": [
     "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
   ]

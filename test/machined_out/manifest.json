@@ -194,19 +194,28 @@
     }
   ],
   "pocket_count": 4,
+  "post_process": [
+    {
+      "feature": "tapered wall",
+      "location": "pocket top edge (floor Z 8.00)",
+      "params": "non-vertical wall",
+      "method": "cnc_3d",
+      "tool": "ball-nose endmill, 3D finish pass",
+      "step": "Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.",
+      "cnc_alternative": null,
+      "count": 4
+    }
+  ],
   "flags": [
-    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05 (area 139.8 mm2, centre (10.0, 20.52084970183144, 11.04611455525064))",
-    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.07 (area 91.0 mm2, centre (21.48350378206738, 28.0, 11.070804389338019))",
-    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05 (area 139.8 mm2, centre (10.0, 35.47915029816856, 11.04611455525064))",
-    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.07 (area 91.0 mm2, centre (-1.4835037820673818, 28.0, 11.070804389338019))",
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (-52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00",
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (-52.00,32.00) r=8.00 span=90deg Z 0.00..14.00",
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00",
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,32.00) r=8.00 span=90deg Z 0.00..14.00",
     "COUNTERBORE THRU HOLE: dia 6.00 at (35.00,-20.00) under D12.00 counterbore \u2014 treated as thru",
     "THROUGH FEATURE MERGED WITH POCKET on top face \u2014 recovered from bottom face as THROUGH_CUT (verify the outline in VCarve)",
+    "POST-PROCESS [cnc_3d]: tapered wall non-vertical wall at pocket top edge (floor Z 8.00) (x4 faces) \u2014 Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.",
     "HOLE NOT FROM TOP (blind_bottom): dia 5.00 at (-45.00,-28.00) Z 0.00..4.00 \u2014 no toolpath emitted",
-    "POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 \u2014 surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05",
+    "POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 \u2014 freeform wall, Z span 6.00 mm",
     "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
   ]
 }

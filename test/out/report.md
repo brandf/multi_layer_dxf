@@ -26,5 +26,8 @@ Pockets (3):
 - floor Z 6.00, total depth 6.00, start 0.00, cut 6.00
 - floor Z 3.00, total depth 9.00, start 6.00, cut 3.00
 
+Post-processing plan (0 steps — features the prismatic blank does not have):
+- none — part is fully prismatic
+
 Flags — read before cutting:
 - THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
