@@ -227,6 +227,7 @@ def main():
     if args.mode in ("full", "manifest"):
         (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2))
         (outdir / "manifest.txt").write_text(
+            f"# dxf: {stem}.dxf\n" +
             "\n".join(f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|{L['cut_depth']:.3f}|{L.get('part','')}"
                       for L in combined_layers) + "\n")
     if args.mode in ("full", "dxf"):

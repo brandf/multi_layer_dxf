@@ -40,14 +40,21 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
 - `make_test_model.py` — builds a known test part in build123d,
   exports STEP, so you can verify the recognizer without Onshape
 - `featurescript/CAM_Snapshot.fs` — Onshape custom feature, insert
-  before your first bevel/chamfer/fillet. Classifies Z levels
-  in-tree and creates CAM_* sketches. Draft — needs a live
-  Onshape test before trusting it on a real part.
+  before your first bevel/chamfer/fillet. Groups Z levels in-tree
+  and creates one CAM_* sketch per Z level (v0.2 — grouping and
+  sketch creation are now written, not a stub; still needs a live
+  Onshape test before trusting it on a real part, and the
+  UNVERIFIED-marked API calls in the file are the things to check).
 - `vcarve/Onshape25D.lua` — VCarve Pro gadget (Lua). Reads
-  manifest.json, imports the DXF, joins vectors, creates
-  drill / pocket / profile toolpaths per layer with
-  start_depth / cut_depth from the manifest. Draft — needs a
-  Windows VCarve test, the Lua SDK calls are from Vectric docs.
+  manifest.txt, imports the DXF named on its `# dxf:` line, joins
+  vectors, creates drill / pocket / profile toolpaths per layer with
+  start_depth / cut_depth from the manifest. v0.2 — implemented from
+  the Vectric SDK docs and syntax-checked, but NOT yet run inside
+  VCarve. It does not save the job or post G-code; preview, then
+  File > Save As the `.crv` yourself.
+- `VALIDATION.md` — the ready-to-run checklist for the real container
+  STEP (BRA-8), including the regression commands and the Windows
+  gadget / Onshape FeatureScript test steps.
 - `test/` — outputs from the synthetic test model
 
 ## Can I open something directly in VCarve, with toolpaths?
@@ -58,11 +65,17 @@ way to write one outside VCarve itself.
 
 The supported way to get a `.crv` *with toolpaths* is the Lua gadget
 in `vcarve/Onshape25D.lua`: run it inside VCarve, it imports the DXF,
-creates the toolpaths from `manifest.txt`, recalculates, and saves
-the `.crv`. One click in VCarve, instead of dozens of manual toolpaths.
+creates the toolpaths from `manifest.txt`, and recalculates. One click
+in VCarve, instead of dozens of manual toolpaths — then you preview
+and save the `.crv` yourself (the gadget deliberately does not save
+the job or post G-code).
 
-That gadget is a draft (v0.1) — the SDK calls are from Vectric docs,
-but it has not been run inside VCarve yet (no VCarve on this Linux VM).
+That gadget is v0.2 — implemented from the Vectric SDK docs
+(ToolpathManager + VectricJob pages, jimandi.com/SDK mirror) and
+syntax-checked with luaparser, but it has not been run inside VCarve
+yet (no VCarve on this Linux VM). The two least-certain calls,
+`GetFileName()` and `JoinVectors()`, are guarded so the gadget fails
+with a message instead of silently doing the wrong thing.
 Until it is tested on Windows, the verified path is:
 
 1. `step_to_vcarve.py` → layered DXF + manifest.json
@@ -156,10 +169,11 @@ counterbore D12×3 over a D6 thru hole, 4× D5 thru, D8 blind D5,
 a bottom-only D5 blind hole (trap), a 10° tapered pocket (trap),
 and a through slot overlapping Pocket A (trap).
 
-Verified after the fixes below: 8 layers, 8 holes, 4 pockets,
-12 flags — all explainable. D6 thru is now emitted, the tapered
+Verified after the fixes below: 9 layers, 8 holes, 4 pockets,
+13 flags — all explainable. D6 thru is now emitted, the tapered
 pocket is suppressed, the bottom-only hole is flagged with no
-toolpath, and the merged slot is flagged (not silently dropped).
+toolpath, and the merged slot is now recovered from the bottom
+face as a full THROUGH_CUT (see bug 3).
 
 Three classifier bugs this model found and fixed (2026-11-08):
 1. **Counterbore thru hole dropped.** A D6 thru hole under a D12
@@ -178,11 +192,21 @@ Three classifier bugs this model found and fixed (2026-11-08):
 3. **Through slot merged with a pocket vanished.** A slot overlapping
    Pocket A merges with the pocket's top opening, so the merged wire
    was explained as the pocket and the slot disappeared from the DXF.
-   Now flagged as "THROUGH FEATURE MERGED WITH POCKET" (points >2 mm
+   First flagged as "THROUGH FEATURE MERGED WITH POCKET" (points >2 mm
    outside the pocket outline, excluding points on a hole's circle,
-   so a hole notching a pocket corner does not trip it). The through
-   part still has to be added manually in VCarve — automatic
-   polygon-difference recovery is a follow-up, not done yet.
+   so a hole notching a pocket corner does not trip it). Then
+   **recovered (BRA-9, 2026-11-08):** a through feature appears on
+   both faces, and the pocket is blind, so the slot's outline is
+   clean and unmerged on the bottom face — the classifier now scans
+   bottom-face inner wires too, and only uses a bottom wire to
+   resolve a merged candidate (a blind pocket opening from the
+   bottom would otherwise be mis-emitted as a through cut). The
+   machined plate now yields the full 26×8 slot (-48..-22, 18..26)
+   as THROUGH_CUT, and the flag reads "recovered from bottom face
+   — verify the outline in VCarve". Regressions clean: test_part
+   8 layers / 6 holes / 3 pockets / 1 flag, container 5 layers /
+   0 flags, two_part 6 layers / 0 flags, Kookabus unchanged
+   (11 / 7 / 6 layers, 70 / 631 / 22 flags).
 
 ### External sample — Kookabus enclosure (`test/external/`)
 
@@ -274,10 +298,28 @@ the manifest, not the layer name, for depths.
 ## VCarve side
 
 Option A — gadget (recommended for dozens of depths):
-Gadgets > Onshape25D, pick manifest.json. It imports the DXF,
-joins vectors, creates toolpaths in order drill -> pockets
-shallow to deep -> profile last, recalculates all.
-Preview before posting G-code. Always.
+Gadgets > Onshape25D, pick manifest.txt. It imports the DXF named
+on the manifest's `# dxf:` line, joins vectors, creates toolpaths
+in order drill -> pockets shallow to deep -> profile last,
+recalculates all. It does not save the job or post G-code —
+preview, File > Save As the `.crv`, then post. Always preview
+before posting G-code.
+
+## Auto-orientation and layout (proposed, not built yet)
+
+Brandon asked 2026-11-08 whether one STEP with multiple parts could
+be auto-oriented and auto-laid-out for CAM instead of hand-writing
+`parts.json`. Feasible, for prismatic parts: find the prismatic axis
+(the axis most planar faces are normal to), then pick the face-up
+side by counting what opens on each side (pocket / blind-hole
+openings — through holes count for both sides), bottom-align every
+part (Zmin = 0), and pack them side by side. Cases that must be
+flagged, not guessed: features on both sides (needs a two-setup cut),
+a tie between sides, or a cosmetic face choice. `parts.json` would
+stay as an explicit override, and the report would show the auto
+choice per part with its reasoning. Not built yet — waiting on
+Brandon's go-ahead; the current `parts.json` flow is the working
+version until then.
 
 Option B — toolpath template (only if your depths are standard):
 import the layered DXF, load a VCarve toolpath template that

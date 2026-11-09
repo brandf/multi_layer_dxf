@@ -347,8 +347,58 @@ def main():
         flags.append("NO TOP FACE FOUND — check Z-up / orientation")
         top_inner = []
 
+    # ---- through-cut helpers (shared by top and bottom scans) ----
+    def _on_hole_circle(x, y):
+        # A point far outside a pocket outline is only evidence of a
+        # merged through feature if it is not on a hole's circle: a hole
+        # notching a pocket corner (test_part Pocket C, D6 at (35,25))
+        # puts arc points up to its radius outside the outline.
+        for h in holes:
+            if abs(math.hypot(x - h["cx"], y - h["cy"]) - h["dia"] / 2) < 0.5:
+                return True
+        return False
+
+    def _far_outside_frac(poly, pocket_poly):
+        # Fraction of a wire's sample points >2 mm outside a pocket floor
+        # outline (and not on a hole circle). Boundary-coincident points
+        # are unreliable for ray casting, and a tapered pocket's outline
+        # is only ~1 mm outside its floor, so the 2 mm margin separates
+        # a merged slot from a taper or a hole notch.
+        if not poly or not pocket_poly:
+            return 0.0
+        far = sum(1 for (x, y) in poly
+                  if not point_in_polygon(x, y, pocket_poly)
+                  and dist_to_poly_boundary(x, y, pocket_poly) > 2.0
+                  and not _on_hole_circle(x, y))
+        return far / len(poly)
+
+    def _explained_by_pocket(poly):
+        # (explained, pocket, far_frac): does a pocket floor have
+        # (nearly) this outline? A pocket floor's outer wire is the same
+        # XY outline as its top opening, even when a hole or
+        # pocket-in-pocket changes its area / bbox.
+        for p in pockets:
+            if not p["poly"]:
+                continue
+            inside = sum(1 for (x, y) in poly if point_in_polygon(x, y, p["poly"]))
+            if inside >= len(poly) / 2:
+                return True, p, _far_outside_frac(poly, p["poly"])
+            c = p["face"].center()
+            if point_in_polygon(c.X, c.Y, poly):
+                return True, p, _far_outside_frac(poly, p["poly"])
+        return False, None, 0.0
+
+    def _same_bbox(poly_a, poly_b, tol=0.05):
+        if not poly_a or not poly_b:
+            return False
+        ax = [x for x, _ in poly_a]; ay = [y for _, y in poly_a]
+        bx = [x for x, _ in poly_b]; by = [y for _, y in poly_b]
+        return (abs(min(ax) - min(bx)) < tol and abs(max(ax) - max(bx)) < tol
+                and abs(min(ay) - min(by)) < tol and abs(max(ay) - max(by)) < tol)
+
     # through cuts: top inner wires not explained by a pocket or hole
     through_cuts = []
+    merged_candidates = []  # (poly, pocket, far_frac) — resolved below
     for w in top_inner:
         circ = wire_is_single_circle(w)
         if circ:
@@ -356,74 +406,62 @@ def main():
             if any(abs(h["cx"] - cx) < 0.05 and abs(h["cy"] - cy) < 0.05 and abs(h["dia"] / 2 - r) < 0.05 for h in holes):
                 continue
         poly = wire_sample_points(w)
-        # does a pocket floor have (nearly) this outline? A pocket floor's
-        # outer wire is the same XY outline as its top opening, even when
-        # a hole / pocket-in-pocket changes its area / bbox. So test
-        # containment: if most sample points of the top wire lie inside
-        # (or on) a pocket floor polygon, it's that pocket's opening.
-        explained = False
-        far_outside_frac = 0.0
-        if poly:
-            for p in pockets:
-                if not p["poly"]:
-                    continue
-                inside = sum(1 for (x, y) in poly if point_in_polygon(x, y, p["poly"]))
-                # points exactly on the boundary count as inside for
-                # ray-casting purposes in most cases; use a 50% threshold
-                # to allow for holes notching the outline
-                if inside >= len(poly) / 2:
-                    explained = True
-                    break
-                # also: pocket centre inside the top wire?
-                c = p["face"].center()
-                if point_in_polygon(c.X, c.Y, poly):
-                    explained = True
-                    break
-            if explained:
-                # Partially explained = a through feature (e.g. a slot)
-                # whose opening merged with a pocket's opening on the top
-                # face. Measure it by points FAR outside the pocket floor
-                # outline (>2 mm) — boundary-coincident points are
-                # unreliable for ray casting, and a tapered pocket's
-                # outline is only ~1 mm outside its floor, so the 2 mm
-                # margin separates a merged slot from a taper. The merged
-                # wire is not emitted as a through cut (that would cut the
-                # pocket through) and the slot is not silently dropped
-                # either — flag it for a manual through-cut. Found on the
-                # machined test (2026-11-08): a through slot overlapping
-                # Pocket A vanished.
-                # (recompute against the explaining pocket: the loop above
-                # broke at the first explaining pocket, so re-find it)
-                for p in pockets:
-                    if not p["poly"]:
-                        continue
-                    inside = sum(1 for (x, y) in poly if point_in_polygon(x, y, p["poly"]))
-                    if inside >= len(poly) / 2 or point_in_polygon(p["face"].center().X, p["face"].center().Y, poly):
-                        # A point far outside the pocket outline is only
-                        # evidence of a merged through feature if it is
-                        # not on a hole's circle: a hole notching a pocket
-                        # corner (test_part Pocket C, D6 at (35,25)) puts
-                        # arc points up to its radius outside the outline
-                        # and must not trip this flag.
-                        def on_hole_circle(x, y):
-                            for h in holes:
-                                if abs(math.hypot(x - h["cx"], y - h["cy"]) - h["dia"] / 2) < 0.5:
-                                    return True
-                            return False
-                        far = sum(1 for (x, y) in poly
-                                  if not point_in_polygon(x, y, p["poly"])
-                                  and dist_to_poly_boundary(x, y, p["poly"]) > 2.0
-                                  and not on_hole_circle(x, y))
-                        far_outside_frac = far / len(poly)
-                        break
-                if 0.05 < far_outside_frac < 0.95:
-                    flags.append(
-                        "THROUGH FEATURE MERGED WITH POCKET: top opening is partly a pocket "
-                        f"({far_outside_frac:.0%} of its outline is >2 mm outside the pocket) "
-                        "and partly a through opening — the through part is NOT in the DXF, "
-                        "add it manually in VCarve")
-        if not explained:
-            through_cuts.append({"segs": wire_segments(w), "poly": poly})
+        if not poly:
+            continue
+        explained, pocket, far_frac = _explained_by_pocket(poly)
+        if explained:
+            # Partially explained = a through feature (e.g. a slot)
+            # whose opening merged with a pocket's opening on the top
+            # face. It is not emitted as a through cut here (that would
+            # cut the pocket through) — it is a candidate for bottom-face
+            # recovery below. Found on the machined test (2026-11-08):
+            # a through slot overlapping Pocket A vanished.
+            if 0.05 < far_frac < 0.95:
+                merged_candidates.append((poly, pocket, far_frac))
+        else:
+            through_cuts.append({"segs": wire_segments(w), "poly": poly, "source": "top"})
+
+    # Bottom-face recovery (BRA-9): a through feature whose top opening
+    # merged with a pocket's opening still has a clean, unmerged outline
+    # on the bottom face — the pocket is blind, so it cannot appear
+    # there. Verified on test/machined.step: the slot is a merged
+    # 12-edge wire on top, but a clean 26x8 rectangle on the bottom.
+    # Bottom wires are ONLY used to resolve a merged candidate, never
+    # emitted on their own — a blind pocket opening from the bottom
+    # would otherwise be mis-emitted as a through cut.
+    bottom_inner = [w for f in bottom_faces for w in f.inner_wires()]
+    for w in bottom_inner:
+        circ = wire_is_single_circle(w)
+        if circ:
+            (cx, cy), r = circ
+            if any(abs(h["cx"] - cx) < 0.05 and abs(h["cy"] - cy) < 0.05 and abs(h["dia"] / 2 - r) < 0.05 for h in holes):
+                continue
+        poly = wire_sample_points(w)
+        if not poly:
+            continue
+        if any(_same_bbox(poly, tc["poly"]) for tc in through_cuts):
+            continue  # already emitted from the top face
+        for i, (tpoly, pocket, far_frac) in enumerate(merged_candidates):
+            if pocket is None:
+                continue
+            if _far_outside_frac(poly, pocket["poly"]) > 0.05:
+                through_cuts.append({"segs": wire_segments(w), "poly": poly, "source": "bottom"})
+                merged_candidates[i] = (tpoly, pocket, far_frac, True)
+                break
+
+    for cand in merged_candidates:
+        poly, pocket, far_frac = cand[0], cand[1], cand[2]
+        recovered = len(cand) > 3 and cand[3]
+        if recovered:
+            flags.append(
+                "THROUGH FEATURE MERGED WITH POCKET on top face — recovered from "
+                "bottom face as THROUGH_CUT (verify the outline in VCarve)")
+        else:
+            flags.append(
+                "THROUGH FEATURE MERGED WITH POCKET: top opening is partly a pocket "
+                f"({far_frac:.0%} of its outline is >2 mm outside the pocket) "
+                "and partly a through opening — the through part is NOT in the DXF, "
+                "add it manually in VCarve")
 
     # ---- build layers / manifest
     layers = []  # dicts for manifest, in cutting order
@@ -607,7 +645,10 @@ def main():
         # layer|operation|start_depth|cut_depth
         lines = [f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|{L['cut_depth']:.3f}"
                  for L in layers]
-        (outdir / "manifest.txt").write_text("\n".join(lines) + "\n")
+        # First line tells the VCarve gadget which DXF belongs to this
+        # manifest (same folder). The gadget skips '#' lines.
+        (outdir / "manifest.txt").write_text(
+            f"# dxf: {stem}.dxf\n" + "\n".join(lines) + "\n")
 
     report = []
     report.append(f"# {stem} — VCarve report\n")

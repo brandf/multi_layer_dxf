@@ -113,6 +113,13 @@
       "depth_total": 9.0
     },
     {
+      "layer": "THROUGH_CUT",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 14.0,
+      "segment_count": 4
+    },
+    {
       "layer": "PROFILE_THRU",
       "operation": "profile",
       "start_depth": 0.0,
@@ -197,8 +204,9 @@
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00",
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,32.00) r=8.00 span=90deg Z 0.00..14.00",
     "COUNTERBORE THRU HOLE: dia 6.00 at (35.00,-20.00) under D12.00 counterbore \u2014 treated as thru",
-    "THROUGH FEATURE MERGED WITH POCKET: top opening is partly a pocket (56% of its outline is >2 mm outside the pocket) and partly a through opening \u2014 the through part is NOT in the DXF, add it manually in VCarve",
+    "THROUGH FEATURE MERGED WITH POCKET on top face \u2014 recovered from bottom face as THROUGH_CUT (verify the outline in VCarve)",
     "HOLE NOT FROM TOP (blind_bottom): dia 5.00 at (-45.00,-28.00) Z 0.00..4.00 \u2014 no toolpath emitted",
-    "POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 \u2014 surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05"
+    "POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 \u2014 surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05",
+    "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
   ]
 }

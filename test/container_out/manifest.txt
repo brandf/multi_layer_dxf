@@ -1,3 +1,4 @@
+# dxf: container.dxf
 P01_Bottom__DRILL_D5.00_THRU|drill|0.000|12.000|P01_Bottom
 P01_Bottom__POCKET_D6.00|pocket|0.000|6.000|P01_Bottom
 P01_Bottom__PROFILE_THRU|profile|0.000|12.000|P01_Bottom
