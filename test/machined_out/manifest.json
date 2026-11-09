@@ -1,0 +1,204 @@
+{
+  "source_step": "test/machined.step",
+  "units": "mm",
+  "stock": {
+    "x_min": -60.0,
+    "y_min": -40.0,
+    "x_max": 60.0,
+    "y_max": 40.0,
+    "z_min": 0.0,
+    "z_max": 14.0,
+    "thickness": 14.0
+  },
+  "z_top": 14.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D8.00_D5.00",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 5.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          0.0,
+          -28.0
+        ]
+      ],
+      "diameter": 8.0
+    },
+    {
+      "layer": "DRILL_D12.00_D3.00",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 3.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          35.0,
+          -20.0
+        ]
+      ],
+      "diameter": 12.0
+    },
+    {
+      "layer": "DRILL_D5.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 14.0,
+      "segment_count": 4,
+      "centres": [
+        [
+          -50.0,
+          -30.0
+        ],
+        [
+          -50.0,
+          30.0
+        ],
+        [
+          50.0,
+          -30.0
+        ],
+        [
+          50.0,
+          30.0
+        ]
+      ],
+      "diameter": 5.0
+    },
+    {
+      "layer": "DRILL_D6.00_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 14.0,
+      "segment_count": 1,
+      "centres": [
+        [
+          35.0,
+          -20.0
+        ]
+      ],
+      "diameter": 6.0
+    },
+    {
+      "layer": "POCKET_D3.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 3.0,
+      "segment_count": 4,
+      "floor_z": 11.0,
+      "depth_total": 3.0
+    },
+    {
+      "layer": "POCKET_D5.00",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 5.0,
+      "segment_count": 6,
+      "floor_z": 9.0,
+      "depth_total": 5.0
+    },
+    {
+      "layer": "POCKET_D9.00_START5.00",
+      "operation": "pocket",
+      "start_depth": 5.0,
+      "cut_depth": 4.0,
+      "segment_count": 4,
+      "floor_z": 5.0,
+      "depth_total": 9.0
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 14.0,
+      "segment_count": 8
+    }
+  ],
+  "holes": [
+    {
+      "cx": -50.0,
+      "cy": -30.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 14.0,
+      "kind": "thru"
+    },
+    {
+      "cx": -50.0,
+      "cy": 30.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 14.0,
+      "kind": "thru"
+    },
+    {
+      "cx": -45.0,
+      "cy": -28.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 4.0,
+      "kind": "blind_bottom"
+    },
+    {
+      "cx": 0.0,
+      "cy": -28.0,
+      "dia": 8.0,
+      "z0": 9.0,
+      "z1": 14.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 35.0,
+      "cy": -20.0,
+      "dia": 6.0,
+      "z0": 0.0,
+      "z1": 14.0000001,
+      "kind": "thru"
+    },
+    {
+      "cx": 35.0,
+      "cy": -20.0,
+      "dia": 12.0,
+      "z0": 11.0,
+      "z1": 14.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 50.0,
+      "cy": -30.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 14.0,
+      "kind": "thru"
+    },
+    {
+      "cx": 50.0,
+      "cy": 30.0,
+      "dia": 5.0,
+      "z0": 0.0,
+      "z1": 14.0,
+      "kind": "thru"
+    }
+  ],
+  "pocket_count": 4,
+  "flags": [
+    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05 (area 139.8 mm2, centre (10.0, 20.52084970183144, 11.04611455525064))",
+    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.07 (area 91.0 mm2, centre (21.48350378206738, 28.0, 11.070804389338019))",
+    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05 (area 139.8 mm2, centre (10.0, 35.47915029816856, 11.04611455525064))",
+    "NON-PRISMATIC / REVIEW: surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.07 (area 91.0 mm2, centre (-1.4835037820673818, 28.0, 11.070804389338019))",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (-52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (-52.00,32.00) r=8.00 span=90deg Z 0.00..14.00",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,32.00) r=8.00 span=90deg Z 0.00..14.00",
+    "COUNTERBORE THRU HOLE: dia 6.00 at (35.00,-20.00) under D12.00 counterbore \u2014 treated as thru",
+    "THROUGH FEATURE MERGED WITH POCKET: top opening is partly a pocket (56% of its outline is >2 mm outside the pocket) and partly a through opening \u2014 the through part is NOT in the DXF, add it manually in VCarve",
+    "HOLE NOT FROM TOP (blind_bottom): dia 5.00 at (-45.00,-28.00) Z 0.00..4.00 \u2014 no toolpath emitted",
+    "POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 \u2014 surface type GeomAbs_SurfaceType.GeomAbs_BSplineSurface, centre Z 11.05"
+  ]
+}

@@ -138,12 +138,65 @@ inside the `post process` folder, after Extrude 7 / Move face 1** —
 so the CAM Snapshot goes just before that folder, not after it.
 The rounded outside in the render is the fillet; cutting the
 profile from the filleted model would undersize it. `Move face 1`
-needs a look in Onshape: if it moves a face vertically it is still
-prismatic; if it tilts a face, the classifier will flag it as
-non-prismatic and you will see it in `report.md` before cutting.
+is prismatic in this model (Brandon, 2026-11-08): a vertical move
+adding clearance after subtracting Bottom from Top / vice versa —
+it just shifts a Z level, which the classifier handles as a
+different pocket depth, no flag expected.
 
 If `--parts` is omitted, every part is classified as-is, labelled
 P01, P02, … — no silent flips.
+
+### Harder validation — machined plate (`test/machined.step`)
+
+A second, independent test model (`make_test_machined.py`, 120×80×14,
+filleted R8 corners) with a different feature mix, built 2026-11-08
+while waiting for the real container STEP. Ground truth: Pocket A
+60×40 D5 + pocket-in-pocket B D9 (start 5), Pocket C 20×20 D3,
+counterbore D12×3 over a D6 thru hole, 4× D5 thru, D8 blind D5,
+a bottom-only D5 blind hole (trap), a 10° tapered pocket (trap),
+and a through slot overlapping Pocket A (trap).
+
+Verified after the fixes below: 8 layers, 8 holes, 4 pockets,
+12 flags — all explainable. D6 thru is now emitted, the tapered
+pocket is suppressed, the bottom-only hole is flagged with no
+toolpath, and the merged slot is flagged (not silently dropped).
+
+Three classifier bugs this model found and fixed (2026-11-08):
+1. **Counterbore thru hole dropped.** A D6 thru hole under a D12
+   counterbore ends at the counterbore floor (Z=11), not at the top,
+   so it was classified `blind_bottom` and no drill layer was emitted.
+   Now: a bottom-starting cylinder under a wider coaxial hole that
+   reaches the top is reclassified `thru`.
+2. **Tapered pocket emitted at floor size.** A 10° tapered pocket
+   was emitted as `POCKET_D6.00` at its (smaller) floor outline
+   despite its walls being flagged non-prismatic. Now: a pocket whose
+   lowest wall edge lies on its floor outline and belongs to a
+   non-prismatic face is suppressed — flagged, no toolpath.
+   (Face-centre proximity was tried first and falsely suppressed
+   Pocket A too, because the tapered pocket sits flush against it;
+   the lowest-edge test is what discriminates.)
+3. **Through slot merged with a pocket vanished.** A slot overlapping
+   Pocket A merges with the pocket's top opening, so the merged wire
+   was explained as the pocket and the slot disappeared from the DXF.
+   Now flagged as "THROUGH FEATURE MERGED WITH POCKET" (points >2 mm
+   outside the pocket outline, excluding points on a hole's circle,
+   so a hole notching a pocket corner does not trip it). The through
+   part still has to be added manually in VCarve — automatic
+   polygon-difference recovery is a follow-up, not done yet.
+
+### External sample — Kookabus enclosure (`test/external/`)
+
+A real, non-synthetic STEP was also tried: the Kookabus-03
+enclosure assembly from kookabus.com
+(`kookabus-03-enclosure.step`, FreeCAD AP214, 139×105.5 mm base +
+lid + DIN clip, 3 solids, 2.0 MB). It is a 3D-print design, not a
+machined part, so it is **not** a clean 2.5D validation — the
+classifier correctly flags it heavily (torus fillets, cone
+countersinks, horizontal cylinders, slanted hex-nut pockets:
+P01 70 flags, P02 631, P03 22 in check mode) and does not crash
+on a real AP214 file with 978 faces. The machined plate above is
+the clean validation; the Kookabus file is kept as a robustness
+sample only.
 
 The FeatureScript side matches: insert one CAM Snapshot per part,
 pick that part's CAM plane (not necessarily Top), and set

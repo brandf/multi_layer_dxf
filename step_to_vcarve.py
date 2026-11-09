@@ -46,6 +46,20 @@ def poly_area(poly):
         a += x1 * y2 - x2 * y1
     return abs(a) / 2.0
 
+def dist_to_poly_boundary(px, py, poly):
+    """Min distance from a point to the polyline through poly's points."""
+    best = float("inf")
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        dx, dy = x2 - x1, y2 - y1
+        L2 = dx * dx + dy * dy
+        t = 0.0 if L2 == 0 else max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / L2))
+        d = math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+        best = min(best, d)
+    return best
+
 # ---------------------------------------------------------------- OCP edge extraction
 def edge_segments(edge):
     """
@@ -254,6 +268,25 @@ def main():
                 f"centre ({cx:.2f},{cy:.2f}) r={r:.2f} span={math.degrees(total_span):.0f}deg Z {z0:.2f}..{z1:.2f}"
             )
 
+    # Counterbore over a through hole: the wider hole above removes the
+    # top section of the narrower cylinder, so it ends at the counterbore
+    # floor instead of at zmax — but it still goes through the part.
+    # Found on the machined test (2026-11-08): D6 under a D12 counterbore
+    # was misclassified blind_bottom and its drill layer was dropped.
+    for h in holes:
+        if h["kind"] in ("blind_bottom", "internal") and abs(h["z0"] - zmin) < 0.05:
+            for w in holes:
+                if w is h or w["dia"] <= h["dia"]:
+                    continue
+                if (abs(w["cx"] - h["cx"]) < 0.05 and abs(w["cy"] - h["cy"]) < 0.05
+                        and abs(w["z0"] - h["z1"]) < 0.05 and abs(w["z1"] - zmax) < 0.05):
+                    h["kind"] = "thru"
+                    h["z1"] = zmax
+                    flags.append(
+                        f"COUNTERBORE THRU HOLE: dia {h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f}) "
+                        f"under D{w['dia']:.2f} counterbore — treated as thru")
+                    break
+
     # ---- planar Z faces: group by Z
     by_z = defaultdict(list)
     for z, f in planar_z:
@@ -329,6 +362,7 @@ def main():
         # containment: if most sample points of the top wire lie inside
         # (or on) a pocket floor polygon, it's that pocket's opening.
         explained = False
+        far_outside_frac = 0.0
         if poly:
             for p in pockets:
                 if not p["poly"]:
@@ -345,6 +379,49 @@ def main():
                 if point_in_polygon(c.X, c.Y, poly):
                     explained = True
                     break
+            if explained:
+                # Partially explained = a through feature (e.g. a slot)
+                # whose opening merged with a pocket's opening on the top
+                # face. Measure it by points FAR outside the pocket floor
+                # outline (>2 mm) — boundary-coincident points are
+                # unreliable for ray casting, and a tapered pocket's
+                # outline is only ~1 mm outside its floor, so the 2 mm
+                # margin separates a merged slot from a taper. The merged
+                # wire is not emitted as a through cut (that would cut the
+                # pocket through) and the slot is not silently dropped
+                # either — flag it for a manual through-cut. Found on the
+                # machined test (2026-11-08): a through slot overlapping
+                # Pocket A vanished.
+                # (recompute against the explaining pocket: the loop above
+                # broke at the first explaining pocket, so re-find it)
+                for p in pockets:
+                    if not p["poly"]:
+                        continue
+                    inside = sum(1 for (x, y) in poly if point_in_polygon(x, y, p["poly"]))
+                    if inside >= len(poly) / 2 or point_in_polygon(p["face"].center().X, p["face"].center().Y, poly):
+                        # A point far outside the pocket outline is only
+                        # evidence of a merged through feature if it is
+                        # not on a hole's circle: a hole notching a pocket
+                        # corner (test_part Pocket C, D6 at (35,25)) puts
+                        # arc points up to its radius outside the outline
+                        # and must not trip this flag.
+                        def on_hole_circle(x, y):
+                            for h in holes:
+                                if abs(math.hypot(x - h["cx"], y - h["cy"]) - h["dia"] / 2) < 0.5:
+                                    return True
+                            return False
+                        far = sum(1 for (x, y) in poly
+                                  if not point_in_polygon(x, y, p["poly"])
+                                  and dist_to_poly_boundary(x, y, p["poly"]) > 2.0
+                                  and not on_hole_circle(x, y))
+                        far_outside_frac = far / len(poly)
+                        break
+                if 0.05 < far_outside_frac < 0.95:
+                    flags.append(
+                        "THROUGH FEATURE MERGED WITH POCKET: top opening is partly a pocket "
+                        f"({far_outside_frac:.0%} of its outline is >2 mm outside the pocket) "
+                        "and partly a through opening — the through part is NOT in the DXF, "
+                        "add it manually in VCarve")
         if not explained:
             through_cuts.append({"segs": wire_segments(w), "poly": poly})
 
@@ -394,6 +471,36 @@ def main():
 
     # pockets shallow -> deep
     for p in pockets:
+        # Non-vertical walls: a pocket whose floor outline is ringed by a
+        # non-prismatic face (taper, cone, spline) must not be emitted as
+        # a vertical pocket at its floor size — that would cut the wrong
+        # shape. Flag it and suppress the layer instead. Found on the
+        # machined test (2026-11-08): a 10 deg tapered pocket was emitted
+        # as POCKET_D6.00 at its (smaller) floor outline.
+        p["suppressed"] = False
+        if p["poly"]:
+            # A wall face belongs to this pocket if its LOWEST edge lies on
+            # the pocket's floor outline — that edge is shared with the
+            # floor face. (Face-centre proximity is not enough: on the
+            # machined test the tapered pocket sits flush against Pocket A,
+            # and its wall's centre is 0.5 mm from Pocket A's outline too,
+            # which falsely suppressed Pocket A as well.)
+            for f, why in other_faces:
+                try:
+                    low_edge = min(f.edges(), key=lambda e: e.center().Z)
+                except Exception:
+                    continue
+                c = low_edge.center()
+                if abs(c.Z - p["z"]) > 0.05:
+                    continue
+                if dist_to_poly_boundary(c.X, c.Y, p["poly"]) < 0.1:
+                    p["suppressed"] = True
+                    flags.append(
+                        f"POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z {p['z']:.2f}, "
+                        f"depth {p['depth']:.2f} — {why}")
+                    break
+        if p["suppressed"]:
+            continue
         if abs(p["start"]) < 0.005:
             name = f"POCKET_D{fmt(p['depth'])}"
         else:
@@ -513,7 +620,8 @@ def main():
         report.append(f"- {h['kind']} D{h['dia']:.2f} at ({h['cx']:.2f},{h['cy']:.2f}) Z {h['z0']:.2f}..{h['z1']:.2f}")
     report.append(f"\nPockets ({len(pockets)}):")
     for p in pockets:
-        report.append(f"- floor Z {p['z']:.2f}, total depth {p['depth']:.2f}, start {p['start']:.2f}, cut {p['cut']:.2f}")
+        sup = " — SUPPRESSED, no toolpath (non-vertical walls)" if p.get("suppressed") else ""
+        report.append(f"- floor Z {p['z']:.2f}, total depth {p['depth']:.2f}, start {p['start']:.2f}, cut {p['cut']:.2f}{sup}")
     report.append("\nFlags — read before cutting:")
     report.append("\n".join(f"- {f}" for f in flags) if flags else "- none")
     (outdir / "report.md").write_text("\n".join(report) + "\n")
