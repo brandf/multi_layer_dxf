@@ -91,20 +91,71 @@
         }
       ],
       "pocket_count": 2,
-      "auto_orientation": {
-        "axis": "Z",
-        "axis_share": 1.0,
-        "axis_scores": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 3728.4
-        },
-        "dominant": true,
-        "up_area_mm2": 1354.3,
-        "down_area_mm2": 0.0,
-        "flip": false,
-        "ambiguous": false,
-        "notes": []
+      "orientation_search": {
+        "best": "+Z",
+        "best_score": 6.87,
+        "ranked": [
+          {
+            "orientation": "+Z",
+            "score": 6.87,
+            "layers": 4,
+            "flags": 4,
+            "cut_minutes": 4.87,
+            "holes_not_from_top": 0,
+            "post": {
+              "router_table": 1
+            }
+          },
+          {
+            "orientation": "-Z",
+            "score": 122.8,
+            "layers": 3,
+            "flags": 11,
+            "cut_minutes": 0.8,
+            "holes_not_from_top": 8,
+            "post": {
+              "router_table": 1
+            }
+          }
+        ],
+        "pruned": [
+          {
+            "orientation": "+X",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              9.5,
+              46.0
+            ]
+          },
+          {
+            "orientation": "-X",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              9.5,
+              46.0
+            ]
+          },
+          {
+            "orientation": "+Y",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              46.0,
+              9.5
+            ]
+          },
+          {
+            "orientation": "-Y",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              46.0,
+              9.5
+            ]
+          }
+        ]
       }
     },
     {
@@ -196,21 +247,70 @@
         }
       ],
       "pocket_count": 2,
-      "auto_orientation": {
-        "axis": "Z",
-        "axis_share": 1.0,
-        "axis_scores": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 3445.9
-        },
-        "dominant": true,
-        "up_area_mm2": 0.0,
-        "down_area_mm2": 1049.7,
-        "flip": true,
-        "ambiguous": false,
-        "notes": [
-          "flipped: -Z side has the openings (1050 mm2 vs 0 mm2)"
+      "orientation_search": {
+        "best": "-Z",
+        "best_score": 4.7,
+        "ranked": [
+          {
+            "orientation": "-Z",
+            "score": 4.7,
+            "layers": 4,
+            "flags": 2,
+            "cut_minutes": 2.7,
+            "holes_not_from_top": 0,
+            "post": {
+              "router_table": 1
+            }
+          },
+          {
+            "orientation": "+Z",
+            "score": 122.54,
+            "layers": 3,
+            "flags": 10,
+            "cut_minutes": 0.54,
+            "holes_not_from_top": 8,
+            "post": {
+              "router_table": 1
+            }
+          }
+        ],
+        "pruned": [
+          {
+            "orientation": "+X",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              8.0,
+              46.0
+            ]
+          },
+          {
+            "orientation": "-X",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              8.0,
+              46.0
+            ]
+          },
+          {
+            "orientation": "+Y",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              46.0,
+              8.0
+            ]
+          },
+          {
+            "orientation": "-Y",
+            "reason": "height 46.00 mm > material thickness 10.00 mm",
+            "height_mm": 46.0,
+            "footprint_mm": [
+              46.0,
+              8.0
+            ]
+          }
         ]
       }
     }

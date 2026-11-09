@@ -79,12 +79,28 @@ def main():
     ap.add_argument("--plan", default="",
                     help="which tool plan to write as manifest.txt (A/B/C — default fastest, A)")
     ap.add_argument("--auto", action="store_true",
-                    help="auto-orient each part (prismatic axis to Z, best side up) and lay out largest first; explicit parts.json entries override per part")
+                    help="auto-orient each part by orientation search (BRA-17: try all 6 axis-aligned orientations, score by outcome, prune by material) and lay out largest first; explicit parts.json entries override per part")
+    ap.add_argument("--material", default=None,
+                    help="material WxDxT mm, e.g. 150x100x10 — prunes orientations that cannot fit (BRA-17); config 'material' / 'stock_size_mm' also accepted, CLI wins")
     args = ap.parse_args()
 
     cfg = {}
     if args.config and args.config.exists():
         cfg = json.loads(args.config.read_text())
+
+    # Material size (BRA-17 prune, BRA-16 fit-or-error): CLI wins,
+    # else config "material" / "stock_size_mm". Validated up front
+    # so a bad spec fails before any classification runs.
+    import orient_search as _os
+    try:
+        material = _os.parse_material(args.material) if args.material \
+            else _os.material_from_cfg(cfg)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
+    if material:
+        print(f"material: {material['x']:.1f} x {material['y']:.1f} x "
+              f"{material['thickness']:.1f} mm (orientations that cannot fit are pruned)")
 
     parts_cfg = {"parts": []}
     if args.parts and args.parts.exists():
@@ -115,19 +131,38 @@ def main():
         bb = s.bounding_box()
         return (round(bb.min.X, 1), round(bb.min.Y, 1), round(bb.min.Z, 1))
     solids = sorted(solids, key=_key)
+    # Orientation search up front (BRA-17), before any layout:
+    # every part that needs auto-orienting is searched now, so a
+    # material prune failure (no orientation fits) fails the whole
+    # run before any part is classified, and the footprint sort
+    # below uses the CHOSEN orientation's footprint. Explicit
+    # parts.json entries skip the search for that part.
+    # items: (solid, search_result or None)
+    items = [(s, None) for s in solids]
+    if auto_mode:
+        for idx, (s, _) in enumerate(items):
+            entry = part_entries[idx] if idx < len(part_entries) else {}
+            explicit = any(k in entry for k in ("flip_x", "flip_y", "rotate_z_deg")) or entry.get("auto") is False
+            if explicit:
+                continue
+            res = _os.search(s, cfg, material, args.config,
+                             min_tool=args.min_tool, only=args.only)
+            if res["error"]:
+                print(f"ERROR: [part {idx+1}] orientation search: {res['error']}", file=sys.stderr)
+                return 1
+            items[idx] = (s, res)
     if auto_mode and not part_entries:
-        # Sort by footprint area AFTER orientation (largest first) so
+        # Sort by footprint area AFTER the search (largest first) so
         # the side-by-side row packs tidily. Only when there are no
         # explicit part entries — re-sorting would mismatch entries
-        # to parts. (auto_orient.py)
-        import auto_orient as _ao
-        def _footprint(s):
-            d = _ao.analyze_orientation(s)
-            if d["dominant"] and not d["ambiguous"]:
-                s, _ = _ao.orient_solid(s, d)
+        # to parts.
+        def _footprint(item):
+            s, res = item
+            if res is not None:
+                s = res["best"]["solid"]
             bb = s.bounding_box()
             return (bb.max.X - bb.min.X) * (bb.max.Y - bb.min.Y)
-        solids = sorted(solids, key=_footprint, reverse=True)
+        items = sorted(items, key=_footprint, reverse=True)
     print(f"{len(solids)} part(s) in STEP, auto={auto_mode}")
 
     combined_layers = []
@@ -140,7 +175,7 @@ def main():
     combined_doc.units = 4
     msp = combined_doc.modelspace()
 
-    for i, solid in enumerate(solids):
+    for i, (solid, search_res) in enumerate(items):
         entry = part_entries[i] if i < len(part_entries) else {}
         label = entry.get("label", f"P{i+1:02d}")
         prefix = f"P{i+1:02d}_{label}"
@@ -148,23 +183,33 @@ def main():
         flip_y = bool(entry.get("flip_y", False))
         rot_z = float(entry.get("rotate_z_deg", 0))
 
-        # Auto-orientation (2026-11-08): unless this part has an
-        # explicit entry (flip/rotate keys, or "auto": false), decide
-        # its CAM orientation from the geometry — prismatic axis to Z,
-        # most-open side up. Ambiguous parts are classified as-is and
-        # flagged, never silently re-oriented.
-        auto_decision = None
-        explicit = any(k in entry for k in ("flip_x", "flip_y", "rotate_z_deg")) or entry.get("auto") is False
-        if auto_mode and not explicit:
-            import auto_orient as _ao
-            auto_decision = _ao.analyze_orientation(solid)
-            if auto_decision["dominant"] and not auto_decision["ambiguous"]:
-                solid, applied = _ao.orient_solid(solid, auto_decision)
-                print(f"auto-orient {prefix}: axis {auto_decision['axis']} "
-                      f"(share {auto_decision['axis_share']:.0%}), flip={auto_decision['flip']} — {applied}")
-            else:
-                print(f"auto-orient {prefix}: AMBIGUOUS — classified as-is: {'; '.join(auto_decision['notes'])}")
-                combined_flags.append(f"[{prefix}] AUTO-ORIENT AMBIGUOUS — classified as-is: {'; '.join(auto_decision['notes'])}")
+        # Orientation search result (BRA-17, run up front): the best
+        # rotated solid replaces the scene solid before the part's
+        # own transform / layout. Explicit entries skip the search.
+        auto_search = None
+        if search_res is not None:
+            auto_search = {
+                "best": search_res["best"]["orientation"],
+                "best_score": search_res["best"]["score"],
+                "ranked": [{k: e[k] for k in ("orientation", "score", "layers", "flags")
+                            if k in e} | {"cut_minutes": e["breakdown"]["cut_minutes"],
+                                          "holes_not_from_top": e["breakdown"]["holes_not_from_top"],
+                                          "post": e["breakdown"]["post"]}
+                           for e in search_res["ranked"]],
+                "pruned": search_res["pruned"],
+            }
+            solid = search_res["best"]["solid"]
+            # Print here, not in the up-front search: the final label
+            # (prefix) is only known after the footprint sort.
+            _best = search_res["best"]
+            _others = "; ".join(f"{e['orientation']} {e['score']:.1f}"
+                                for e in search_res["ranked"] if e is not _best)
+            _pruned = "; ".join(f"{p['orientation']} ({p['reason']})" for p in search_res["pruned"])
+            print(f"orient search [{prefix}]: best {_best['orientation']} "
+                  f"(score {_best['score']:.1f}, cut {_best['breakdown']['cut_minutes']:.1f} min, "
+                  f"{_best['breakdown']['holes_not_from_top']} un-cut holes)"
+                  + (f" over {_others}" if _others else "")
+                  + (f"; pruned {_pruned}" if _pruned else ""))
 
         # transform about the part's own centre, in a copy
         s = solid
@@ -249,8 +294,8 @@ def main():
             "layers": [L["layer"] for L in man["layers"]],
             "holes": man["holes"], "pocket_count": man["pocket_count"],
         }
-        if auto_decision is not None:
-            p_out["auto_orientation"] = auto_decision
+        if auto_search is not None:
+            p_out["orientation_search"] = auto_search
         parts_out.append(p_out)
         # merge DXF entities, renaming layers
         if args.mode in ("full", "dxf"):
@@ -313,11 +358,13 @@ def main():
         line = (f"- {p['name']}: stock {p['stock']['x_max']-p['stock']['x_min']:.1f} x "
                 f"{p['stock']['y_max']-p['stock']['y_min']:.1f} x {p['stock']['thickness']:.1f} mm, "
                 f"flip_x={p['flip_x']} rot_z={p['rotate_z_deg']}, layers {len(p['layers'])}")
-        if p.get("auto_orientation"):
-            a = p["auto_orientation"]
-            line += (f" [auto: axis {a['axis']} {a['axis_share']:.0%}, "
-                     f"openings +{a['up_area_mm2']:.0f} vs -{a['down_area_mm2']:.0f} mm2, "
-                     f"flip={a['flip']}, ambiguous={a['ambiguous']}]")
+        if p.get("orientation_search"):
+            a = p["orientation_search"]
+            ranked = "; ".join(f"{e['orientation']} {e['score']:.1f}" for e in a["ranked"])
+            line += f" [search: best {a['best']} ({ranked})"
+            if a["pruned"]:
+                line += "; pruned " + "; ".join(f"{x['orientation']} ({x['reason']})" for x in a["pruned"])
+            line += "]"
         report.append(line)
     report.append("\nTool plan (recommendations from standard sizes — review against your VCarve library):")
     report.extend(_tp.format_tool_plan_report(tool_plan))

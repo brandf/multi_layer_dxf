@@ -461,35 +461,67 @@ recalculates all. It does not save the job or post G-code —
 preview, File > Save As the `.crv`, then post. Always preview
 before posting G-code.
 
-## Auto-orientation and layout (built 2026-11-08, Brandon approved)
+## Orientation search and layout (built 2026-11-08, search 2026-11-09, Brandon approved)
 
 `multi_part.py --auto` (or `"auto": true` in `parts.json`) decides
-each part's CAM orientation from the geometry — no `parts.json`
-entry needed. `auto_orient.py`:
-- Prismatic axis: the axis (X, Y or Z) that most planar-face area
-  is normal to, plus most cylinder area runs along. Must be >50%
-  of face area, else the part is reported ambiguous and classified
-  as-is — a plain box has no dominant axis and is never guessed.
-- Best side up: among planar faces normal to that axis, excluding
-  the two outer faces, a face whose normal points +axis is the
-  floor of a cavity opening toward +axis. Opening area per side
-  decides; through holes count for both sides and are ignored.
-  A tie (within 10%) is ambiguous — no flip, flagged with both
-  scores.
+each part's CAM orientation by measurement, not by a heuristic
+(`orient_search.py`, BRA-17 — supersedes the `auto_orient.py`
+>50% dominant-axis rule, which is kept only for the single-part
+`--auto-orient` path, see below):
+- Try all 6 axis-aligned orientations (+/-X, +/-Y, +/-Z as the up
+  axis). Each is a proper rotation about the bbox centre, so any
+  of them is a physical way to put the part on the bed.
+- Material prune first: if a material size is known (`--material
+  WxDxT`, or config `material` / `stock_size_mm`), an orientation
+  survives only if its height <= material thickness AND its
+  footprint fits the material W x D in either in-plane spin. The
+  real container on 10 mm stock keeps only Z up / Z down (9.5 /
+  8.0 mm tall; the X/Y orientations are 46 mm tall). If all 6 are
+  pruned the run fails with a named error — the part cannot be cut
+  from that material at any orientation.
+- Score the survivors by running the full classifier + tool plan
+  on each: cut time from the chosen plan (incl. tool-change
+  penalties) + 15 per HOLE NOT FROM TOP flag (a hole with no
+  toolpath — that orientation needs a double-sided job or
+  extensive post-processing) + post-processing penalties per
+  method (cnc_3d 10, decision_needed 5, hand_router 3,
+  drill_press 3, router_table 2) + 60 if no standard tool plan
+  exists. Weights are config `orientation_penalties`. No
+  special-casing for magnets or insides-up: the difference falls
+  out of the penalties — the flipped container is FASTER on the
+  clock (3.5 vs 5.6 min) because it skips the Bottom's 8 magnet
+  holes, so cut-time-only scoring would pick the wrong
+  orientation. The flipped orientation is priced, not
+  disqualified.
+- Ties: if the original orientation (+Z) is within
+  `orientation_tie_minutes` (default 0.5) of the best, prefer it
+  — do not rotate a part pointlessly. The in-plane spin (rotating
+  a part 90 deg on the sheet) is a layout variable, not part of
+  the 6: it does not change the cutting, only the footprint.
+- The ranking (orientation, score, cut time, un-cut holes, post
+  work) and the pruned orientations with reasons are recorded per
+  part in the manifest (`orientation_search`) and the report, so a
+  wrong pick is visible, not silent.
 - Layout: bottom-align (Zmin = 0), pack side by side in a row,
   largest footprint first, gap from config (default 10 mm).
 - `parts.json` entries still override per part (any flip/rotate
-  key, or `"auto": false`), and the report + manifest record the
-  auto decision per part with axis share and opening areas.
-- Single-part: `step_to_vcarve.py --auto-orient` does the same
-  before classifying.
+  key, or `"auto": false`).
+- Single-part: `step_to_vcarve.py --auto-orient` still uses the
+  `auto_orient.py` heuristic for v1 (dominant axis >50% + best
+  side up by opening area); the search is the multi-part path.
 
-Verified 2026-11-08: the container STEP rotated 90 deg about X
-(`test/rotated_container.step`) auto-orients back to the exact
-`parts.container.json` result — Bottom no flip, Top flip, 5 layers,
-0 flags. The plain container with `--auto` gives the same 5 layers
-/ 0 flags. Kookabus (3D-print design) does not crash: axis Z, lid
-parts flip because their openings face down.
+Verified 2026-11-09: the container STEP rotated 90 deg about X
+(`test/rotated_container.step`) searches back to the exact
+`parts.container.json` result — Bottom +Z, Top -Z, 5 layers,
+0 flags. The real container with `--auto` gives 8 layers / 6
+flags, Plan A 2 changes / 5.6 min, Bottom +Z / Top -Z — the same
+as the explicit parts.json flip. The 8-part test now orients the
+sideways block to +X and reads it exactly (15x10x4 pocket,
+D5 thru hole, 0 flags) — 8 parts, 22 layers, 4 flags, Plan A 1
+change / 9.0 min. Kookabus is classify-only (no `--auto` search
+— 6x ~90 s per part is too slow); it does not crash.
+Runtime note: the search runs the classifier up to 6 times per
+part, so the 8-part test takes ~4 minutes.
 
 ## Beveled STEP in, prismatic blank + post-processing plan out (built 2026-11-08)
 

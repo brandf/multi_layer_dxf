@@ -135,7 +135,8 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 #  floor fillet R2 -> cnc_3d], 5 flags
 
 .venv/bin/python multi_part.py test/rotated_container.step -o test/rotated_out --auto --mode full
-# expect: same as parts.container.json — Bottom no flip, Top flip,
+# expect: same as parts.container.json — Bottom +Z, Top -Z (the STEP
+# was rotated 90 deg about X, so the search finds +Y for both parts),
 # 2 parts, 5 layers, 0 flags
 
 .venv/bin/python step_to_vcarve.py test/beveled_sideways.step -o test/beveled_sideways_out --auto-orient --mode full
@@ -161,26 +162,36 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # has two POCKET_D5.00 lines, `...|0.5|rough` then `...|0.0|finish`.
 # Single-pass plans are dropped (final radius 3.18 > 1.0).
 
-# Real container (BRA-8, verified 2026-11-08; BRA-15 re-verified 2026-11-09):
+# Real container (BRA-8, verified 2026-11-08; BRA-15 re-verified 2026-11-09;
+# BRA-17 re-verified 2026-11-09):
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_out --auto
 # expect: 2 parts, 8 layers, 6 flags (see §2). P01 facing pocket
 # P01_P01__POCKET_D1.50 has 3 DXF circles (r 23.00 / 17.97 / 15.00);
 # P02 facing pocket has 1 (r 18.00 counterbore). Bottom drills are
 # surface drills START1.50 depending on POCKET_D1.50. Plan A (BRA-15):
 # Drill 2.25 + EM 1/2", 2 changes, est 5.6 min — cut order all pockets,
-# both drills, profiles last.
+# both drills, profiles last. Orientation search (BRA-17): Bottom
+# best +Z (score 6.9) over -Z (122.8); Top best -Z (4.7) over +Z
+# (122.5) — the same flip the explicit parts.json gives. With
+# --material 150x100x10 the X/Y orientations are pruned (height
+# 46.00 > thickness 10.00); with --material 150x100x5 the run
+# fails with a named error (smallest dimension 9.50 > 5.00), exit 1.
 
 # Eight unrelated parts (generalisation, verified 2026-11-08;
-# BRA-15 re-verified 2026-11-09):
+# BRA-15 re-verified 2026-11-09; BRA-17 re-verified 2026-11-09):
 .venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_out --auto
-# expect: 8 parts, 22 layers, 6 flags. 7 of 8 classify exactly
-# right (L-bracket, disc, pocketed plate, slot bar, counterbore
-# block, donut, stepped plate with surface drill). The sideways
-# block (modelled on its side, prismatic axis along X) is flagged
-# AUTO-ORIENT AMBIGUOUS (X share 49% vs the 50% dominant
-# threshold) and classified as-is — flagged, never silently
-# re-oriented. Plan A (BRA-15): 2 tools, 1 change, est 9.7 min
-# (was 3 changes / 13.7 min before the tool-grouped orderer).
+# expect: 8 parts, 22 layers, 4 flags. All 8 classify exactly
+# right, including the sideways block (modelled on its side,
+# prismatic axis along X): the search orients it to +X (score 1.5
+# over -X 1.9, +Z/-Z 7.3) and reads it as POCKET_D4.00 +
+# DRILL_D5.00_THRU + PROFILE_THRU, 0 flags. The old AUTO-ORIENT
+# AMBIGUOUS flag and the spurious fillet flag from the as-is
+# classification are both gone. The 4 remaining flags are the
+# informational ones: 2x THROUGH CUT, 1x DRILL FROM SURFACE,
+# 1x COUNTERBORE THRU HOLE. Plan A: 2 tools, 1 change, est 9.0 min
+# (was 1 change / 9.7 min under the heuristic — the correct
+# orientation gives cleaner layers). The search runs the classifier
+# up to 6 times per part, so this takes ~4 minutes.
 
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"

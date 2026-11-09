@@ -1,7 +1,7 @@
 # real_container — multi-part VCarve report
 
-- P01_P01: stock 46.0 x 46.0 x 9.5 mm, flip_x=False rot_z=0.0, layers 4 [auto: axis Z 100%, openings +1354 vs -0 mm2, flip=False, ambiguous=False]
-- P02_P02: stock 46.0 x 46.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 4 [auto: axis Z 100%, openings +0 vs -1050 mm2, flip=True, ambiguous=False]
+- P01_P01: stock 46.0 x 46.0 x 9.5 mm, flip_x=False rot_z=0.0, layers 4 [search: best +Z (+Z 6.9; -Z 122.8); pruned +X (height 46.00 mm > material thickness 10.00 mm); -X (height 46.00 mm > material thickness 10.00 mm); +Y (height 46.00 mm > material thickness 10.00 mm); -Y (height 46.00 mm > material thickness 10.00 mm)]
+- P02_P02: stock 46.0 x 46.0 x 8.0 mm, flip_x=False rot_z=0.0, layers 4 [search: best -Z (-Z 4.7; +Z 122.5); pruned +X (height 46.00 mm > material thickness 10.00 mm); -X (height 46.00 mm > material thickness 10.00 mm); +Y (height 46.00 mm > material thickness 10.00 mm); -Y (height 46.00 mm > material thickness 10.00 mm)]
 
 Tool plan (recommendations from standard sizes — review against your VCarve library):
 Tool plan A (chosen, fastest estimate): 2 tool(s), 2 manual change(s), est 5.6 min total (cutting 1.6 + changes 4.0). Times are estimates, not promises.
