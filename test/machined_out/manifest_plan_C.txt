@@ -3,6 +3,7 @@
 # tool: D5.00|drill|5.0000|1|7.5|7.5|20000|2.5|0.0
 # tool: EM4.76|endmill|4.7625|2|23.81|7.94|20000|2.381|1.905
 # tool: EM6.35|endmill|6.3500|3|30.0|10.0|20000|3.0|2.54
+# tabs: THROUGH_CUT|2|5.0|1.0
 # tabs: PROFILE_THRU|4|5.0|1.0
 DRILL_D5.00_THRU|drill|0.000|14.000||D5.00
 DRILL_D6.00_THRU|drill|0.000|14.000||EM4.76

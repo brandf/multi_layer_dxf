@@ -105,6 +105,12 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # expect: axis X detected, rotated back, 3 layers, 8 holes, 1 pocket,
 # same post-process plan as the unrotated beveled container
 
+.venv/bin/python step_to_vcarve.py test/donut.step -o test/donut_out --mode full
+# expect: 2 layers, 0 holes, 0 pockets, 1 flag (standard through-cut
+# verification flag) — THROUGH_CUT (Ø60 hole, tabs x4) + PROFILE_THRU
+# (Ø100, tabs x4), 1 tool, 0 changes. The doughnut proves the tabs
+# rule: the centre disc is a slug, not sawdust.
+
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"
 # expect: [('A', 2, 1, 5.4), ('B', 2, 1, 5.7), ('C', 2, 1, 6.1)] — A is

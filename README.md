@@ -287,13 +287,18 @@ the recommendation plus fallback plans:
   over a single 3/16" endmill for everything (4.4 min, 0 changes) —
   nearly tied, and the estimate says so. Times are estimates, not
   promises; the report shows the comparison so you can judge.
-- **Tabs:** outer profiles get tabs by default (4 tabs, 5 mm long,
-  1 mm thick — `config.json` → `toolplan.tabs`), so parts don't go
-  flying when the profile cut finishes. Through-cut slots are
-  openings, not parts — no tabs. Tab length is clamped to a tenth of
-  the profile perimeter. The tab count is not settable through the
-  documented ProfileParameterData fields; the gadget tries it in a
-  guarded call and VCarve's default applies if ignored.
+- **Tabs:** every profile layer gets tabs by default (4 tabs, 5 mm
+  long, 1 mm thick — `config.json` → `toolplan.tabs`), because a
+  profile cut is a closed loop and whatever is inside the loop is a
+  separate piece when the cut finishes: the part on the outer
+  profile, the slug on a through cut. A doughnut hole is the clear
+  case — its centre is a solid disc, not sawdust, and it goes flying
+  without tabs. Tab count scales down with perimeter (a 26×8 slot
+  gets 2 tabs, a Ø60 hole 4); tab length is clamped to a tenth of
+  the profile perimeter. Drilled/bored holes need no tabs — the
+  material leaves as chips. The tab count is not settable through
+  the documented ProfileParameterData fields; the gadget tries it in
+  a guarded call and VCarve's default applies if ignored.
 - **Matching to your VCarve library:** the SDK has no silent
   lookup-by-diameter — `ToolDatabase` only offers `SelectTool()`
   (interactive dialog) and `GetTool(id)`. So gadget v0.3 asks once

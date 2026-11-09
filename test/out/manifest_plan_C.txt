@@ -2,6 +2,7 @@
 # plan: C — 2 tool(s), 1 change(s), est 4.5 min (cutting 2.5 + changes 2.0)
 # tool: EM4.76|endmill|4.7625|1|23.81|7.94|20000|2.381|1.905
 # tool: EM6.35|endmill|6.3500|2|30.0|10.0|20000|3.0|2.54
+# tabs: THROUGH_CUT|2|5.0|1.0
 # tabs: PROFILE_THRU|4|5.0|1.0
 DRILL_D6.00_THRU|drill|0.000|12.000||EM4.76
 DRILL_D8.00_D5.00|drill|0.000|5.000||EM6.35

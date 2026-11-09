@@ -1,0 +1,203 @@
+{
+  "source_step": "test/donut.step",
+  "units": "mm",
+  "stock": {
+    "x_min": -50.0,
+    "y_min": -50.0,
+    "x_max": 50.0,
+    "y_max": 50.0,
+    "z_min": 0.0,
+    "z_max": 10.0,
+    "thickness": 10.0
+  },
+  "z_top": 10.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "THROUGH_CUT",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 1,
+      "est": {
+        "perimeter_mm": 188.496,
+        "min_width_mm": 60.0,
+        "depth_mm": 10.0
+      }
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 10.0,
+      "segment_count": 1,
+      "est": {
+        "perimeter_mm": 314.159,
+        "depth_mm": 10.0
+      }
+    }
+  ],
+  "holes": [],
+  "pocket_count": 0,
+  "post_process": [],
+  "flags": [
+    "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
+  ],
+  "tool_plan": {
+    "plans": [
+      {
+        "total_seconds": 75.0,
+        "cutting_seconds": 75.0,
+        "tool_changes": 0,
+        "change_seconds": 0.0,
+        "tools": [
+          {
+            "id": "EM12.70",
+            "kind": "endmill",
+            "dia_mm": 12.7,
+            "name": "End Mill 1/2 in (12.70 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 5.08,
+            "tool_number": 1
+          }
+        ],
+        "layers": [
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 29.1,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 45.9,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "A"
+      },
+      {
+        "total_seconds": 75.0,
+        "cutting_seconds": 75.0,
+        "tool_changes": 0,
+        "change_seconds": 0.0,
+        "tools": [
+          {
+            "id": "EM9.53",
+            "kind": "endmill",
+            "dia_mm": 9.525,
+            "name": "End Mill 3/8 in (9.53 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 3.81,
+            "tool_number": 1
+          }
+        ],
+        "layers": [
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM9.53",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 29.1,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM9.53",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 45.9,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "B"
+      },
+      {
+        "total_seconds": 75.0,
+        "cutting_seconds": 75.0,
+        "tool_changes": 0,
+        "change_seconds": 0.0,
+        "tools": [
+          {
+            "id": "EM6.35",
+            "kind": "endmill",
+            "dia_mm": 6.35,
+            "name": "End Mill 1/4 in (6.35 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 2.54,
+            "tool_number": 1
+          }
+        ],
+        "layers": [
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 29.1,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 45.9,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "C"
+      }
+    ],
+    "error": null,
+    "chosen": "A"
+  }
+}

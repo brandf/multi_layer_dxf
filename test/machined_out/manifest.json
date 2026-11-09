@@ -302,7 +302,8 @@
             "tool_id": "EM3.17",
             "kind": "bore",
             "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
-            "seconds": 48.2
+            "seconds": 48.2,
+            "tabs": null
           },
           {
             "layer": "DRILL_D6.00_THRU",
@@ -310,7 +311,8 @@
             "tool_id": "EM3.17",
             "kind": "bore",
             "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
-            "seconds": 13.8
+            "seconds": 13.8,
+            "tabs": null
           },
           {
             "layer": "DRILL_D8.00_D5.00",
@@ -318,7 +320,8 @@
             "tool_id": "EM6.35",
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
-            "seconds": 2.7
+            "seconds": 2.7,
+            "tabs": null
           },
           {
             "layer": "DRILL_D12.00_D3.00",
@@ -326,7 +329,8 @@
             "tool_id": "EM6.35",
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
-            "seconds": 2.1
+            "seconds": 2.1,
+            "tabs": null
           },
           {
             "layer": "POCKET_D3.00",
@@ -334,7 +338,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 6.2
+            "seconds": 6.2,
+            "tabs": null
           },
           {
             "layer": "POCKET_D5.00",
@@ -342,7 +347,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 53.4
+            "seconds": 53.4,
+            "tabs": null
           },
           {
             "layer": "POCKET_D9.00_START5.00",
@@ -350,7 +356,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 12.5
+            "seconds": 12.5,
+            "tabs": null
           },
           {
             "layer": "THROUGH_CUT",
@@ -358,7 +365,12 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 16.3
+            "seconds": 16.3,
+            "tabs": {
+              "count": 2,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
           },
           {
             "layer": "PROFILE_THRU",
@@ -366,7 +378,12 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 69.4
+            "seconds": 69.4,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
           }
         ],
         "id": "A"
@@ -423,7 +440,8 @@
             "tool_id": "D5.00",
             "kind": "drill",
             "note": "drill",
-            "seconds": 24.5
+            "seconds": 24.5,
+            "tabs": null
           },
           {
             "layer": "DRILL_D6.00_THRU",
@@ -431,7 +449,8 @@
             "tool_id": "D6.00",
             "kind": "drill",
             "note": "drill",
-            "seconds": 5.1
+            "seconds": 5.1,
+            "tabs": null
           },
           {
             "layer": "DRILL_D8.00_D5.00",
@@ -439,7 +458,8 @@
             "tool_id": "EM6.35",
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
-            "seconds": 2.7
+            "seconds": 2.7,
+            "tabs": null
           },
           {
             "layer": "DRILL_D12.00_D3.00",
@@ -447,7 +467,8 @@
             "tool_id": "EM6.35",
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
-            "seconds": 2.1
+            "seconds": 2.1,
+            "tabs": null
           },
           {
             "layer": "POCKET_D3.00",
@@ -455,7 +476,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 6.2
+            "seconds": 6.2,
+            "tabs": null
           },
           {
             "layer": "POCKET_D5.00",
@@ -463,7 +485,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 53.4
+            "seconds": 53.4,
+            "tabs": null
           },
           {
             "layer": "POCKET_D9.00_START5.00",
@@ -471,7 +494,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 12.5
+            "seconds": 12.5,
+            "tabs": null
           },
           {
             "layer": "THROUGH_CUT",
@@ -479,7 +503,12 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 16.3
+            "seconds": 16.3,
+            "tabs": {
+              "count": 2,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
           },
           {
             "layer": "PROFILE_THRU",
@@ -487,7 +516,12 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 69.4
+            "seconds": 69.4,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
           }
         ],
         "id": "B"
@@ -543,7 +577,8 @@
             "tool_id": "D5.00",
             "kind": "drill",
             "note": "drill",
-            "seconds": 24.5
+            "seconds": 24.5,
+            "tabs": null
           },
           {
             "layer": "DRILL_D6.00_THRU",
@@ -551,7 +586,8 @@
             "tool_id": "EM4.76",
             "kind": "bore",
             "note": "bore with End Mill 3/16 in (4.76 mm) (no drill in this plan)",
-            "seconds": 7.0
+            "seconds": 7.0,
+            "tabs": null
           },
           {
             "layer": "DRILL_D8.00_D5.00",
@@ -559,7 +595,8 @@
             "tool_id": "EM6.35",
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
-            "seconds": 2.7
+            "seconds": 2.7,
+            "tabs": null
           },
           {
             "layer": "DRILL_D12.00_D3.00",
@@ -567,7 +604,8 @@
             "tool_id": "EM6.35",
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
-            "seconds": 2.1
+            "seconds": 2.1,
+            "tabs": null
           },
           {
             "layer": "POCKET_D3.00",
@@ -575,7 +613,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 6.2
+            "seconds": 6.2,
+            "tabs": null
           },
           {
             "layer": "POCKET_D5.00",
@@ -583,7 +622,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 53.4
+            "seconds": 53.4,
+            "tabs": null
           },
           {
             "layer": "POCKET_D9.00_START5.00",
@@ -591,7 +631,8 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 12.5
+            "seconds": 12.5,
+            "tabs": null
           },
           {
             "layer": "THROUGH_CUT",
@@ -599,7 +640,12 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 16.3
+            "seconds": 16.3,
+            "tabs": {
+              "count": 2,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
           },
           {
             "layer": "PROFILE_THRU",
@@ -607,7 +653,12 @@
             "tool_id": "EM6.35",
             "kind": "endmill",
             "note": "largest endmill that fits",
-            "seconds": 69.4
+            "seconds": 69.4,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
           }
         ],
         "id": "C"

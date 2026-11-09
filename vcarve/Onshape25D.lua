@@ -28,10 +28,12 @@
 --        drill   -> CreateDrillingToolpath, peck if configured
 --        pocket  -> CreatePocketingToolpath, raster clearance, profile last
 --        profile -> CreateProfilingToolpath, PROFILE_OUTSIDE for the outer
---                   profile (with TABS from the # tabs line, so the part
---                   does not fly off when the cut finishes),
---                   PROFILE_ON for THROUGH_CUT slots (an opening, not a
---                   part — no tabs)
+--                   profile, PROFILE_ON for THROUGH_CUT slots (a closed
+--                   loop cut on the line). BOTH get TABS from the # tabs
+--                   line when one exists: the outer profile frees the
+--                   part, a through cut frees the slug inside it (a
+--                   doughnut hole's centre is a solid disc, not sawdust),
+--                   and either goes flying without tabs.
 --   5. Recalculates all toolpaths and reports the tools used, with
 --      their source (your library vs the recommendation).
 --      It does NOT post G-code and does NOT save the job for you —
@@ -287,21 +289,24 @@ local function create_profile(name, layer, start_depth, cut_depth, tool, tabs)
   profile_data.StartDepth = start_depth
   profile_data.CutDepth = cut_depth
   profile_data.CutDirection = ProfileParameterData.CLIMB_DIRECTION
-  -- A THROUGH_CUT slot is an opening: cut ON the line. The outer
-  -- profile is a part: cut OUTSIDE it, with tabs so it does not fly off.
+  -- A THROUGH_CUT is a closed loop: cut ON the line. The outer
+  -- profile is a part: cut OUTSIDE it. Either way, if the manifest
+  -- carries a # tabs line for this layer, apply it — the loop frees
+  -- a separate piece (the part, or the slug inside a through cut)
+  -- and it goes flying without tabs.
   if layer_matches({ "THROUGH_CUT" }, layer) then
     profile_data.ProfileSide = ProfileParameterData.PROFILE_ON
   else
     profile_data.ProfileSide = ProfileParameterData.PROFILE_OUTSIDE
-    if tabs ~= nil then
-      profile_data.UseTabs = true
-      profile_data.TabLength = tabs.length_mm
-      profile_data.TabThickness = tabs.thickness_mm
-      profile_data.Use3dTabs = true
-      -- TabCount is not in the SDK mirror's property list; try it
-      -- guarded — VCarve's default applies if it is ignored.
-      pcall(function() profile_data.TabCount = tabs.count end)
-    end
+  end
+  if tabs ~= nil then
+    profile_data.UseTabs = true
+    profile_data.TabLength = tabs.length_mm
+    profile_data.TabThickness = tabs.thickness_mm
+    profile_data.Use3dTabs = true
+    -- TabCount is not in the SDK mirror's property list; try it
+    -- guarded — VCarve's default applies if it is ignored.
+    pcall(function() profile_data.TabCount = tabs.count end)
   end
   profile_data.Allowance = 0.0
   profile_data.KeepStartPoints = false

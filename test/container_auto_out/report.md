@@ -12,8 +12,8 @@ Cut order (tool changes marked):
   — change to T2 (End Mill 1/2 in (12.70 mm)) —
 - P01_P01__POCKET_D6.00 (pocket, endmill): est 37 s — largest endmill that fits
 - P02_P02__POCKET_D5.00 (pocket, endmill): est 32 s — largest endmill that fits
-- P01_P01__PROFILE_THRU (profile, endmill): est 46 s — largest endmill that fits
-- P02_P02__PROFILE_THRU (profile, endmill): est 46 s — largest endmill that fits
+- P01_P01__PROFILE_THRU (profile, endmill): est 46 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
+- P02_P02__PROFILE_THRU (profile, endmill): est 46 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
 Fallback plans (same DXF, run manifest_plan_<id>.txt instead):
 - Plan B: 2 tool(s), 1 change(s), est 5.7 min — T1 Drill 5.00 mm, T2 End Mill 3/8 in (9.53 mm)
 - Plan C: 2 tool(s), 1 change(s), est 6.1 min — T1 End Mill 1/8 in (3.17 mm), T2 End Mill 1/2 in (12.70 mm)

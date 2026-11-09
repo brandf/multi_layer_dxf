@@ -1,0 +1,7 @@
+# dxf: donut.dxf
+# plan: C — 1 tool(s), 0 change(s), est 1.2 min (cutting 1.2 + changes 0.0)
+# tool: EM6.35|endmill|6.3500|1|30.0|10.0|20000|3.0|2.54
+# tabs: THROUGH_CUT|4|5.0|1.0
+# tabs: PROFILE_THRU|4|5.0|1.0
+THROUGH_CUT|profile|0.000|10.000||EM6.35
+PROFILE_THRU|profile|0.000|10.000||EM6.35

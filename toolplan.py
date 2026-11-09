@@ -24,12 +24,14 @@ Design decisions (Brandon, 2026-11-08):
     optimiser charges tool_change_seconds per change (default 120 s)
     and can pick a SMALLER tool for everything when that beats the
     optimal-tool-per-operation plan plus a manual change.
-  - CAM practice: outer profiles get TABS by default (parts must not
-    go flying when the profile cut finishes). Through-cut slots are
-    openings, not parts — no tabs. Tab length/thickness come from
-    config; the tab COUNT is not settable through the documented
+  - CAM practice: EVERY profile layer gets TABS by default — the outer
+    profile (the part) and every through cut (the slug inside the
+    loop: a doughnut hole's centre is a solid disc, not sawdust).
+    Count scales down with perimeter; tab length/thickness come from
+    config. The tab COUNT is not settable through the documented
     ProfileParameterData fields (the gadget tries TabCount in a
     guarded call and VCarve's default applies if it is ignored).
+    Drilled/bored holes need no tabs — the material leaves as chips.
 
 How it works:
   - Each layer carries an "est" dict from the classifier:
@@ -192,11 +194,21 @@ def _is_outer_profile(layer):
 
 
 def tabs_for_layer(layer, st):
-    """Tabs for outer profiles only (through-cut slots are openings)."""
+    """Tabs for EVERY profile layer, not just the outer one.
+    A profile cut is a closed loop, and whatever is inside the loop
+    is a separate piece when the cut finishes: the part itself on
+    the outer profile, a slug on a through cut (a doughnut hole is
+    the clear case — its centre is a solid disc, not sawdust, and it
+    goes flying without tabs). Drilled/bored holes need no tabs —
+    the material leaves as chips. Through-cut slots are closed loops
+    too (an open slot would be part of the outer wire), so they get
+    tabs as well.
+    Count scales with perimeter: a small slug does not need (or fit)
+    4 tabs; config count is the maximum."""
     t = st["tabs"]
     if not t.get("enabled", True):
         return None
-    if layer["operation"] != "profile" or not _is_outer_profile(layer):
+    if layer["operation"] != "profile":
         return None
     e = layer.get("est", {})
     perim = float(e.get("perimeter_mm", 0))
@@ -205,7 +217,10 @@ def tabs_for_layer(layer, st):
         # A tab must be a small fraction of the profile, not longer
         # than the part itself. Floor at 2 mm so it still holds.
         length = min(length, max(2.0, perim / 10.0))
-    return {"count": int(t.get("count", 4)), "length_mm": round(length, 2),
+    count = int(t.get("count", 4))
+    if perim > 0:
+        count = min(count, 2 if perim < 80 else 3 if perim < 150 else 4)
+    return {"count": count, "length_mm": round(length, 2),
             "thickness_mm": float(t.get("thickness_mm", 1.0))}
 
 
@@ -322,7 +337,8 @@ def plan_tools(layers, cfg=None):
                           for i, t in enumerate(tools_in_order)],
                 "layers": [{"layer": a[0]["layer"], "operation": a[0]["operation"],
                             "tool_id": a[1]["id"], "kind": a[2], "note": a[3],
-                            "seconds": round(a[4], 1)} for a in ordered],
+                            "seconds": round(a[4], 1),
+                            "tabs": tabs_for_layer(a[0], st)} for a in ordered],
             })
     if not candidates:
         bad = []
@@ -383,7 +399,7 @@ def manifest_txt(plan, layers, dxf_name, st=None):
                      f"{t['stepdown_mm']}|{t['stepover_mm']}")
     for entry in plan["layers"]:
         L = by_name[entry["layer"]]
-        tabs = tabs_for_layer(L, st)
+        tabs = entry.get("tabs") or tabs_for_layer(L, st)
         if tabs:
             lines.append(f"# tabs: {L['layer']}|{tabs['count']}|"
                          f"{tabs['length_mm']}|{tabs['thickness_mm']}")
@@ -420,8 +436,12 @@ def format_tool_plan_report(tool_plan):
         if prev is not None and e["tool_id"] != prev:
             t = next(t for t in chosen["tools"] if t["id"] == e["tool_id"])
             out.append(f"  — change to T{t['tool_number']} ({t['name']}) —")
+        tabs = e.get("tabs")
+        tabs_txt = (f" — tabs x{tabs['count']} "
+                    f"({tabs['length_mm']} x {tabs['thickness_mm']} mm)"
+                    if tabs else "")
         out.append(f"- {e['layer']} ({e['operation']}, {e['kind']}): "
-                   f"est {e['seconds']:.0f} s — {e['note']}")
+                   f"est {e['seconds']:.0f} s — {e['note']}{tabs_txt}")
         prev = e["tool_id"]
     if len(plans) > 1:
         out.append("Fallback plans (same DXF, run manifest_plan_<id>.txt instead):")
