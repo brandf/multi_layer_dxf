@@ -257,10 +257,12 @@ saving, etc. Nothing is all-or-nothing.
 
 ## Quick start (Python side)
 
+Linux / Mac:
+
 ```bash
 cd ~/workspace/cnc-onshape-vcarve
 python3 -m venv .venv
-.venv/bin/pip install build123d ezdxf shapely
+.venv/bin/pip install build123d ezdxf
 .venv/bin/python make_test_model.py
 .venv/bin/python step_to_vcarve.py test/test_part.step -o test/out
 # -> test/out/test_part.dxf
@@ -268,6 +270,29 @@ python3 -m venv .venv
 # -> test/out/manifest.txt  (for the VCarve gadget)
 # -> test/out/report.md
 ```
+
+Windows (Brandon's preference, 2026-11-08 — one machine for Python
+and VCarve, no file shuffling between computers):
+
+1. Install Python 3.12 from python.org, checking **"Add python to
+   PATH"** (the classic gotcha — without it, `python` is not found).
+2. Clone the repo somewhere short, e.g. `C:\cnc\onshape-vcarve-2.5d`.
+3. Double-click `setup_windows.bat`. It creates `.venv`, installs
+   build123d + ezdxf, and smoke-tests the classifier on the synthetic
+   test part (expect: 8 layers, 6 holes, 3 pockets, 1 flag).
+4. Per model: `run_vcarve.bat container.step container_out` — that
+   runs `multi_part.py --auto` and writes the DXF, manifest and
+   report into `container_out`. Read `report.md` first.
+5. The DXF/manifest are already on the VCarve machine, so the gadget
+   (or manual DXF import) picks them up from the same disk — copy
+   `vcarve/Onshape25D.lua` to
+   `C:\Users\Public\Documents\Vectric\VCarve Pro\Gadgets\Onshape25D\`
+   once, restart VCarve.
+
+The scripts are pure Python + build123d/ezdxf — no Linux-specific
+calls — so they run identically on Windows. No GPU is used; the
+classifier is CPU-only and fast (seconds for the test models, ~1
+minute for the 978-face Kookabus file).
 
 Then in Onshape, for a real part:
 
