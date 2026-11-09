@@ -181,14 +181,14 @@
       "feature": "sculpted surface",
       "location": "outer bottom edge",
       "params": "GeomAbs_SurfaceType.GeomAbs_BSplineSurface",
-      "method": "cnc_3d",
+      "method": "router_table",
       "tool": "ball-nose endmill, 3D rough + finish from STL",
-      "step": "Sculpted surface: 3D rough + finish from an STL in VCarve, or hand shaping.",
-      "cnc_alternative": null
+      "step": "Round over the outer edge on the router table after the CNC cut \u2014 pick a roundover bit close to the modelled profile; it does not have to match exactly.",
+      "cnc_alternative": "CNC 3D instead: 3D rough + finish from an STL in VCarve \u2014 but this face is on the bottom of the stock, so that needs a two-sided setup (flip + registration)."
     }
   ],
   "flags": [
     "PROFILE OUTLINE DIFFERS top vs bottom by 45% (top 1587 mm2, bottom 867 mm2) \u2014 profile taken from Z 8.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
-    "POST-PROCESS [cnc_3d]: sculpted surface GeomAbs_SurfaceType.GeomAbs_BSplineSurface at outer bottom edge \u2014 Sculpted surface: 3D rough + finish from an STL in VCarve, or hand shaping."
+    "POST-PROCESS [router_table]: sculpted surface GeomAbs_SurfaceType.GeomAbs_BSplineSurface at outer bottom edge \u2014 Round over the outer edge on the router table after the CNC cut \u2014 pick a roundover bit close to the modelled profile; it does not have to match exactly."
   ]
 }

@@ -505,8 +505,17 @@ put each removed feature back:
   section in `report.md`, with a default CNC-vs-post call:
   outer-edge fillet/chamfer → router table; pocket top-edge
   fillet/chamfer → handheld router; pocket-floor fillet, tapered
-  wall, sculpted surface → CNC 3D (ball-nose); countersink →
-  drill press; non-Z hole → drill press from the side. Brandon's
+  wall → CNC 3D (ball-nose); countersink →
+  drill press; non-Z hole → drill press from the side. A sculpted
+  surface on the OUTER edge is a roundover in practice, so it
+  defaults to router table too (Brandon, 2026-11-08 — pick a
+  roundover bit close to the modelled profile, exact match not
+  needed for wood; post-processing is much faster than CNC 3D
+  here), with CNC 3D kept as the listed alternative — and the
+  alternative says the cost: a face on the bottom of the stock
+  would need a two-sided setup (flip + registration) to cut on
+  the CNC. A sculpted surface elsewhere (pocket wall, top face)
+  stays CNC 3D. Brandon's
   rule (2026-11-08): use the CNC for non-prismatic features when
   it makes sense, post-process when it is simpler — the defaults
   encode that, and `config.json` → `post_method_overrides`

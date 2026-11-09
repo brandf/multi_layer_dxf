@@ -52,10 +52,21 @@ checks), superseding the drawing-based expectations:
   r=17.97 vs Top counterbore r=18.00 (the Move-face clearance).
 - **Both outsides** are largely a BSpline rounded surface (only a
   2 mm-tall r=23 cylindrical band + Ø34 flat end disc are
-  prismatic). The BSpline is filed as `cnc_3d` post-process on both
-  parts — **open question for Brandon:** CNC 3D (current default)
-  vs router table (his outer-edge default, but a spline roundover
-  won't match a standard roundover bit).
+  prismatic). **Decided 2026-11-08 (Brandon): round it over on the
+  router table** — pick a roundover bit close to the modelled
+  profile; it does not have to match exactly, it's wood, not high
+  precision machining. The plan now defaults a sculpted surface at
+  an outer edge to `router_table` and keeps CNC 3D as the listed
+  alternative — and the alternative says why it costs more: this
+  face is on the bottom of the stock, so CNC 3D would need a
+  two-sided setup (flip + registration, BRA-13). Post-processing is
+  a hell of a lot faster here, which is the point.
+- **The 8 holes are magnet pockets (Brandon, 2026-11-08):** the
+  magnets sit in the Ø2.25 × 1.55 mm blind holes so the two parts
+  stick together — that's why they're so tiny. Drilled at exactly
+  Ø2.25, so the magnets need to fit that bore (a hair under means
+  glue; exactly 2.25 means press fit). Polarity matters at assembly:
+  the 8 magnets in each part must face so they attract, not repel.
 - **Flags (6, all understood):** 2× PROFILE OUTLINE DIFFERS (real —
   the BSpline roundover makes top/bottom outlines differ 11% / 45%),
   2× POST-PROCESS [cnc_3d] BSpline, 1× DRILL FROM SURFACE

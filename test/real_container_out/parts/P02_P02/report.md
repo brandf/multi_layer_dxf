@@ -24,8 +24,8 @@ Pockets (2):
 - floor Z 3.00, total depth 5.00, start 1.50, cut 3.50
 
 Post-processing plan (1 steps — features the prismatic blank does not have):
-- [cnc_3d] sculpted surface GeomAbs_SurfaceType.GeomAbs_BSplineSurface at outer bottom edge: Sculpted surface: 3D rough + finish from an STL in VCarve, or hand shaping.
+- [router_table] sculpted surface GeomAbs_SurfaceType.GeomAbs_BSplineSurface at outer bottom edge: Round over the outer edge on the router table after the CNC cut — pick a roundover bit close to the modelled profile; it does not have to match exactly. Alternative: CNC 3D instead: 3D rough + finish from an STL in VCarve — but this face is on the bottom of the stock, so that needs a two-sided setup (flip + registration).
 
 Flags — read before cutting:
 - PROFILE OUTLINE DIFFERS top vs bottom by 45% (top 1587 mm2, bottom 867 mm2) — profile taken from Z 8.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF
-- POST-PROCESS [cnc_3d]: sculpted surface GeomAbs_SurfaceType.GeomAbs_BSplineSurface at outer bottom edge — Sculpted surface: 3D rough + finish from an STL in VCarve, or hand shaping.
+- POST-PROCESS [router_table]: sculpted surface GeomAbs_SurfaceType.GeomAbs_BSplineSurface at outer bottom edge — Round over the outer edge on the router table after the CNC cut — pick a roundover bit close to the modelled profile; it does not have to match exactly.

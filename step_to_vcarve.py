@@ -1124,7 +1124,25 @@ def main():
         if feature == "tapered wall":
             method, step, alt = _POST.get(("taper", loc_key), _POST[("taper", "pocket_top")])
         elif kind == "freeform":
-            method, step, alt = _POST[("freeform", "other")]
+            # A sculpted surface on the OUTER edge is a roundover in
+            # practice: router table is the default (fast, and the CNC
+            # alternative would need a two-sided setup when the face is
+            # on the bottom of the stock — Brandon 2026-11-08). A
+            # freeform surface elsewhere (pocket wall, top face) stays
+            # CNC 3D, the only option there.
+            if loc_key in ("outer_top", "outer_bottom", "outer_edge"):
+                if loc_key == "outer_bottom":
+                    alt = ("CNC 3D instead: 3D rough + finish from an STL in VCarve — "
+                           "but this face is on the bottom of the stock, so that needs a "
+                           "two-sided setup (flip + registration).")
+                else:
+                    alt = "CNC 3D instead: 3D rough + finish from an STL in VCarve."
+                method = "router_table"
+                step = ("Round over the outer edge on the router table after the CNC cut — "
+                        "pick a roundover bit close to the modelled profile; it does not "
+                        "have to match exactly.")
+            else:
+                method, step, alt = _POST[("freeform", "other")]
         else:
             method, step, alt = _POST.get(
                 (kind, loc_key),
@@ -1134,8 +1152,13 @@ def main():
                            None)))
         override_key = f"{kind}/{loc_key}"
         if override_key in _overrides:
+            # Keep the default call visible as the alternative, so the
+            # entry never says one method while describing another
+            # (an override used to leave the old method's step text in
+            # place under the new method).
+            alt = f"Default was {method}: {step}" + (f" Alternative: {alt}" if alt else "")
             method = _overrides[override_key]
-            step = step + " (method overridden from config)"
+            step = f"Do this step by {method} (overridden from config)."
         # Dedup by location TEXT, not just key: two faces can share
         # the key "pocket_top" while belonging to different pockets
         # (different floor Z) — collapsing them would print the wrong
