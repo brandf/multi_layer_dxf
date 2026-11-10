@@ -15,7 +15,7 @@ echo "=== 1. test_part (expect 8 layers, 6 holes, 3 pockets, 1 flag) ==="
 $P step_to_vcarve.py test/test_part.step -o test/out --mode full 2>&1 | tail -2
 echo "=== 2. machined (expect 9 layers, 8 holes, 4 pockets; THROUGH_CUT recovered, no NOT-in-DXF) ==="
 $P step_to_vcarve.py test/machined.step -o test/machined_out --mode full 2>&1 | grep -E "^layers:|THROUGH FEATURE MERGED|NOT in the DXF"
-echo "=== 3. two_part (expect 2 parts, 5 layers, 1 flag POCKET NOT FROM TOP; suggested 200x80x10) ==="
+echo "=== 3. two_part (expect 2 parts, 5 layers, 1 flag POCKET NOT FROM TOP; suggested 180x80x10 — BRA-20 packs from plan A 3/16 in tools, gap 14.5 mm) ==="
 $P multi_part.py test/two_part.step -o test/multi_out --mode full 2>&1 | tail -1
 $P -c "import json; m=json.load(open('test/multi_out/manifest.json')); print('suggested:', m['suggested_material']); print('spacing:', m['spacing'])"
 echo "=== 4. kookabus check (expect no crash; layers 8/7/5, holes 18/5/7, flags 39/82/29 in check mode; 122 for P02 in full mode) ==="
@@ -59,7 +59,7 @@ print('P02 facing pocket circles:', sum(1 for e in doc.modelspace() if e.dxf.lay
 for p in m['parts']:
     print(p['name'], 'orient:', p.get('orientation_search', {}).get('ranked', [])[:2] if p.get('orientation_search') else None)
 "
-echo "=== 13. eight parts --auto (expect 8 parts, 22 layers, 4 flags, Plan A 1/9.0) ==="
+echo "=== 13. eight parts --auto (expect 8 parts, 22 layers, 4 flags, Plan A 1/9.0; suggested 600x100x15 — BRA-20 gaps 17.7 mm, was 690x100x15) ==="
 $P multi_part.py test/eight_parts.step -o test/eight_parts_out --auto 2>&1 | tail -1
 $P -c "
 import json
@@ -68,7 +68,7 @@ print('parts', len(m['parts']), 'layers', len(m['layers']), 'flags', len(m['flag
 print('tool plan A:', [(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']][:1])
 print('suggested:', m['suggested_material'])
 "
-echo "=== 14. BRA-16: eight parts --auto --material 500x300x19 (expect usable 460x260, gaps 30.4) ==="
+echo "=== 14. BRA-16: eight parts --auto --material 500x300x19 (expect usable 460x260, gaps 17.7 — BRA-20 plan A 1/4 in; P06 unrotated 80x20 at sheet x 388.5, P07/P08 row 2 at sheet y 97.7) ==="
 $P multi_part.py test/eight_parts.step -o test/eight_parts_bra16_out --auto --material 500x300x19 2>&1 | tail -2
 $P -c "
 import json
@@ -128,4 +128,42 @@ import json
 m=json.load(open('test/external/kookabus_p03_bra18/manifest.json'))
 print('P03 plans:', [(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])
 print('P03 tools A:', [(t['id'], t['name']) for t in m['tool_plan']['plans'][0]['tools']])"
+echo "=== 22. BRA-20: two_part packs from plan A (expect P02 at sheet x 74.525, gap 14.5 mm, suggested 180x80x10) ==="
+$P multi_part.py test/two_part.step -o test/multi_out_bra20 --mode full 2>&1 | tail -1
+$P -c "
+import json
+m=json.load(open('test/multi_out_bra20/manifest.json'))
+print('parts', len(m['parts']), 'layers', len(m['layers']), 'flags', len(m['flags']))
+print('layout:', [(L['name'], L['x_mm'], L['profile_tool_dia_mm']) for L in m['layout']])
+print('spacing:', m['spacing'])
+print('suggested:', m['suggested_material'])
+"
+echo "=== 23. BRA-20: real container 150x100x10 fails under plan A AND plan B (named errors, exit 1, no outputs) ==="
+$P multi_part.py test/real_container.step -o test/real_container_bra20_150 --auto --material 150x100x10 >/tmp/bra20a.log 2>&1
+echo "plan A exit=$?"
+grep -E "ERROR: packed" /tmp/bra20a.log | head -1
+ls test/real_container_bra20_150 2>&1 | head -1
+$P multi_part.py test/real_container.step -o test/real_container_bra20_150B --auto --material 150x100x10 --plan B >/tmp/bra20b.log 2>&1
+echo "plan B exit=$?"
+grep -E "ERROR: packed" /tmp/bra20b.log | head -1
+ls test/real_container_bra20_150B 2>&1 | head -1
+echo "=== 24. BRA-20: real container 150x100x10 passes with a tool-capped config (expect Bottom (20,20), Top (83.7,20), Plan A Drill 2.25 + EM 1/4 in) ==="
+$P multi_part.py test/real_container.step -o test/real_container_bra20_small --auto --material 150x100x10 --config test/bra20_small_tools_config.json 2>&1 | tail -1
+$P -c "
+import json
+m=json.load(open('test/real_container_bra20_small/manifest.json'))
+print('parts', len(m['parts']), 'layers', len(m['layers']), 'flags', len(m['flags']))
+print('layout:', [(L['name'], L['x_mm'], L['y_mm'], L['profile_tool_dia_mm']) for L in m['layout']])
+print('plan A tools:', [(t['id'], t['name']) for t in m['tool_plan']['plans'][0]['tools']])
+"
+echo "=== 25. BRA-20: kookabus falls back to fit-rule maxima (expect layers 20, flags 191, profile_tools_from fit-rule maxima) ==="
+$P multi_part.py test/external/kookabus-03-enclosure.step -o test/external/kookabus_bra20_out --mode full 2>&1 | tail -1
+$P -c "
+import json
+m=json.load(open('test/external/kookabus_bra20_out/manifest.json'))
+print('layers:', len(m['layers']), 'flags:', len(m['flags']))
+print('spacing:', m['spacing'])
+print('layout profile tools:', [(L['name'], L['profile_tool_dia_mm']) for L in m['layout']])
+print('TOOL PLAN:', [f for f in m['flags'] if 'TOOL PLAN' in f])
+"
 echo "=== DONE ==="

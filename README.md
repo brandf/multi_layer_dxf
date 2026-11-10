@@ -519,22 +519,31 @@ each part's CAM orientation by measurement, not by a heuristic
   work) and the pruned orientations with reasons are recorded per
   part in the manifest (`orientation_search`) and the report, so a
   wrong pick is visible, not silent.
-- Layout (BRA-16, `layout.py`): bottom-align (Zmin = 0), shelf-pack
-  side by side — fill rows left-to-right, wrap when full, a part
-  may rotate 90 deg in Z to fit (recorded as `pack_rotate_z_deg`
-  in the manifest). The gap between two parts is tool-dependent,
-  not fixed: each part's profile endmill is computed first with the
-  planner fit rule (`toolplan.profile_tool_diameter` — an outer
-  profile takes the largest standard endmill, a through-cut slot
-  the largest that fits it), then gaps are `max(gap_mm, D_A + D_B
-  + web_min)` with `web_min_mm` default 5 mm (`gap_mm` stays as the
-  floor); the same rule sets the gap between rows, the clamp-margin
-  check (the margin must cover the largest profile tool + `web_min`,
-  or the kerf eats the sheet edge), and registration-pin clearance
-  (pin centre to a part outline ≥ D_p + pin radius +
-  `pin_clearance_mm`, default 3 mm). The chosen merged plan's real
-  profile tools are re-checked against the packed gaps before
-  anything is written — switching plans re-checks the fit.
+- Layout (BRA-16, `layout.py`; BRA-20 plan-aware packing): bottom-align
+  (Zmin = 0), shelf-pack side by side — fill rows left-to-right, wrap
+  when full, a part may rotate 90 deg in Z to fit (recorded as
+  `pack_rotate_z_deg` in the manifest). The gap between two parts is
+  tool-dependent, not fixed: the merged tool plan is computed first
+  (from the per-part classification pre-pass — layers are
+  translation-invariant) and each part's profile endmill is taken
+  from the CHOSEN plan (`toolplan.plan_profile_tools`; `--plan`
+  picks which), then gaps are `max(gap_mm, D_A + D_B + web_min)` with
+  `web_min_mm` default 5 mm (`gap_mm` stays as the floor); the same
+  rule sets the gap between rows, the clamp-margin check (the margin
+  must cover the largest profile tool + `web_min`, or the kerf eats
+  the sheet edge), and registration-pin clearance (pin centre to a
+  part outline ≥ D_p + pin radius + `pin_clearance_mm`, default
+  3 mm). When no merged plan exists (a layer no standard tool fits),
+  the per-part fit-rule maxima (`toolplan.profile_tool_diameter` —
+  an outer profile takes the largest standard endmill, a through-cut
+  slot the largest that fits it) are used instead, and the manifest
+  records which source the tools came from (`spacing.
+  profile_tools_from`). The chosen merged plan's real profile tools
+  are re-checked against the packed gaps before anything is written
+  — switching plans re-packs and re-checks the fit. Measured:
+  two_part gaps 14.5 mm (plan A, 3/16 in) and eight-parts gaps
+  17.7 mm (plan A, 1/4 in), where the fit-rule maxima reserved
+  30.4 mm for both.
   With a material size given (`--material WxDxT`, or config
   `material` / `stock_size_mm`), parts sit only inside the usable
   area — material minus `clamp_margin_mm` (default 20 mm) on every

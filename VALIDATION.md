@@ -116,8 +116,11 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # emitted as a top pocket. The old 6 layers / 0 flags expectation
 # was pre-BRA-21, when that pocket was wrongly emitted; the new
 # numbers are the corrected behaviour (verified 2026-11-09, BRA-18
-# run). Suggested material still 200 x 80 x 10 mm; the spacing
-# check verifies plan A profile tools (3/16 in both parts).
+# run). Suggested material 180 x 80 x 10 mm (was 200 x 80 x 10 —
+# BRA-20 packs from plan A's 3/16 in profile tools: gap 14.5 mm,
+# P02 at sheet x 74.5, not the 30.4 mm fit-rule-maximum gap);
+# the spacing check verifies plan A profile tools (3/16 in both
+# parts), and manifest spacing.profile_tools_from is "plan A".
 
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step \
     -o test/external/kookabus_out --mode check
@@ -232,21 +235,26 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # remaining flags are the informational ones: 2x THROUGH CUT, 1x
 # DRILL FROM SURFACE, 1x COUNTERBORE THRU HOLE. Plan A: 2 tools,
 # 1 change, est 9.0 min (was 1 change / 9.7 min under the heuristic
-# — the correct orientation gives cleaner layers). The search runs
-# the classifier up to 6 times per part, so this takes ~4 minutes.
+# — the correct orientation gives cleaner layers). Suggested
+# material 600 x 100 x 15 mm (was 690 x 100 x 15 — BRA-20: gaps
+# are 17.7 mm from plan A's 1/4 in profile tools, not 30.4 mm).
+# The search runs the classifier up to 6 times per part, so this
+# takes ~4 minutes.
 
 # Material size, packing, clamp margin, pins (BRA-16, verified 2026-11-09;
 # tool-dependent spacing verified 2026-11-09):
 .venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_bra16_out --auto --material 500x300x19
 # expect: 8 parts, 22 layers, 4 flags (same classification as the
 # no-material run); usable area 460 x 260 mm (500x300 minus 20 mm
-# clamp margin); gaps are max(10, 12.7 + 12.7 + 5) = 30.4 mm (every
-# part's profile tool is the 1/2 in endmill); 6 parts in row 1
-# (P06 rotated 90 deg, 20 x 80, at sheet x 452.0), P07 + P08 in row 2
-# at sheet y 130.4 (usable y 110.4); manifest carries material,
+# clamp margin); gaps are 17.7 mm (BRA-20: plan A cuts every
+# profile with the 1/4 in endmill, 6.35 + 6.35 + 5 — was 30.4 mm
+# from the 1/2 in fit-rule maxima before BRA-20); 6 parts in row 1
+# (P06 unrotated, 80 x 20, at sheet x 388.5), P07 + P08 in row 2
+# at sheet y 97.7 (usable y 77.7); manifest carries material,
 # clamp_margin_mm, usable_area_mm, layout (per-part x/y/w/d/rotate_z
 # + profile_tool_dia_mm), spacing (rule, gap_mm, web_min_mm,
-# pin_clearance_mm, check) and suggested_material: null.
+# pin_clearance_mm, profile_tools_from "plan A", check) and
+# suggested_material: null.
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_mat_out --auto --material 170x100x10
 # expect: 2 parts, 8 layers, 6 flags; X/Y orientations pruned
 # (height 46.00 > thickness 10.00); Bottom at sheet (20, 20), Top at
@@ -268,21 +276,55 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # [(276.0, 24.0), (24.0, 176.0)] D6, keep-out radius 18.7 mm
 # (= 12.7 mm profile tool + 3.0 mm pin radius + 3.0 mm clearance) —
 # the widest-separated clear pair inside the usable area.
-# Suggested sizes (no material given): two_part -> 200 x 80 x 10 mm;
-# real container -> 170 x 90 x 10 mm; eight parts -> 690 x 100 x 15 mm
+# Suggested sizes (no material given): two_part -> 180 x 80 x 10 mm;
+# real container -> 170 x 90 x 10 mm; eight parts -> 600 x 100 x 15 mm
 # (packed bounds + 20 mm clamp margin, rounded up to 10 mm).
-# Tool-dependent spacing (BRA-16, built 2026-11-09): gaps are
-# max(gap_mm, D_A + D_B + web_min_mm) from the per-part profile tools
-# (planner fit rule, computed before packing); the chosen plan's real
-# profile tools are re-checked against the packed gaps before
-# anything is written. A 150x100x10 sheet no longer fits the real
-# container with the default 1/2 in plan (needs 122.4 mm usable
-# width, has 110) — see the 170x100x10 check above. The layout is
-# computed for the per-part fit-rule maxima, which bound every
-# plan's tools from above, so it is valid for the chosen plan and
-# every fallback; a future step could pack from the chosen plan's
-# actual tools instead (tighter when the plan uses a smaller
-# endmill) — not built, see the BRA-16 issue comment 2026-11-09.
+# Tool-dependent spacing (BRA-16, built 2026-11-09; BRA-20, built
+# 2026-11-09): gaps are max(gap_mm, D_A + D_B + web_min_mm) from
+# the CHOSEN plan's actual per-part profile tools (toolplan.
+# plan_profile_tools), computed from the per-part classification
+# pre-pass before packing; the chosen plan's real profile tools
+# are re-checked against the packed gaps before anything is
+# written. When no merged plan exists (a layer no standard tool
+# fits — Kookabus), the per-part fit-rule maxima are used instead
+# and manifest spacing.profile_tools_from says so. A 150x100x10
+# sheet no longer fits the real container with the default 1/2 in
+# plan (needs 122.4 mm usable width, has 110) — see the 170x100x10
+# check above. It also fails under --plan B (3/8 in tools need
+# 116.05 mm); it passes only when the plan's profile tools are
+# <= 6.35 mm — e.g. a config capping standard_endmills_in at 1/4 in
+# (test/bra20_small_tools_config.json): Bottom at sheet (20, 20),
+# Top at (83.7, 20), gap 17.7 mm, Plan A Drill 2.25 + EM 1/4 in,
+# 8 layers / 6 flags. The BRA-20 issue's "passes under a
+# smaller-tool plan" means this: the listed --plan B is not small
+# enough; the threshold is 6.35 mm (109.7 mm packed width).
+#
+# Pack from the chosen plan's actual profile tools (BRA-20,
+# verified 2026-11-09):
+.venv/bin/python multi_part.py test/two_part.step -o test/multi_out_bra20 --mode full
+# expect: 2 parts, 5 layers, 1 flag; P02 at sheet x 74.525 (gap
+# 14.525 mm — plan A cuts both profiles with a 3/16 in endmill);
+# suggested 180 x 80 x 10 mm; spacing.profile_tools_from "plan A".
+.venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_bra20_out --auto
+# expect: 8 parts, 22 layers, 4 flags, Plan A 1 change / 9.0 min;
+# gaps 17.7 mm (plan A 1/4 in everywhere); suggested 600 x 100 x 15 mm.
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_150 --auto --material 150x100x10
+# expect: exit 1, named error — packed layout 46.00 x 122.40 mm
+# exceeds usable 110.00 x 60.00 mm (plan A, 1/2 in tools); no
+# test/real_container_bra20_150 directory is created.
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_150B --auto --material 150x100x10 --plan B
+# expect: exit 1, named error — packed layout 46.00 x 116.05 mm
+# exceeds usable 110.00 x 60.00 mm (plan B, 3/8 in tools, gap
+# 24.05 mm); the listed plans do not go small enough for this sheet.
+.venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_small --auto --material 150x100x10 --config test/bra20_small_tools_config.json
+# expect: passes — 2 parts, 8 layers, 6 flags; Bottom at sheet
+# (20, 20), Top at (83.7, 20); Plan A Drill 2.25 + EM 1/4 in.
+.venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step -o test/external/kookabus_bra20_out --mode full
+# expect: no crash; layers 20, flags 191 (unchanged — the merged
+# plan is still empty, so the packer falls back to the fit-rule
+# maxima and spacing.profile_tools_from is "fit-rule maxima (no
+# merged plan)"); TOOL PLAN error still lists only
+# P02_P02__POCKET_D0.60.
 
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"

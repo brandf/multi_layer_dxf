@@ -1,0 +1,10 @@
+# dxf: two_part.dxf
+# plan: A — 1 tool(s), 0 change(s), est 1.9 min (cutting 1.9 + changes 0.0)
+# tool: EM4.76|endmill|4.7625|1|23.81|7.94|20000|2.381|1.905
+# tabs: P01_P01__PROFILE_THRU|4|5.0|1.0
+# tabs: P02_P02__PROFILE_THRU|4|5.0|1.0
+P01_P01__DRILL_D6.00_THRU|drill|0.000|10.000|P01_P01|EM4.76|0.0|bore
+P02_P02__DRILL_D8.00_THRU|drill|0.000|8.000|P02_P02|EM4.76|0.0|bore
+P01_P01__POCKET_D4.00|pocket|0.000|4.000|P01_P01|EM4.76|0.0|endmill
+P01_P01__PROFILE_THRU|profile|0.000|10.000|P01_P01|EM4.76|0.0|endmill
+P02_P02__PROFILE_THRU|profile|0.000|8.000|P02_P02|EM4.76|0.0|endmill

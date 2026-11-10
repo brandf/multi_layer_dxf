@@ -56,14 +56,19 @@ Layout / alignment (added for the container Top/Bottom, 2026-11-08):
   - layout="side_by_side": parts are shelf-packed in XY (BRA-16,
     layout.py: fill rows left-to-right, wrap when full, a part may
     rotate 90 deg in Z to fit — recorded as pack_rotate_z_deg).
-    The gap between two parts is tool-dependent, not fixed: each
-    part's profile endmill is computed first (planner fit rule),
-    then gaps are max(gap_mm, D_A + D_B + web_min) so the tabs
-    keep a web to hold onto; the same rule sets row gaps, the
-    clamp-margin check, and registration-pin clearance. With a
-    material size given, parts sit only inside the usable area
-    (material minus clamp_margin_mm, default 20 mm, on every
-    side); without one, the layout is a single row and the report
+    The gap between two parts is tool-dependent, not fixed: the
+    merged tool plan is computed first (from the per-part
+    classification pre-pass — layers are translation-invariant)
+    and each part's profile endmill is taken from the CHOSEN plan
+    (BRA-20; --plan picks which), then gaps are
+    max(gap_mm, D_A + D_B + web_min) so the tabs keep a web to
+    hold onto; the same rule sets row gaps, the clamp-margin
+    check, and registration-pin clearance. When no merged plan
+    exists (a layer no standard tool fits), the per-part fit-rule
+    maxima are used instead (the old behaviour). With a material
+    size given, parts sit only inside the usable area (material
+    minus clamp_margin_mm, default 20 mm, on every side);
+    without one, the layout is a single row and the report
     suggests a material size. The run fails with a named error if
     the layout cannot fit. Side by side is essential when the
     scene is a closed assembly: Top and Bottom share the same XY
@@ -271,17 +276,30 @@ def main():
                          "solid": s, "auto_search": auto_search,
                          "footprint": (fw, fd), "height": height})
 
-    # ---- profile tools first (BRA-16 spacing): classify each part
-    # once at the origin (manifest only) so the packer knows the
-    # profile endmill diameter before placing anything. The tool
-    # does not change under a Z rotation or a translation, so the
-    # pre-pass diameter holds for the placed part. Only needed for
-    # side-by-side packing; scene layout keeps scene XY and needs
-    # no gaps.
+    # ---- profile tools first (BRA-16 spacing, BRA-20 plan-aware):
+    # classify each part once at the origin (manifest only) so the
+    # packer knows the profile endmill diameter before placing
+    # anything. The tool does not change under a Z rotation or a
+    # translation, so the pre-pass diameter holds for the placed
+    # part. Only needed for side-by-side packing; scene layout
+    # keeps scene XY and needs no gaps.
+    # BRA-20: pack from the CHOSEN merged plan's actual profile
+    # tools, not the per-part fit-rule maxima. The maxima bound
+    # every plan's tools from above, so the layout was valid for
+    # the chosen plan and all fallbacks — but wider than the cut
+    # needs (two_part reserved 30.4 mm gaps while plan A cuts both
+    # profiles with a 3/16 in endmill and only needs 14.5 mm).
+    # The merged plan is computed from the pre-pass layers, which
+    # are translation-invariant, so the plan is the same one the
+    # final classification produces. When no merged plan exists
+    # (e.g. Kookabus — a layer no standard tool fits), fall back
+    # to the fit-rule maxima, exactly the old behaviour.
     profile_dias = {}
+    profile_tool_source = None
     if layout == "side_by_side":
         import tempfile
         from build123d import export_step as _export_step
+        pre_layers = []  # combined layers, prefixed as the merge does
         with tempfile.TemporaryDirectory(prefix="profile_tools_") as tmp:
             tmp = Path(tmp)
             for p in prepared:
@@ -302,14 +320,38 @@ def main():
                           f"{r.stdout}\n{r.stderr}", file=sys.stderr)
                     return r.returncode
                 man = json.loads((pre_out / "manifest.json").read_text())
-                d = _tp.profile_tool_diameter(man["layers"], cfg)
+                for L in man["layers"]:
+                    L2 = dict(L)
+                    L2["layer"] = f"{p['prefix']}__{L['layer']}"
+                    L2["part"] = p["prefix"]
+                    if L2.get("depends_on"):
+                        L2["depends_on"] = f"{p['prefix']}__{L2['depends_on']}"
+                    pre_layers.append(L2)
+                p["pre_layers"] = man["layers"]  # fit-rule fallback only
+        pre_plan = _tp.plan_tools(pre_layers, cfg) if pre_layers else {"plans": [], "error": "no layers"}
+        if pre_plan["plans"]:
+            chosen_pre = _tp.choose_plan(pre_plan["plans"], args.plan)
+            profile_dias = _tp.plan_profile_tools(chosen_pre)
+            for p in prepared:
+                profile_dias.setdefault(p["prefix"], None)
+            profile_tool_source = f"plan {chosen_pre['id']}"
+            print(f"profile tools from chosen plan {chosen_pre['id']} "
+                  f"(BRA-20 — the tools that actually cut): " +
+                  ", ".join(f"{k} {v:.2f} mm" if v is not None else f"{k} none"
+                            for k, v in sorted(profile_dias.items())))
+        else:
+            for p in prepared:
+                d = _tp.profile_tool_diameter(p["pre_layers"], cfg)
                 profile_dias[p["prefix"]] = d
-                p["profile_tool_dia_mm"] = d
-                if d is not None:
-                    print(f"profile tool [{p['prefix']}]: {d:.2f} mm endmill")
-                else:
-                    print(f"profile tool [{p['prefix']}]: none (no profile layers) "
-                          f"— gaps use gap_mm")
+            profile_tool_source = "fit-rule maxima (no merged plan)"
+            print(f"profile tools from fit-rule maxima "
+                  f"(no merged plan: {pre_plan['error']}): " +
+                  ", ".join(f"{k} {v:.2f} mm" if v is not None else f"{k} none"
+                            for k, v in sorted(profile_dias.items())))
+        for p in prepared:
+            p.pop("pre_layers", None)
+        for p in prepared:
+            p["profile_tool_dia_mm"] = profile_dias[p["prefix"]]
         # Part-to-edge (BRA-16 spacing rule): the clamp margin must
         # cover the largest profile tool + the edge margin, or the
         # kerf eats the sheet edge. Fails before any output exists.
@@ -578,6 +620,7 @@ def main():
         "spacing": {"rule": "max(gap_mm, D_A + D_B + web_min_mm)",
                     "gap_mm": gap, "web_min_mm": web_min,
                     "pin_clearance_mm": pin_clearance,
+                    "profile_tools_from": profile_tool_source,
                     "check": spacing_check},
         "suggested_material": suggested_material,
         "registration_pins": reg_pins if two_sided else None,
@@ -624,8 +667,9 @@ def main():
             if profile_dias.get(p['prefix']) is not None else
             f"{p['prefix']} no profile tool"
             for p in prepared)
-        report.append(f"Spacing (BRA-16 tool rule): gaps are max({gap:.1f} mm, "
-                      f"D_A + D_B + {web_min:.1f} mm web); profile tools: {tools_txt}."
+        report.append(f"Spacing (BRA-16 tool rule, BRA-20 plan-aware): gaps are "
+                      f"max({gap:.1f} mm, D_A + D_B + {web_min:.1f} mm web); "
+                      f"profile tools from {profile_tool_source}: {tools_txt}."
                       + (f" {spacing_check}." if spacing_check else ""))
     if two_sided:
         if reg_pins:

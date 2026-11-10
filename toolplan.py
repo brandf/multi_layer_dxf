@@ -513,6 +513,27 @@ def profile_tool_diameter(layers, cfg=None):
     return best
 
 
+def plan_profile_tools(plan):
+    """Per-part profile endmill diameters from a CHOSEN merged plan
+    (BRA-20): {part_prefix: max profile tool dia in mm}. The plan's
+    layers carry prefixed names (P01_...__PROFILE_THRU), so the part
+    is the text before the first "__". A part with no profile layers
+    in the plan gets no entry (the packer treats it as None — no
+    kerf, gap_mm floor only). This is what the layout spaces by
+    after BRA-20: the tool that actually cuts, not the fit-rule
+    maximum (profile_tool_diameter), which bounds every plan from
+    above and reserves wider gaps than the chosen plan needs."""
+    tools = {t["id"]: t for t in plan["tools"]}
+    per_part = {}
+    for e in plan["layers"]:
+        if e["operation"] != "profile":
+            continue
+        part = e["layer"].split("__", 1)[0]
+        d = float(tools[e["tool_id"]]["dia_mm"])
+        per_part[part] = max(per_part.get(part, 0.0), d)
+    return per_part
+
+
 def plan_tools(layers, cfg=None):
     """Rank tool-set plans for these layers. Returns
     {"plans": [best, ...up to max_plans], "error": None} or
