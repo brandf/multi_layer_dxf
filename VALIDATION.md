@@ -143,14 +143,19 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # flags identify the non-prismatic features".)
 # BRA-18 (2026-11-09): the standard endmill set now includes
 # metric fine endmills (1.0 / 0.8 / 0.5 mm). In a full-mode run
-# the merged tool-plan error narrows from 8 blocking layers to 1:
-# only P02_P02__POCKET_D0.60 (0.91 mm wide — the fit rule needs a
-# tool <= 0.41 mm, smallest standard endmill is now 0.50 mm).
+# the merged tool-plan error narrowed from 8 blocking layers to 1:
+# only P02_P02__POCKET_D0.60 (0.91 mm wide — the flat fit rule
+# needed a tool <= 0.41 mm, smallest standard endmill is 0.50 mm).
 # P01 and P03 get per-part plans (Plan A uses the 1.00 mm
-# endmill); the merged job still has no plan. Whether to go below
-# 0.5 mm is BRA-22, awaiting Brandon's decision — do not extend
-# silently. Check-mode counts above are unchanged (classification
-# only; no tool plan runs there).
+# endmill).
+# BRA-22 (2026-11-09, Brandon's decision: option 2): the fit-rule
+# clearance is now proportional to the tool — min(0.5, 0.5 x tool
+# dia) — so the 0.50 mm endmill fits the 0.913 mm groove and the
+# merged job HAS a plan: Plan A EM 1/2 in + EM 0.50 mm, 2 changes,
+# 212.1 min (B 2/2/215.1, C 7/8/219.8); layers 20, flags 190 (was
+# 191 — only the TOOL PLAN flag is gone); spacing packs from plan
+# A, not the fit-rule maxima. Check-mode counts above are unchanged
+# (classification only; no tool plan runs there).
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50
@@ -320,11 +325,12 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # expect: passes — 2 parts, 8 layers, 6 flags; Bottom at sheet
 # (20, 20), Top at (83.7, 20); Plan A Drill 2.25 + EM 1/4 in.
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step -o test/external/kookabus_bra20_out --mode full
-# expect: no crash; layers 20, flags 191 (unchanged — the merged
-# plan is still empty, so the packer falls back to the fit-rule
-# maxima and spacing.profile_tools_from is "fit-rule maxima (no
-# merged plan)"); TOOL PLAN error still lists only
-# P02_P02__POCKET_D0.60.
+# expect: no crash; layers 20, flags 190; the merged plan EXISTS
+# (BRA-22: Plan A EM 1/2 in + EM 0.50 mm, 2 changes, 212.1 min),
+# so the packer uses plan A's profile tools and
+# spacing.profile_tools_from is "plan A" — the fit-rule-maxima
+# fallback only applies when no merged plan exists. No TOOL PLAN
+# flag.
 
 # Tool plan (BRA-12) — check manifest.json tool_plan, not just layers:
 .venv/bin/python -c "import json; m=json.load(open('test/container_auto_out/manifest.json')); print([(p['id'], len(p['tools']), p['tool_changes'], round(p['total_seconds']/60,1)) for p in m['tool_plan']['plans']])"

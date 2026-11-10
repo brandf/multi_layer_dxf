@@ -1,6 +1,12 @@
 {
   "source_step": "test/machined.step",
   "units": "mm",
+  "material": null,
+  "suggested_material": {
+    "x": 120,
+    "y": 80,
+    "thickness": 15
+  },
   "stock": {
     "x_min": -60.0,
     "y_min": -40.0,
@@ -116,7 +122,9 @@
       "est": {
         "area_mm2": 398.611,
         "min_width_mm": 20.0,
-        "depth_mm": 3.0
+        "depth_mm": 3.0,
+        "perimeter_mm": 80.0,
+        "corner_radius_mm": 0.0
       }
     },
     {
@@ -130,7 +138,9 @@
       "est": {
         "area_mm2": 2348.861,
         "min_width_mm": 40.0,
-        "depth_mm": 5.0
+        "depth_mm": 5.0,
+        "perimeter_mm": 200.0,
+        "corner_radius_mm": 0.0
       }
     },
     {
@@ -144,8 +154,11 @@
       "est": {
         "area_mm2": 597.917,
         "min_width_mm": 20.0,
-        "depth_mm": 4.0
-      }
+        "depth_mm": 4.0,
+        "perimeter_mm": 100.0,
+        "corner_radius_mm": 0.0
+      },
+      "depends_on": "POCKET_D5.00"
     },
     {
       "layer": "THROUGH_CUT",
@@ -256,15 +269,18 @@
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,-32.00) r=8.00 span=90deg Z 0.00..14.00",
     "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (52.00,32.00) r=8.00 span=90deg Z 0.00..14.00",
     "COUNTERBORE THRU HOLE: dia 6.00 at (35.00,-20.00) under D12.00 counterbore \u2014 treated as thru",
+    "POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 \u2014 freeform wall, Z span 6.00 mm",
     "THROUGH FEATURE MERGED WITH POCKET on top face \u2014 recovered from bottom face as THROUGH_CUT (verify the outline in VCarve)",
     "POST-PROCESS [cnc_3d]: tapered wall non-vertical wall at pocket top edge (floor Z 8.00) (x4 faces) \u2014 Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.",
     "HOLE NOT FROM TOP (blind_bottom): dia 5.00 at (-45.00,-28.00) Z 0.00..4.00 \u2014 no toolpath emitted",
-    "POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 8.00, depth 6.00 \u2014 freeform wall, Z span 6.00 mm",
     "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
   ],
   "tool_plan": {
     "plans": [
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 344.5,
         "cutting_seconds": 224.5,
         "tool_changes": 1,
@@ -303,6 +319,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
             "seconds": 48.2,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -312,6 +329,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
             "seconds": 13.8,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -321,6 +339,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
             "seconds": 2.7,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -330,6 +349,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
             "seconds": 2.1,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -339,6 +359,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 6.2,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -348,6 +369,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 53.4,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -357,6 +379,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 12.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -366,6 +389,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 16.3,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 2,
               "length_mm": 5.0,
@@ -379,6 +403,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 69.4,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -389,6 +414,9 @@
         "id": "A"
       },
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 432.0,
         "cutting_seconds": 192.0,
         "tool_changes": 2,
@@ -441,6 +469,7 @@
             "kind": "drill",
             "note": "drill",
             "seconds": 24.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -450,6 +479,7 @@
             "kind": "drill",
             "note": "drill",
             "seconds": 5.1,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -459,6 +489,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
             "seconds": 2.7,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -468,6 +499,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
             "seconds": 2.1,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -477,6 +509,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 6.2,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -486,6 +519,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 53.4,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -495,6 +529,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 12.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -504,6 +539,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 16.3,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 2,
               "length_mm": 5.0,
@@ -517,6 +553,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 69.4,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -527,6 +564,9 @@
         "id": "B"
       },
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 434.0,
         "cutting_seconds": 194.0,
         "tool_changes": 2,
@@ -578,6 +618,7 @@
             "kind": "drill",
             "note": "drill",
             "seconds": 24.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -587,6 +628,7 @@
             "kind": "bore",
             "note": "bore with End Mill 3/16 in (4.76 mm) (no drill in this plan)",
             "seconds": 7.0,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -596,6 +638,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
             "seconds": 2.7,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -605,6 +648,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
             "seconds": 2.1,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -614,6 +658,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 6.2,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -623,6 +668,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 53.4,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -632,6 +678,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 12.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -641,6 +688,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 16.3,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 2,
               "length_mm": 5.0,
@@ -654,6 +702,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 69.4,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -662,6 +711,172 @@
           }
         ],
         "id": "C"
+      },
+      {
+        "variant": "finish",
+        "finish_pockets": 3,
+        "dependency_warnings": [],
+        "total_seconds": 789.3,
+        "cutting_seconds": 309.3,
+        "tool_changes": 4,
+        "change_seconds": 480.0,
+        "tools": [
+          {
+            "id": "EM6.35",
+            "kind": "endmill",
+            "dia_mm": 6.35,
+            "name": "End Mill 1/4 in (6.35 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 2.54,
+            "tool_number": 1
+          },
+          {
+            "id": "EM3.17",
+            "kind": "endmill",
+            "dia_mm": 3.175,
+            "name": "End Mill 1/8 in (3.17 mm)",
+            "feed_mm_s": 15.88,
+            "plunge_mm_s": 5.29,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 1.587,
+            "stepover_mm": 1.27,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D8.00_D5.00",
+            "operation": "drill",
+            "tool_id": "EM6.35",
+            "kind": "bore",
+            "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
+            "seconds": 2.7,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D12.00_D3.00",
+            "operation": "drill",
+            "tool_id": "EM6.35",
+            "kind": "bore",
+            "note": "bore with End Mill 1/4 in (6.35 mm) (no drill in this plan)",
+            "seconds": 2.1,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D3.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R3.17 mm)",
+            "seconds": 5.7,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R3.17 mm)",
+            "seconds": 51.2,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D5.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM3.17",
+            "kind": "bore",
+            "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
+            "seconds": 48.2,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D6.00_THRU",
+            "operation": "drill",
+            "tool_id": "EM3.17",
+            "kind": "bore",
+            "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
+            "seconds": 13.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D3.00",
+            "operation": "pocket",
+            "tool_id": "EM3.17",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R1.59 mm",
+            "seconds": 12.1,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D5.00",
+            "operation": "pocket",
+            "tool_id": "EM3.17",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R1.59 mm",
+            "seconds": 54.4,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D9.00_START5.00",
+            "operation": "pocket",
+            "tool_id": "EM6.35",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R3.17 mm)",
+            "seconds": 11.6,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D9.00_START5.00",
+            "operation": "pocket",
+            "tool_id": "EM3.17",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R1.59 mm",
+            "seconds": 21.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 16.3,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 2,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM6.35",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 69.4,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "D"
       }
     ],
     "error": null,

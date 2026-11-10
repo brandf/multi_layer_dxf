@@ -96,7 +96,9 @@ DEFAULTS = {
     # work — the imperial set bottoms out at 1/16" (1.59 mm), so
     # pockets 1.50-1.80 mm wide (e.g. the Kookabus enclosure) got no
     # plan at all. A 1.0 mm tool fits a 1.50 mm pocket under the fit
-    # rule (dia <= min_width - 0.5); 0.8 / 0.5 mm cover narrower work.
+    # rule (BRA-22: clearance is half the tool diameter, capped at
+    # 0.5 mm — so 1.0 mm needs W >= 1.50, 0.8 mm needs W >= 1.20,
+    # 0.5 mm needs W >= 0.75); 0.8 / 0.5 mm cover narrower work.
     # Both lists merge into one candidate set; imperial sizes keep
     # their fractional names, metric sizes are named in mm.
     "standard_endmills_mm": [1.0, 0.8, 0.5],
@@ -479,8 +481,18 @@ def tabs_for_layer(layer, st):
 
 
 def _fits(tool_dia, min_width_mm):
-    """An endmill needs clearance to move inside a pocket/slot."""
-    return tool_dia <= min_width_mm - 0.5
+    """An endmill needs clearance to move inside a pocket/slot.
+    BRA-22: the clearance is proportional to the tool — half its
+    diameter — capped at the old flat 0.5 mm. A tiny tool needs
+    less absolute room to move (chip load / deflection scale with
+    the tool), and the cap keeps every tool >= 1.0 mm behaving
+    exactly as under the flat rule, so no existing plan for
+    standard-size tools can change. Only the metric fine endmills
+    gain room: 0.50 mm fits W >= 0.75 mm (the 0.913 mm Kookabus
+    groove fits, margin 0.163 mm — under the flat rule it needed
+    a <= 0.41 mm tool, which does not exist in the set), 0.80 mm
+    fits W >= 1.20 mm."""
+    return tool_dia <= min_width_mm - min(0.5, 0.5 * tool_dia)
 
 
 def profile_tool_diameter(layers, cfg=None):

@@ -1,6 +1,12 @@
 {
   "source_step": "test/donut.step",
   "units": "mm",
+  "material": null,
+  "suggested_material": {
+    "x": 100,
+    "y": 100,
+    "thickness": 10
+  },
   "stock": {
     "x_min": -50.0,
     "y_min": -50.0,
@@ -50,6 +56,9 @@
   "tool_plan": {
     "plans": [
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 75.0,
         "cutting_seconds": 75.0,
         "tool_changes": 0,
@@ -76,6 +85,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 29.1,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -89,6 +99,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -99,6 +110,9 @@
         "id": "A"
       },
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 75.0,
         "cutting_seconds": 75.0,
         "tool_changes": 0,
@@ -125,6 +139,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 29.1,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -138,6 +153,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -148,6 +164,9 @@
         "id": "B"
       },
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 75.0,
         "cutting_seconds": 75.0,
         "tool_changes": 0,
@@ -174,6 +193,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 29.1,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -187,6 +207,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,

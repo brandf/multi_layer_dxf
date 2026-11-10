@@ -1,0 +1,231 @@
+# kookabus-03-enclosure — multi-part VCarve report
+
+Material: none given — suggested 480 x 150 x 22 mm (packed layout + 20 mm clamp margin, rounded up to 10 mm).
+Spacing (BRA-16 tool rule, BRA-20 plan-aware): gaps are max(10.0 mm, D_A + D_B + 5.0 mm web); profile tools from plan A: P01_P01 12.70 mm, P02_P02 12.70 mm, P03_P03 12.70 mm. verified against plan A (profile tools P01_P01 12.70 mm, P02_P02 12.70 mm, P03_P03 12.70 mm).
+- P01_P01: stock 139.0 x 105.5 x 21.8 mm, flip_x=False rot_z=0.0, layers 8, at (0.0, 0.0)
+- P02_P02: stock 139.0 x 105.5 x 11.9 mm, flip_x=False rot_z=0.0, layers 7, at (169.4, 0.0)
+- P03_P03: stock 100.0 x 64.0 x 9.0 mm, flip_x=False rot_z=0.0, layers 5, at (338.8, 0.0)
+
+Tool plan (recommendations from standard sizes — review against your VCarve library):
+Tool plan A (chosen, fastest estimate): 2 tool(s), 2 manual change(s), est 212.1 min total (cutting 208.1 + changes 4.0). Times are estimates, not promises.
+- T1: End Mill 1/2 in (12.70 mm) — feed 30.0 mm/s, plunge 10.0 mm/s, 20000 rpm, stepdown 3.0 mm, stepover 5.08 mm
+- T2: End Mill 0.50 mm — feed 8.0 mm/s, plunge 2.67 mm/s, 20000 rpm, stepdown 0.25 mm, stepover 0.2 mm
+Cut order (tool changes marked):
+- P01_P01__POCKET_D18.80 (pocket, endmill): est 543 s — largest endmill that fits
+  — change to T2 (End Mill 0.50 mm) —
+- P01_P01__DRILL_D2.90_D0.80_START18.80 (drill, bore): est 32 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P02_P02__DRILL_D3.40_THRU (drill, bore): est 138 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P03_P03__DRILL_D3.40_D0.40 (drill, bore): est 13 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P03_P03__DRILL_D5.00_D3.00 (drill, bore): est 76 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P01_P01__POCKET_D11.30 (pocket, endmill): est 1520 s — largest endmill that fits
+- P01_P01__POCKET_D12.20 (pocket, endmill): est 642 s — largest endmill that fits
+- P01_P01__POCKET_D13.80 (pocket, endmill): est 6712 s — largest endmill that fits
+- P01_P01__POCKET_D2.40 (pocket, endmill): est 234 s — largest endmill that fits
+- P01_P01__POCKET_D9.70 (pocket, endmill): est 329 s — largest endmill that fits
+- P02_P02__POCKET_D0.60 (pocket, endmill): est 32 s — largest endmill that fits
+- P02_P02__DRILL_D2.60_D1.40_START0.60 (drill, bore): est 14 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P02_P02__DRILL_D4.40_D1.40_START0.60 (drill, bore): est 11 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P02_P02__POCKET_D2.80 (pocket, endmill): est 249 s — largest endmill that fits
+- P03_P03__POCKET_D4.20 (pocket, endmill): est 676 s — largest endmill that fits
+- P02_P02__THROUGH_CUT (profile, endmill): est 548 s — largest endmill that fits — tabs x3 (5.0 x 1.0 mm)
+- P03_P03__THROUGH_CUT (profile, endmill): est 477 s — largest endmill that fits — tabs x3 (5.0 x 1.0 mm)
+  — change to T1 (End Mill 1/2 in (12.70 mm)) —
+- P01_P01__PROFILE_THRU (profile, endmill): est 135 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
+- P02_P02__PROFILE_THRU (profile, endmill): est 69 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
+- P03_P03__PROFILE_THRU (profile, endmill): est 35 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
+Fallback plans (same DXF, run manifest_plan_<id>.txt instead):
+- Plan B: 2 tool(s), 2 change(s), est 215.1 min — T1 End Mill 3/8 in (9.53 mm), T2 End Mill 0.50 mm
+- Plan C: 7 tool(s), 8 change(s), est 219.8 min — T1 Drill 5.00 mm, T2 End Mill 1/2 in (12.70 mm), T3 Drill 2.90 mm, T4 Drill 3.40 mm, T5 End Mill 0.50 mm, T6 Drill 2.60 mm, T7 Drill 4.40 mm
+Review the tools against your VCarve library before cutting — the gadget asks you to pick each one from the library, or uses the recommendation above if you cancel.
+
+Flags — read before cutting:
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,4.00) r=1.00 span=90deg Z 3.00..21.80
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,4.00) r=4.00 span=90deg Z 1.00..21.80
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,101.50) r=1.00 span=90deg Z 3.00..21.80
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,101.50) r=4.00 span=90deg Z 1.00..21.80
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,4.00) r=1.00 span=90deg Z 3.00..21.80
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,4.00) r=4.00 span=90deg Z 1.00..21.80
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,101.50) r=1.00 span=90deg Z 3.00..21.80
+- [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,101.50) r=4.00 span=90deg Z 1.00..21.80
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 15.00, depth 15.00 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 17.50, depth 17.50 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 21.20, depth 21.20 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P01_P01] PROFILE OUTLINE DIFFERS top vs bottom by 90% (top 1365 mm2, bottom 14172 mm2) — profile taken from Z 0.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF
+- [P01_P01] VERTICAL WALLS EXTEND 1.00 mm BEYOND PROFILE — edge fillet/chamfer on both top and bottom, profile may be undersized; check the wall footprint before cutting
+- [P01_P01] POST-PROCESS [router_table]: fillet R1.00 mm at outer bottom edge (x8 faces) — Round over the bottom outer edge on the router table (flip the part over) after the CNC cut.
+- [P01_P01] POST-PROCESS [cnc_3d]: chamfer 90 deg, 2.20 mm tall at pocket floor (Z 3.00) (x24 faces) — Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) — a router table cannot reach it.
+- [P01_P01] POST-PROCESS [cnc_3d]: chamfer 45 deg, 1.55 mm tall at pocket floor (Z 3.00) (x4 faces) — Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) — a router table cannot reach it.
+- [P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (25.50,26.75) Z 0.00..1.45 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (25.50,78.75) Z 0.00..1.45 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (113.50,26.75) Z 0.00..1.45 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (113.50,78.75) Z 0.00..1.45 — no toolpath emitted
+- [P01_P01] DRILL FROM SURFACE: dia 2.90 at (32.50,6.50) opens on the Z 3.00 face — POCKET_D18.80 faces it down first (start depth 18.80 mm), then drill 0.80 mm from there
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (91.00,13.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (91.00,56.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (132.00,13.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (132.00,56.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (91.00,13.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (91.00,56.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (132.00,13.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (132.00,56.50) Z 3.00..10.20 — no toolpath emitted
+- [P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) — check report, inner wire not auto-tooled
+- [P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) — check report, inner wire not auto-tooled
+- [P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) — check report, inner wire not auto-tooled
+- [P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) — check report, inner wire not auto-tooled
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.40,4.00) r=4.00 span=90deg Z 9.90..10.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.40,101.50) r=4.00 span=90deg Z 9.90..10.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.60,4.20) r=1.00 span=90deg Z 7.40..9.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.60,101.30) r=1.00 span=90deg Z 7.40..9.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (174.30,4.90) r=0.50 span=90deg Z 7.40..9.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (174.30,100.60) r=0.50 span=90deg Z 7.40..9.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (303.50,100.60) r=0.50 span=90deg Z 7.40..9.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.20,4.20) r=1.00 span=78deg Z 7.40..9.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.20,101.30) r=1.00 span=90deg Z 7.40..9.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.40,4.00) r=4.00 span=90deg Z 9.90..10.90
+- [P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.40,101.50) r=4.00 span=90deg Z 9.90..10.90
+- [P02_P02] COUNTERSUNK THRU HOLE: dia 3.40 at (301.40,13.50) under a 45 deg countersink — treated as thru
+- [P02_P02] COUNTERSUNK THRU HOLE: dia 3.40 at (301.40,56.50) under a 45 deg countersink — treated as thru
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.70, depth 7.70 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 9.90, depth 9.90 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 10.12, depth 10.12 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — freeform wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 — chamfer wall, Z span 0.60 mm
+- [P02_P02] PROFILE OUTLINE DIFFERS top vs bottom by 100% (top 14167 mm2, bottom 32 mm2) — profile taken from Z 9.90 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF
+- [P02_P02] POST-PROCESS [router_table]: fillet R1.00 mm at outer top edge (x8 faces) — Round over the top outer edge on the router table after the CNC cut.
+- [P02_P02] POST-PROCESS [router_table]: sculpted surface GeomAbs_SurfaceType.GeomAbs_SurfaceOfExtrusion at outer top edge (x33 faces) — Round over the outer edge on the router table after the CNC cut — pick a roundover bit close to the modelled profile; it does not have to match exactly.
+- [P02_P02] POST-PROCESS [cnc_3d]: tapered wall non-vertical wall at pocket floor (Z 11.30) (x391 faces) — Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.
+- [P02_P02] POST-PROCESS [cnc_3d]: chamfer 90 deg, 0.60 mm tall at pocket floor (Z 11.30) (x127 faces) — Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) — a router table cannot reach it.
+- [P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D3.40 at (301.40,13.50) — Countersink the hole on the drill press after drilling.
+- [P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D2.60 at (294.90,44.50) — Countersink the hole on the drill press after drilling.
+- [P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D2.60 at (294.90,48.50) — Countersink the hole on the drill press after drilling.
+- [P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D4.40 at (288.90,54.50) — Countersink the hole on the drill press after drilling.
+- [P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D3.40 at (301.40,56.50) — Countersink the hole on the drill press after drilling.
+- [P02_P02] POST-PROCESS [router_table]: chamfer 90 deg, 0.60 mm tall at outer top edge — Chamfer the top outer edge on the router table after the CNC cut.
+- [P02_P02] DRILL FROM SURFACE: dia 2.60 at (294.90,44.50) opens on the Z 11.30 face — POCKET_D0.60 faces it down first (start depth 0.60 mm), then drill 1.40 mm from there
+- [P02_P02] DRILL FROM SURFACE: dia 4.40 at (288.90,54.50) opens on the Z 11.30 face — POCKET_D0.60 faces it down first (start depth 0.60 mm), then drill 1.40 mm from there
+- [P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
+- [P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
+- [P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
+- [P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT
+- [P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (342.80,4.00) r=4.00 span=90deg Z 6.00..9.00
+- [P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (342.80,60.00) r=4.00 span=90deg Z 6.00..9.00
+- [P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (434.80,4.00) r=4.00 span=90deg Z 6.00..9.00
+- [P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (434.80,60.00) r=4.00 span=90deg Z 6.00..9.00
+- [P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 3.30, depth 3.30 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 6.00, depth 6.00 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face — no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing
+- [P03_P03] PROFILE OUTLINE DIFFERS top vs bottom by 99% (top 6386 mm2, bottom 69 mm2) — profile taken from Z 6.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,7.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,7.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,4.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,4.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,7.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,7.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,4.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,4.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,59.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,59.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,56.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,56.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,59.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,59.4), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,56.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,56.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
+- [P03_P03] POST-PROCESS [cnc_3d]: chamfer 45 deg, 1.50 mm tall at pocket floor (Z 4.80) — Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) — a router table cannot reach it.
+- [P03_P03] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening

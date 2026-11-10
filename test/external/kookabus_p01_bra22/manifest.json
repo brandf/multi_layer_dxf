@@ -1,0 +1,961 @@
+{
+  "source_step": "test/external/kookabus_bra22_out/parts/P01_P01.step",
+  "units": "mm",
+  "material": null,
+  "suggested_material": {
+    "x": 140,
+    "y": 110,
+    "thickness": 22
+  },
+  "stock": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 139.0,
+    "y_max": 105.5,
+    "z_min": 0.0,
+    "z_max": 21.8,
+    "thickness": 21.8
+  },
+  "z_top": 21.8,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "POCKET_D18.80",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 18.8,
+      "segment_count": 16,
+      "floor_z": 3.0,
+      "depth_total": 18.8,
+      "est": {
+        "area_mm2": 13032.435,
+        "min_width_mm": 99.5,
+        "depth_mm": 18.8,
+        "perimeter_mm": 705.283,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "DRILL_D2.90_D0.80_START18.80",
+      "operation": "drill",
+      "start_depth": 18.8,
+      "cut_depth": 0.8,
+      "segment_count": 6,
+      "centres": [
+        [
+          32.5,
+          6.5
+        ],
+        [
+          32.5,
+          63.5
+        ],
+        [
+          33.25,
+          77.9
+        ],
+        [
+          33.25,
+          93.2
+        ],
+        [
+          105.75,
+          77.9
+        ],
+        [
+          105.75,
+          93.2
+        ]
+      ],
+      "diameter": 2.9,
+      "depends_on": "POCKET_D18.80",
+      "est": {
+        "hole_count": 6,
+        "hole_dia_mm": 2.9,
+        "depth_mm": 0.8
+      }
+    },
+    {
+      "layer": "POCKET_D2.40",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 2.4,
+      "segment_count": 4,
+      "floor_z": 19.4,
+      "depth_total": 2.4,
+      "est": {
+        "area_mm2": 37.31,
+        "min_width_mm": 1.8,
+        "depth_mm": 2.4,
+        "perimeter_mm": 45.2,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "POCKET_D9.70",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 9.7,
+      "segment_count": 4,
+      "floor_z": 12.1,
+      "depth_total": 9.7,
+      "est": {
+        "area_mm2": 11.958,
+        "min_width_mm": 1.5,
+        "depth_mm": 9.7,
+        "perimeter_mm": 19.0,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "POCKET_D11.30",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 11.3,
+      "segment_count": 4,
+      "floor_z": 10.5,
+      "depth_total": 11.3,
+      "est": {
+        "area_mm2": 52.168,
+        "min_width_mm": 3.0,
+        "depth_mm": 11.3,
+        "perimeter_mm": 40.9,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "POCKET_D12.20",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 12.2,
+      "segment_count": 4,
+      "floor_z": 9.6,
+      "depth_total": 12.2,
+      "est": {
+        "area_mm2": 19.432,
+        "min_width_mm": 1.5,
+        "depth_mm": 12.2,
+        "perimeter_mm": 29.0,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "POCKET_D13.80",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 13.8,
+      "segment_count": 8,
+      "floor_z": 8.0,
+      "depth_total": 13.8,
+      "est": {
+        "area_mm2": 192.928,
+        "min_width_mm": 1.6,
+        "depth_mm": 13.8,
+        "perimeter_mm": 248.4,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 21.8,
+      "segment_count": 8,
+      "est": {
+        "perimeter_mm": 475.85,
+        "depth_mm": 21.8
+      }
+    }
+  ],
+  "holes": [
+    {
+      "cx": 25.5,
+      "cy": 26.75,
+      "dia": 3.4,
+      "z0": 2.22044604925e-16,
+      "z1": 1.4500000000000004,
+      "kind": "blind_bottom"
+    },
+    {
+      "cx": 25.5,
+      "cy": 78.75,
+      "dia": 3.4,
+      "z0": 2.22044604925e-16,
+      "z1": 1.4500000000000004,
+      "kind": "blind_bottom"
+    },
+    {
+      "cx": 32.5,
+      "cy": 6.5,
+      "dia": 2.9,
+      "z0": 2.2,
+      "z1": 3.0,
+      "kind": "internal"
+    },
+    {
+      "cx": 32.5,
+      "cy": 63.5,
+      "dia": 2.9,
+      "z0": 2.2,
+      "z1": 3.0,
+      "kind": "internal"
+    },
+    {
+      "cx": 33.25,
+      "cy": 77.9,
+      "dia": 2.9,
+      "z0": 2.2,
+      "z1": 3.0,
+      "kind": "internal"
+    },
+    {
+      "cx": 33.25,
+      "cy": 93.2,
+      "dia": 2.9,
+      "z0": 2.2,
+      "z1": 3.0,
+      "kind": "internal"
+    },
+    {
+      "cx": 91.0,
+      "cy": 13.5,
+      "dia": 4.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    },
+    {
+      "cx": 91.0,
+      "cy": 13.5,
+      "dia": 7.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    },
+    {
+      "cx": 91.0,
+      "cy": 56.5,
+      "dia": 4.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    },
+    {
+      "cx": 91.0,
+      "cy": 56.5,
+      "dia": 7.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    },
+    {
+      "cx": 105.75,
+      "cy": 77.9,
+      "dia": 2.9,
+      "z0": 2.2,
+      "z1": 3.0,
+      "kind": "internal"
+    },
+    {
+      "cx": 105.75,
+      "cy": 93.2,
+      "dia": 2.9,
+      "z0": 2.2,
+      "z1": 3.0,
+      "kind": "internal"
+    },
+    {
+      "cx": 113.5,
+      "cy": 26.75,
+      "dia": 3.4,
+      "z0": 2.22044604925e-16,
+      "z1": 1.4500000000000004,
+      "kind": "blind_bottom"
+    },
+    {
+      "cx": 113.5,
+      "cy": 78.75,
+      "dia": 3.4,
+      "z0": 2.22044604925e-16,
+      "z1": 1.4500000000000004,
+      "kind": "blind_bottom"
+    },
+    {
+      "cx": 132.0,
+      "cy": 13.5,
+      "dia": 4.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    },
+    {
+      "cx": 132.0,
+      "cy": 13.5,
+      "dia": 7.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    },
+    {
+      "cx": 132.0,
+      "cy": 56.5,
+      "dia": 4.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    },
+    {
+      "cx": 132.0,
+      "cy": 56.5,
+      "dia": 7.0,
+      "z0": 3.0,
+      "z1": 10.2,
+      "kind": "internal"
+    }
+  ],
+  "pocket_count": 7,
+  "post_process": [
+    {
+      "feature": "fillet",
+      "location": "outer bottom edge",
+      "params": "R1.00 mm",
+      "method": "router_table",
+      "tool": "roundover bit R1.00 mm",
+      "step": "Round over the bottom outer edge on the router table (flip the part over) after the CNC cut.",
+      "cnc_alternative": "CNC: roundover bit in the spindle.",
+      "count": 8
+    },
+    {
+      "feature": "chamfer",
+      "location": "pocket floor (Z 3.00)",
+      "params": "90 deg, 2.20 mm tall",
+      "method": "cnc_3d",
+      "tool": "chamfer bit 90 deg",
+      "step": "Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+      "cnc_alternative": null,
+      "count": 24
+    },
+    {
+      "feature": "chamfer",
+      "location": "pocket floor (Z 3.00)",
+      "params": "45 deg, 1.55 mm tall",
+      "method": "cnc_3d",
+      "tool": "chamfer bit 45 deg",
+      "step": "Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+      "cnc_alternative": null,
+      "count": 4
+    }
+  ],
+  "flags": [
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,4.00) r=1.00 span=90deg Z 3.00..21.80",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,4.00) r=4.00 span=90deg Z 1.00..21.80",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,101.50) r=1.00 span=90deg Z 3.00..21.80",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,101.50) r=4.00 span=90deg Z 1.00..21.80",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,4.00) r=1.00 span=90deg Z 3.00..21.80",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,4.00) r=4.00 span=90deg Z 1.00..21.80",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,101.50) r=1.00 span=90deg Z 3.00..21.80",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,101.50) r=4.00 span=90deg Z 1.00..21.80",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 15.00, depth 15.00 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 17.50, depth 17.50 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 21.20, depth 21.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "PROFILE OUTLINE DIFFERS top vs bottom by 90% (top 1365 mm2, bottom 14172 mm2) \u2014 profile taken from Z 0.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "VERTICAL WALLS EXTEND 1.00 mm BEYOND PROFILE \u2014 edge fillet/chamfer on both top and bottom, profile may be undersized; check the wall footprint before cutting",
+    "POST-PROCESS [router_table]: fillet R1.00 mm at outer bottom edge (x8 faces) \u2014 Round over the bottom outer edge on the router table (flip the part over) after the CNC cut.",
+    "POST-PROCESS [cnc_3d]: chamfer 90 deg, 2.20 mm tall at pocket floor (Z 3.00) (x24 faces) \u2014 Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+    "POST-PROCESS [cnc_3d]: chamfer 45 deg, 1.55 mm tall at pocket floor (Z 3.00) (x4 faces) \u2014 Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+    "HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (25.50,26.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (25.50,78.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (113.50,26.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (113.50,78.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "DRILL FROM SURFACE: dia 2.90 at (32.50,6.50) opens on the Z 3.00 face \u2014 POCKET_D18.80 faces it down first (start depth 18.80 mm), then drill 0.80 mm from there",
+    "HOLE NOT FROM TOP (internal): dia 4.00 at (91.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (internal): dia 4.00 at (91.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (internal): dia 4.00 at (132.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (internal): dia 4.00 at (132.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (internal): dia 7.00 at (91.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (internal): dia 7.00 at (91.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (internal): dia 7.00 at (132.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "HOLE NOT FROM TOP (internal): dia 7.00 at (132.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled",
+    "POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled",
+    "POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled",
+    "POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled"
+  ],
+  "tool_plan": {
+    "plans": [
+      {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
+        "total_seconds": 3346.3,
+        "cutting_seconds": 3106.3,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "EM12.70",
+            "kind": "endmill",
+            "dia_mm": 12.7,
+            "name": "End Mill 1/2 in (12.70 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 5.08,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "POCKET_D18.80",
+            "operation": "pocket",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 542.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D2.90_D0.80_START18.80",
+            "operation": "drill",
+            "tool_id": "EM1.00",
+            "kind": "bore",
+            "note": "bore with End Mill 1.00 mm (no drill in this plan)",
+            "seconds": 18.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D2.40",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 61.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D9.70",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 92.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D11.30",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 391.4,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D12.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 173.2,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D13.80",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 1692.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 134.9,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "A"
+      },
+      {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
+        "total_seconds": 3452.0,
+        "cutting_seconds": 3092.0,
+        "tool_changes": 3,
+        "change_seconds": 360.0,
+        "tools": [
+          {
+            "id": "EM12.70",
+            "kind": "endmill",
+            "dia_mm": 12.7,
+            "name": "End Mill 1/2 in (12.70 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 5.08,
+            "tool_number": 1
+          },
+          {
+            "id": "D2.90",
+            "kind": "drill",
+            "dia_mm": 2.9,
+            "name": "Drill 2.90 mm",
+            "feed_mm_s": 4.35,
+            "plunge_mm_s": 4.35,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 1.45,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 2
+          },
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 3
+          }
+        ],
+        "layers": [
+          {
+            "layer": "POCKET_D18.80",
+            "operation": "pocket",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 542.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D2.90_D0.80_START18.80",
+            "operation": "drill",
+            "tool_id": "D2.90",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 4.1,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D2.40",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 61.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D9.70",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 92.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D11.30",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 391.4,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D12.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 173.2,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D13.80",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 1692.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM12.70",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 134.9,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "B"
+      },
+      {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
+        "total_seconds": 3524.9,
+        "cutting_seconds": 3284.9,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "EM9.53",
+            "kind": "endmill",
+            "dia_mm": 9.525,
+            "name": "End Mill 3/8 in (9.53 mm)",
+            "feed_mm_s": 30.0,
+            "plunge_mm_s": 10.0,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 3.0,
+            "stepover_mm": 3.81,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "POCKET_D18.80",
+            "operation": "pocket",
+            "tool_id": "EM9.53",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 721.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D2.90_D0.80_START18.80",
+            "operation": "drill",
+            "tool_id": "EM1.00",
+            "kind": "bore",
+            "note": "bore with End Mill 1.00 mm (no drill in this plan)",
+            "seconds": 18.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D2.40",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 61.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D9.70",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 92.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D11.30",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 391.4,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D12.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 173.2,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D13.80",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 1692.0,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM9.53",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 134.9,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "C"
+      },
+      {
+        "variant": "finish",
+        "finish_pockets": 6,
+        "dependency_warnings": [],
+        "total_seconds": 158694.8,
+        "cutting_seconds": 158454.8,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 1
+          },
+          {
+            "id": "EM0.80",
+            "kind": "endmill",
+            "dia_mm": 0.8,
+            "name": "End Mill 0.80 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.4,
+            "stepover_mm": 0.32,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "POCKET_D2.40",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R0.50 mm)",
+            "seconds": 27.1,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D9.70",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R0.50 mm)",
+            "seconds": 34.9,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D11.30",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R0.50 mm)",
+            "seconds": 247.0,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D12.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R0.50 mm)",
+            "seconds": 62.6,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D13.80",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R0.50 mm)",
+            "seconds": 620.8,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D18.80",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R0.50 mm)",
+            "seconds": 149025.6,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D2.40",
+            "operation": "pocket",
+            "tool_id": "EM0.80",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.40 mm",
+            "seconds": 39.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D9.70",
+            "operation": "pocket",
+            "tool_id": "EM0.80",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.40 mm",
+            "seconds": 84.4,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D11.30",
+            "operation": "pocket",
+            "tool_id": "EM0.80",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.40 mm",
+            "seconds": 177.3,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D12.20",
+            "operation": "pocket",
+            "tool_id": "EM0.80",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.40 mm",
+            "seconds": 143.4,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D13.80",
+            "operation": "pocket",
+            "tool_id": "EM0.80",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.40 mm",
+            "seconds": 1121.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D18.80",
+            "operation": "pocket",
+            "tool_id": "EM0.80",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.40 mm",
+            "seconds": 4190.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D2.90_D0.80_START18.80",
+            "operation": "drill",
+            "tool_id": "EM1.00",
+            "kind": "bore",
+            "note": "bore with End Mill 1.00 mm (no drill in this plan)",
+            "seconds": 18.5,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 2661.2,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "D"
+      }
+    ],
+    "error": null,
+    "chosen": "A"
+  }
+}

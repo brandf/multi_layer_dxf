@@ -29,6 +29,7 @@
     "gap_mm": 10.0,
     "web_min_mm": 5.0,
     "pin_clearance_mm": 3.0,
+    "profile_tools_from": "plan A",
     "check": "verified against plan A (profile tools P01_P01 12.70 mm, P02_P02 12.70 mm)"
   },
   "suggested_material": {

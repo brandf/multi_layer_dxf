@@ -1,6 +1,43 @@
 {
   "source_step": "test/container.step",
   "units": "mm",
+  "material": null,
+  "clamp_margin_mm": 20.0,
+  "usable_area_mm": null,
+  "layout": [
+    {
+      "name": "P01_P01",
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "w_mm": 100.0,
+      "d_mm": 100.0,
+      "rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7
+    },
+    {
+      "name": "P02_P02",
+      "x_mm": 130.4,
+      "y_mm": 0.0,
+      "w_mm": 100.0,
+      "d_mm": 100.0,
+      "rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7
+    }
+  ],
+  "spacing": {
+    "rule": "max(gap_mm, D_A + D_B + web_min_mm)",
+    "gap_mm": 10.0,
+    "web_min_mm": 5.0,
+    "pin_clearance_mm": 3.0,
+    "profile_tools_from": "plan A",
+    "check": "verified against plan A (profile tools P01_P01 12.70 mm, P02_P02 12.70 mm)"
+  },
+  "suggested_material": {
+    "x": 280,
+    "y": 140,
+    "thickness": 12
+  },
+  "registration_pins": null,
   "parts": [
     {
       "name": "P01_P01",
@@ -8,6 +45,15 @@
       "flip_x": false,
       "flip_y": false,
       "rotate_z_deg": 0.0,
+      "pack_rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7,
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "footprint_mm": [
+        100.0,
+        100.0
+      ],
+      "height_mm": 12.0,
       "stock": {
         "x_min": 0.0,
         "y_min": 0.0,
@@ -90,20 +136,86 @@
         }
       ],
       "pocket_count": 1,
-      "auto_orientation": {
-        "axis": "Z",
-        "axis_share": 1.0,
-        "axis_scores": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 21802.7
-        },
-        "dominant": true,
-        "up_area_mm2": 2827.4,
-        "down_area_mm2": 0.0,
-        "flip": false,
-        "ambiguous": false,
-        "notes": []
+      "orientation_search": {
+        "best": "+Z",
+        "best_score": 4.07,
+        "ranked": [
+          {
+            "orientation": "+Z",
+            "score": 4.07,
+            "layers": 3,
+            "flags": 0,
+            "cut_minutes": 4.07,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {}
+          },
+          {
+            "orientation": "-Z",
+            "score": 33.44,
+            "layers": 2,
+            "flags": 1,
+            "cut_minutes": 3.44,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 1,
+            "flip": true,
+            "post": {}
+          },
+          {
+            "orientation": "+X",
+            "score": 110.0,
+            "layers": 0,
+            "flags": 11,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 10
+            }
+          },
+          {
+            "orientation": "-X",
+            "score": 110.0,
+            "layers": 0,
+            "flags": 11,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 10
+            }
+          },
+          {
+            "orientation": "+Y",
+            "score": 110.0,
+            "layers": 0,
+            "flags": 11,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 10
+            }
+          },
+          {
+            "orientation": "-Y",
+            "score": 110.0,
+            "layers": 0,
+            "flags": 11,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 10
+            }
+          }
+        ],
+        "pruned": []
       }
     },
     {
@@ -112,10 +224,19 @@
       "flip_x": false,
       "flip_y": false,
       "rotate_z_deg": 0.0,
+      "pack_rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7,
+      "x_mm": 130.4,
+      "y_mm": 0.0,
+      "footprint_mm": [
+        100.0,
+        100.0
+      ],
+      "height_mm": 10.0,
       "stock": {
-        "x_min": 110.0,
+        "x_min": 130.4,
         "y_min": 0.0,
-        "x_max": 210.0,
+        "x_max": 230.4,
         "y_max": 100.0,
         "z_min": -0.0,
         "z_max": 10.0,
@@ -128,22 +249,86 @@
       ],
       "holes": [],
       "pocket_count": 1,
-      "auto_orientation": {
-        "axis": "Z",
-        "axis_share": 1.0,
-        "axis_scores": {
-          "X": 0.0,
-          "Y": 0.0,
-          "Z": 19792.0
-        },
-        "dominant": true,
-        "up_area_mm2": 0.0,
-        "down_area_mm2": 2827.4,
-        "flip": true,
-        "ambiguous": false,
-        "notes": [
-          "flipped: -Z side has the openings (2827 mm2 vs 0 mm2)"
-        ]
+      "orientation_search": {
+        "best": "-Z",
+        "best_score": 1.29,
+        "ranked": [
+          {
+            "orientation": "-Z",
+            "score": 1.29,
+            "layers": 2,
+            "flags": 0,
+            "cut_minutes": 1.29,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {}
+          },
+          {
+            "orientation": "+Z",
+            "score": 30.77,
+            "layers": 1,
+            "flags": 1,
+            "cut_minutes": 0.77,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 1,
+            "flip": true,
+            "post": {}
+          },
+          {
+            "orientation": "+X",
+            "score": 70.0,
+            "layers": 0,
+            "flags": 3,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 2
+            }
+          },
+          {
+            "orientation": "-X",
+            "score": 70.0,
+            "layers": 0,
+            "flags": 3,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 2
+            }
+          },
+          {
+            "orientation": "+Y",
+            "score": 70.0,
+            "layers": 0,
+            "flags": 3,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 2
+            }
+          },
+          {
+            "orientation": "-Y",
+            "score": 70.0,
+            "layers": 0,
+            "flags": 3,
+            "cut_minutes": 0.0,
+            "holes_not_from_top": 0,
+            "pockets_not_from_top": 0,
+            "flip": false,
+            "post": {
+              "decision_needed": 2
+            }
+          }
+        ],
+        "pruned": []
       }
     }
   ],
@@ -207,7 +392,9 @@
       "est": {
         "area_mm2": 2700.0,
         "min_width_mm": 60.0,
-        "depth_mm": 6.0
+        "depth_mm": 6.0,
+        "perimeter_mm": 188.496,
+        "corner_radius_mm": 30.0
       },
       "part": "P01_P01"
     },
@@ -222,7 +409,9 @@
       "est": {
         "area_mm2": 2700.0,
         "min_width_mm": 60.0,
-        "depth_mm": 5.0
+        "depth_mm": 5.0,
+        "perimeter_mm": 188.496,
+        "corner_radius_mm": 30.0
       },
       "part": "P02_P02"
     },
@@ -260,6 +449,9 @@
   "tool_plan": {
     "plans": [
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 321.5,
         "cutting_seconds": 201.5,
         "tool_changes": 1,
@@ -299,6 +491,7 @@
             "kind": "drill",
             "note": "drill",
             "seconds": 40.8,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -308,6 +501,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 37.4,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -317,6 +511,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 31.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -326,6 +521,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -339,6 +535,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -349,6 +546,9 @@
         "id": "A"
       },
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 343.2,
         "cutting_seconds": 223.2,
         "tool_changes": 1,
@@ -388,6 +588,7 @@
             "kind": "drill",
             "note": "drill",
             "seconds": 40.8,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -397,6 +598,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 49.2,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -406,6 +608,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 41.4,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -415,6 +618,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -428,6 +632,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -438,6 +643,9 @@
         "id": "B"
       },
       {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
         "total_seconds": 366.2,
         "cutting_seconds": 246.2,
         "tool_changes": 1,
@@ -476,6 +684,7 @@
             "kind": "bore",
             "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
             "seconds": 85.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -485,6 +694,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 37.4,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -494,6 +704,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 31.5,
+            "allowance_mm": 0.0,
             "tabs": null
           },
           {
@@ -503,6 +714,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,
@@ -516,6 +728,7 @@
             "kind": "endmill",
             "note": "largest endmill that fits",
             "seconds": 45.9,
+            "allowance_mm": 0.0,
             "tabs": {
               "count": 4,
               "length_mm": 5.0,

@@ -270,7 +270,12 @@ the recommendation plus fallback plans:
   an endmill bore (largest standard endmill that fits inside the
   hole) as fallback. Pockets get the largest standard endmill that
   fits the narrowest spot; profiles get the largest that fits (outer
-  profiles take any size, slots must fit the slot).
+  profiles take any size, slots must fit the slot). An endmill fits
+  a pocket/slot when dia <= min_width - clearance, where clearance
+  = min(0.5 mm, half the tool diameter) (BRA-22, 2026-11-09): a
+  0.50 mm endmill fits a pocket 0.75 mm wide, while every tool
+  >= 1.0 mm behaves exactly as under the old flat 0.5 mm rule —
+  the change only affects pockets in [0.75, 1.0) and [1.2, 1.3) mm.
 - **Plans, not one answer:** a plan is a tool set (endmills + per
   hole-diameter drill-or-bore). Total time = estimated cutting time
   (MRR model — volume/(feed·stepover·stepdown) for pockets,
@@ -593,6 +598,19 @@ Kookabus moved with the fix (20 layers / 191 flags, was 29 /
 removed, 5 through-cuts and 21 post-process items that were
 hidden behind those pockets now visible — the old numbers
 were wrong, not a regression.
+
+BRA-22 (2026-11-09, Brandon's decision: option 2) made the
+fit-rule clearance proportional to the tool instead of a flat
+0.5 mm — `toolplan._fits` now uses clearance = min(0.5, 0.5 ×
+tool diameter), capped so tools >= 1.0 mm behave exactly as
+before. The Kookabus merged job now has a plan (Plan A EM 1/2 in
++ EM 0.50 mm, 2 changes, 212.1 min — the 0.913 mm groove is cut
+by the 0.50 mm endmill); 20 layers / 190 flags (was 191 — only
+the TOOL PLAN flag is gone); spacing packs from plan A. Every
+other section-4 number is unchanged — the rule only affects
+pockets in [0.75, 1.0) and [1.2, 1.3) mm, and the Kookabus
+groove is the only such pocket in the suite (verified by the
+full regression re-run).
 
 ## Beveled STEP in, prismatic blank + post-processing plan out (built 2026-11-08)
 

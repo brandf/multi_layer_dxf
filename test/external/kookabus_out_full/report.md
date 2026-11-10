@@ -1,13 +1,42 @@
 # kookabus-03-enclosure — multi-part VCarve report
 
 Material: none given — suggested 480 x 150 x 22 mm (packed layout + 20 mm clamp margin, rounded up to 10 mm).
-Spacing (BRA-16 tool rule): gaps are max(10.0 mm, D_A + D_B + 5.0 mm web); profile tools: P01_P01 12.70 mm, P02_P02 12.70 mm, P03_P03 12.70 mm.
+Spacing (BRA-16 tool rule, BRA-20 plan-aware): gaps are max(10.0 mm, D_A + D_B + 5.0 mm web); profile tools from plan A: P01_P01 12.70 mm, P02_P02 12.70 mm, P03_P03 12.70 mm. verified against plan A (profile tools P01_P01 12.70 mm, P02_P02 12.70 mm, P03_P03 12.70 mm).
 - P01_P01: stock 139.0 x 105.5 x 21.8 mm, flip_x=False rot_z=0.0, layers 8, at (0.0, 0.0)
 - P02_P02: stock 139.0 x 105.5 x 11.9 mm, flip_x=False rot_z=0.0, layers 7, at (169.4, 0.0)
 - P03_P03: stock 100.0 x 64.0 x 9.0 mm, flip_x=False rot_z=0.0, layers 5, at (338.8, 0.0)
 
 Tool plan (recommendations from standard sizes — review against your VCarve library):
-Tool plan: none — no standard tool fits: P02_P02__POCKET_D0.60 (pocket only 0.91 mm wide — smallest standard endmill is 0.50 mm)
+Tool plan A (chosen, fastest estimate): 2 tool(s), 2 manual change(s), est 212.1 min total (cutting 208.1 + changes 4.0). Times are estimates, not promises.
+- T1: End Mill 1/2 in (12.70 mm) — feed 30.0 mm/s, plunge 10.0 mm/s, 20000 rpm, stepdown 3.0 mm, stepover 5.08 mm
+- T2: End Mill 0.50 mm — feed 8.0 mm/s, plunge 2.67 mm/s, 20000 rpm, stepdown 0.25 mm, stepover 0.2 mm
+Cut order (tool changes marked):
+- P01_P01__POCKET_D18.80 (pocket, endmill): est 543 s — largest endmill that fits
+  — change to T2 (End Mill 0.50 mm) —
+- P01_P01__DRILL_D2.90_D0.80_START18.80 (drill, bore): est 32 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P02_P02__DRILL_D3.40_THRU (drill, bore): est 138 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P03_P03__DRILL_D3.40_D0.40 (drill, bore): est 13 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P03_P03__DRILL_D5.00_D3.00 (drill, bore): est 76 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P01_P01__POCKET_D11.30 (pocket, endmill): est 1520 s — largest endmill that fits
+- P01_P01__POCKET_D12.20 (pocket, endmill): est 642 s — largest endmill that fits
+- P01_P01__POCKET_D13.80 (pocket, endmill): est 6712 s — largest endmill that fits
+- P01_P01__POCKET_D2.40 (pocket, endmill): est 234 s — largest endmill that fits
+- P01_P01__POCKET_D9.70 (pocket, endmill): est 329 s — largest endmill that fits
+- P02_P02__POCKET_D0.60 (pocket, endmill): est 32 s — largest endmill that fits
+- P02_P02__DRILL_D2.60_D1.40_START0.60 (drill, bore): est 14 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P02_P02__DRILL_D4.40_D1.40_START0.60 (drill, bore): est 11 s — bore with End Mill 0.50 mm (no drill in this plan)
+- P02_P02__POCKET_D2.80 (pocket, endmill): est 249 s — largest endmill that fits
+- P03_P03__POCKET_D4.20 (pocket, endmill): est 676 s — largest endmill that fits
+- P02_P02__THROUGH_CUT (profile, endmill): est 548 s — largest endmill that fits — tabs x3 (5.0 x 1.0 mm)
+- P03_P03__THROUGH_CUT (profile, endmill): est 477 s — largest endmill that fits — tabs x3 (5.0 x 1.0 mm)
+  — change to T1 (End Mill 1/2 in (12.70 mm)) —
+- P01_P01__PROFILE_THRU (profile, endmill): est 135 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
+- P02_P02__PROFILE_THRU (profile, endmill): est 69 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
+- P03_P03__PROFILE_THRU (profile, endmill): est 35 s — largest endmill that fits — tabs x4 (5.0 x 1.0 mm)
+Fallback plans (same DXF, run manifest_plan_<id>.txt instead):
+- Plan B: 2 tool(s), 2 change(s), est 215.1 min — T1 End Mill 3/8 in (9.53 mm), T2 End Mill 0.50 mm
+- Plan C: 7 tool(s), 8 change(s), est 219.8 min — T1 Drill 5.00 mm, T2 End Mill 1/2 in (12.70 mm), T3 Drill 2.90 mm, T4 Drill 3.40 mm, T5 End Mill 0.50 mm, T6 Drill 2.60 mm, T7 Drill 4.40 mm
+Review the tools against your VCarve library before cutting — the gadget asks you to pick each one from the library, or uses the recommendation above if you cancel.
 
 Flags — read before cutting:
 - [P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,4.00) r=1.00 span=90deg Z 3.00..21.80
@@ -200,4 +229,3 @@ Flags — read before cutting:
 - [P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,56.6), Z 7.30 — No automatic call — decide CNC vs post-process by hand for this feature.
 - [P03_P03] POST-PROCESS [cnc_3d]: chamfer 45 deg, 1.50 mm tall at pocket floor (Z 4.80) — Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) — a router table cannot reach it.
 - [P03_P03] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT — verify it is not a pocket opening
-- TOOL PLAN: no standard tool fits: P02_P02__POCKET_D0.60 (pocket only 0.91 mm wide — smallest standard endmill is 0.50 mm) — no tool recommendations; gadget falls back to its TOOLS table

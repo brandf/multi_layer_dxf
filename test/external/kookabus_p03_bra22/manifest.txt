@@ -1,0 +1,12 @@
+# dxf: P03_P03.dxf
+# plan: A — 3 tool(s), 2 change(s), est 9.9 min (cutting 5.9 + changes 4.0)
+# tool: D3.40|drill|3.4000|1|5.1|5.1|20000|1.7|0.0
+# tool: EM1.00|endmill|1.0000|2|8.0|2.67|20000|0.5|0.4
+# tool: EM3.17|endmill|3.1750|3|15.88|5.29|20000|1.587|1.27
+# tabs: THROUGH_CUT|3|5.0|1.0
+# tabs: PROFILE_THRU|4|5.0|1.0
+DRILL_D3.40_D0.40|drill|0.000|0.400||D3.40|0.0|drill
+POCKET_D4.20|pocket|0.000|4.200||EM1.00|0.0|endmill
+DRILL_D5.00_D3.00|drill|0.000|3.000||EM3.17|0.0|bore
+THROUGH_CUT|profile|0.000|9.000||EM3.17|0.0|endmill
+PROFILE_THRU|profile|0.000|9.000||EM3.17|0.0|endmill
