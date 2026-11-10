@@ -1,0 +1,795 @@
+{
+  "source_step": "test/external/kookabus_out_full/parts/P03_P03.step",
+  "units": "mm",
+  "material": null,
+  "suggested_material": {
+    "x": 100,
+    "y": 70,
+    "thickness": 9
+  },
+  "stock": {
+    "x_min": 338.8,
+    "y_min": 0.0,
+    "x_max": 438.8,
+    "y_max": 64.0,
+    "z_min": 0.0,
+    "z_max": 9.0,
+    "thickness": 9.0
+  },
+  "z_top": 9.0,
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "layers": [
+    {
+      "layer": "DRILL_D3.40_D0.40",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 0.4,
+      "segment_count": 4,
+      "centres": [
+        [
+          344.8,
+          6.0
+        ],
+        [
+          344.8,
+          58.0
+        ],
+        [
+          432.8,
+          6.0
+        ],
+        [
+          432.8,
+          58.0
+        ]
+      ],
+      "diameter": 3.4,
+      "est": {
+        "hole_count": 4,
+        "hole_dia_mm": 3.4,
+        "depth_mm": 0.4
+      }
+    },
+    {
+      "layer": "POCKET_D4.20",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 4.2,
+      "segment_count": 8,
+      "floor_z": 4.8,
+      "depth_total": 4.2,
+      "est": {
+        "area_mm2": 62.782,
+        "min_width_mm": 1.5,
+        "depth_mm": 4.2,
+        "perimeter_mm": 90.0,
+        "corner_radius_mm": 0.0
+      }
+    },
+    {
+      "layer": "DRILL_D5.00_D3.00",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 3.0,
+      "segment_count": 3,
+      "centres": [
+        [
+          351.8,
+          42.75
+        ],
+        [
+          352.55,
+          57.15
+        ],
+        [
+          425.05,
+          57.15
+        ]
+      ],
+      "diameter": 5.0,
+      "est": {
+        "hole_count": 3,
+        "hole_dia_mm": 5.0,
+        "depth_mm": 3.0
+      }
+    },
+    {
+      "layer": "THROUGH_CUT",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 9.0,
+      "segment_count": 8,
+      "est": {
+        "perimeter_mm": 98.0,
+        "min_width_mm": 4.6,
+        "depth_mm": 9.0
+      }
+    },
+    {
+      "layer": "PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 9.0,
+      "segment_count": 8,
+      "est": {
+        "perimeter_mm": 321.133,
+        "depth_mm": 9.0
+      }
+    }
+  ],
+  "holes": [
+    {
+      "cx": 344.8,
+      "cy": 6.0,
+      "dia": 3.4,
+      "z0": 8.6,
+      "z1": 9.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 344.8,
+      "cy": 58.0,
+      "dia": 3.4,
+      "z0": 8.6,
+      "z1": 9.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 351.8,
+      "cy": 42.75,
+      "dia": 5.0,
+      "z0": 6.0,
+      "z1": 9.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 352.55,
+      "cy": 57.15,
+      "dia": 5.0,
+      "z0": 6.0,
+      "z1": 9.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 425.05,
+      "cy": 57.15,
+      "dia": 5.0,
+      "z0": 6.0,
+      "z1": 9.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 432.8,
+      "cy": 6.0,
+      "dia": 3.4,
+      "z0": 8.6,
+      "z1": 9.0,
+      "kind": "blind_top"
+    },
+    {
+      "cx": 432.8,
+      "cy": 58.0,
+      "dia": 3.4,
+      "z0": 8.6,
+      "z1": 9.0,
+      "kind": "blind_top"
+    }
+  ],
+  "pocket_count": 2,
+  "post_process": [
+    {
+      "feature": "chamfer",
+      "location": "face at (342.3,7.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (347.3,7.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (342.3,4.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (347.3,4.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (430.3,7.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (435.3,7.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (430.3,4.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (435.3,4.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (342.3,59.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (347.3,59.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (342.3,56.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (347.3,56.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (430.3,59.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (435.3,59.4), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (430.3,56.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "face at (435.3,56.6), Z 7.30",
+      "params": "90 deg, 2.60 mm tall",
+      "method": "decision_needed",
+      "tool": "chamfer bit 90 deg",
+      "step": "No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+      "cnc_alternative": null
+    },
+    {
+      "feature": "chamfer",
+      "location": "pocket floor (Z 4.80)",
+      "params": "45 deg, 1.50 mm tall",
+      "method": "cnc_3d",
+      "tool": "chamfer bit 45 deg",
+      "step": "Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+      "cnc_alternative": null
+    }
+  ],
+  "flags": [
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (342.80,4.00) r=4.00 span=90deg Z 6.00..9.00",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (342.80,60.00) r=4.00 span=90deg Z 6.00..9.00",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (434.80,4.00) r=4.00 span=90deg Z 6.00..9.00",
+    "PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (434.80,60.00) r=4.00 span=90deg Z 6.00..9.00",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 3.30, depth 3.30 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 6.00, depth 6.00 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "PROFILE OUTLINE DIFFERS top vs bottom by 99% (top 6386 mm2, bottom 69 mm2) \u2014 profile taken from Z 6.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "POST-PROCESS [cnc_3d]: chamfer 45 deg, 1.50 mm tall at pocket floor (Z 4.80) \u2014 Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+    "THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening"
+  ],
+  "tool_plan": {
+    "plans": [
+      {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
+        "total_seconds": 595.6,
+        "cutting_seconds": 355.6,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "D3.40",
+            "kind": "drill",
+            "dia_mm": 3.4,
+            "name": "Drill 3.40 mm",
+            "feed_mm_s": 5.1,
+            "plunge_mm_s": 5.1,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 1.7,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 2
+          },
+          {
+            "id": "EM3.17",
+            "kind": "endmill",
+            "dia_mm": 3.175,
+            "name": "End Mill 1/8 in (3.17 mm)",
+            "feed_mm_s": 15.88,
+            "plunge_mm_s": 5.29,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 1.587,
+            "stepover_mm": 1.27,
+            "tool_number": 3
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D3.40_D0.40",
+            "operation": "drill",
+            "tool_id": "D3.40",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 2.3,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D4.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 173.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D5.00_D3.00",
+            "operation": "drill",
+            "tool_id": "EM3.17",
+            "kind": "bore",
+            "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
+            "seconds": 9.1,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM3.17",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 43.0,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 3,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM3.17",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 127.3,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "A"
+      },
+      {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
+        "total_seconds": 597.1,
+        "cutting_seconds": 357.1,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "D5.00",
+            "kind": "drill",
+            "dia_mm": 5.0,
+            "name": "Drill 5.00 mm",
+            "feed_mm_s": 7.5,
+            "plunge_mm_s": 7.5,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 2.5,
+            "stepover_mm": 0.0,
+            "peck": true,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 2
+          },
+          {
+            "id": "EM3.17",
+            "kind": "endmill",
+            "dia_mm": 3.175,
+            "name": "End Mill 1/8 in (3.17 mm)",
+            "feed_mm_s": 15.88,
+            "plunge_mm_s": 5.29,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 1.587,
+            "stepover_mm": 1.27,
+            "tool_number": 3
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D5.00_D3.00",
+            "operation": "drill",
+            "tool_id": "D5.00",
+            "kind": "drill",
+            "note": "drill",
+            "seconds": 4.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D3.40_D0.40",
+            "operation": "drill",
+            "tool_id": "EM1.00",
+            "kind": "bore",
+            "note": "bore with End Mill 1.00 mm (no drill in this plan)",
+            "seconds": 7.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D4.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 173.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM3.17",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 43.0,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 3,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM3.17",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 127.3,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "B"
+      },
+      {
+        "variant": "single",
+        "finish_pockets": 0,
+        "dependency_warnings": [],
+        "total_seconds": 601.2,
+        "cutting_seconds": 361.2,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "EM3.17",
+            "kind": "endmill",
+            "dia_mm": 3.175,
+            "name": "End Mill 1/8 in (3.17 mm)",
+            "feed_mm_s": 15.88,
+            "plunge_mm_s": 5.29,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 1.587,
+            "stepover_mm": 1.27,
+            "tool_number": 1
+          },
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D5.00_D3.00",
+            "operation": "drill",
+            "tool_id": "EM3.17",
+            "kind": "bore",
+            "note": "bore with End Mill 1/8 in (3.17 mm) (no drill in this plan)",
+            "seconds": 9.1,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D3.40_D0.40",
+            "operation": "drill",
+            "tool_id": "EM1.00",
+            "kind": "bore",
+            "note": "bore with End Mill 1.00 mm (no drill in this plan)",
+            "seconds": 7.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D4.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 173.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM3.17",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 43.0,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 3,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM3.17",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 127.3,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "C"
+      },
+      {
+        "variant": "finish",
+        "finish_pockets": 1,
+        "dependency_warnings": [],
+        "total_seconds": 1457.6,
+        "cutting_seconds": 1217.6,
+        "tool_changes": 2,
+        "change_seconds": 240.0,
+        "tools": [
+          {
+            "id": "EM1.00",
+            "kind": "endmill",
+            "dia_mm": 1.0,
+            "name": "End Mill 1.00 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.5,
+            "stepover_mm": 0.4,
+            "tool_number": 1
+          },
+          {
+            "id": "EM0.80",
+            "kind": "endmill",
+            "dia_mm": 0.8,
+            "name": "End Mill 0.80 mm",
+            "feed_mm_s": 8.0,
+            "plunge_mm_s": 2.67,
+            "spindle_rpm": 20000,
+            "stepdown_mm": 0.4,
+            "stepover_mm": 0.32,
+            "tool_number": 2
+          }
+        ],
+        "layers": [
+          {
+            "layer": "DRILL_D3.40_D0.40",
+            "operation": "drill",
+            "tool_id": "EM1.00",
+            "kind": "bore",
+            "note": "bore with End Mill 1.00 mm (no drill in this plan)",
+            "seconds": 7.9,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "DRILL_D5.00_D3.00",
+            "operation": "drill",
+            "tool_id": "EM1.00",
+            "kind": "bore",
+            "note": "bore with End Mill 1.00 mm (no drill in this plan)",
+            "seconds": 40.2,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D4.20",
+            "operation": "pocket",
+            "tool_id": "EM1.00",
+            "kind": "rough",
+            "note": "rough, 0.5 mm wall allowance (corners left R0.50 mm)",
+            "seconds": 55.7,
+            "allowance_mm": 0.5,
+            "tabs": null
+          },
+          {
+            "layer": "POCKET_D4.20",
+            "operation": "pocket",
+            "tool_id": "EM0.80",
+            "kind": "finish",
+            "note": "finish pass \u2014 corners to R0.40 mm",
+            "seconds": 134.8,
+            "allowance_mm": 0.0,
+            "tabs": null
+          },
+          {
+            "layer": "THROUGH_CUT",
+            "operation": "profile",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 238.5,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 3,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          },
+          {
+            "layer": "PROFILE_THRU",
+            "operation": "profile",
+            "tool_id": "EM1.00",
+            "kind": "endmill",
+            "note": "largest endmill that fits",
+            "seconds": 740.5,
+            "allowance_mm": 0.0,
+            "tabs": {
+              "count": 4,
+              "length_mm": 5.0,
+              "thickness_mm": 1.0
+            }
+          }
+        ],
+        "id": "D"
+      }
+    ],
+    "error": null,
+    "chosen": "A"
+  }
+}

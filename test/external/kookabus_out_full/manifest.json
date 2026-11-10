@@ -1,0 +1,994 @@
+{
+  "source_step": "test/external/kookabus-03-enclosure.step",
+  "units": "mm",
+  "material": null,
+  "clamp_margin_mm": 20.0,
+  "usable_area_mm": null,
+  "layout": [
+    {
+      "name": "P01_P01",
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "w_mm": 139.0,
+      "d_mm": 105.5,
+      "rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7
+    },
+    {
+      "name": "P02_P02",
+      "x_mm": 169.4,
+      "y_mm": 0.0,
+      "w_mm": 139.0,
+      "d_mm": 105.5,
+      "rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7
+    },
+    {
+      "name": "P03_P03",
+      "x_mm": 338.8,
+      "y_mm": 0.0,
+      "w_mm": 100.0,
+      "d_mm": 64.0,
+      "rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7
+    }
+  ],
+  "spacing": {
+    "rule": "max(gap_mm, D_A + D_B + web_min_mm)",
+    "gap_mm": 10.0,
+    "web_min_mm": 5.0,
+    "pin_clearance_mm": 3.0,
+    "check": null
+  },
+  "suggested_material": {
+    "x": 480,
+    "y": 150,
+    "thickness": 22
+  },
+  "registration_pins": null,
+  "parts": [
+    {
+      "name": "P01_P01",
+      "label": "P01",
+      "flip_x": false,
+      "flip_y": false,
+      "rotate_z_deg": 0.0,
+      "pack_rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7,
+      "x_mm": 0.0,
+      "y_mm": 0.0,
+      "footprint_mm": [
+        139.0,
+        105.5
+      ],
+      "height_mm": 21.8,
+      "stock": {
+        "x_min": 0.0,
+        "y_min": 0.0,
+        "x_max": 139.0,
+        "y_max": 105.5,
+        "z_min": 0.0,
+        "z_max": 21.8,
+        "thickness": 21.8
+      },
+      "z_top": 21.8,
+      "layers": [
+        "POCKET_D11.30",
+        "POCKET_D12.20",
+        "POCKET_D13.80",
+        "POCKET_D18.80",
+        "DRILL_D2.90_D0.80_START18.80",
+        "POCKET_D2.40",
+        "POCKET_D9.70",
+        "PROFILE_THRU"
+      ],
+      "holes": [
+        {
+          "cx": 25.5,
+          "cy": 26.75,
+          "dia": 3.4,
+          "z0": 2.22044604925e-16,
+          "z1": 1.4500000000000004,
+          "kind": "blind_bottom"
+        },
+        {
+          "cx": 25.5,
+          "cy": 78.75,
+          "dia": 3.4,
+          "z0": 2.22044604925e-16,
+          "z1": 1.4500000000000004,
+          "kind": "blind_bottom"
+        },
+        {
+          "cx": 32.5,
+          "cy": 6.5,
+          "dia": 2.9,
+          "z0": 2.2,
+          "z1": 3.0,
+          "kind": "internal"
+        },
+        {
+          "cx": 32.5,
+          "cy": 63.5,
+          "dia": 2.9,
+          "z0": 2.2,
+          "z1": 3.0,
+          "kind": "internal"
+        },
+        {
+          "cx": 33.25,
+          "cy": 77.9,
+          "dia": 2.9,
+          "z0": 2.2,
+          "z1": 3.0,
+          "kind": "internal"
+        },
+        {
+          "cx": 33.25,
+          "cy": 93.2,
+          "dia": 2.9,
+          "z0": 2.2,
+          "z1": 3.0,
+          "kind": "internal"
+        },
+        {
+          "cx": 91.0,
+          "cy": 13.5,
+          "dia": 4.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        },
+        {
+          "cx": 91.0,
+          "cy": 13.5,
+          "dia": 7.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        },
+        {
+          "cx": 91.0,
+          "cy": 56.5,
+          "dia": 4.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        },
+        {
+          "cx": 91.0,
+          "cy": 56.5,
+          "dia": 7.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        },
+        {
+          "cx": 105.75,
+          "cy": 77.9,
+          "dia": 2.9,
+          "z0": 2.2,
+          "z1": 3.0,
+          "kind": "internal"
+        },
+        {
+          "cx": 105.75,
+          "cy": 93.2,
+          "dia": 2.9,
+          "z0": 2.2,
+          "z1": 3.0,
+          "kind": "internal"
+        },
+        {
+          "cx": 113.5,
+          "cy": 26.75,
+          "dia": 3.4,
+          "z0": 2.22044604925e-16,
+          "z1": 1.4500000000000004,
+          "kind": "blind_bottom"
+        },
+        {
+          "cx": 113.5,
+          "cy": 78.75,
+          "dia": 3.4,
+          "z0": 2.22044604925e-16,
+          "z1": 1.4500000000000004,
+          "kind": "blind_bottom"
+        },
+        {
+          "cx": 132.0,
+          "cy": 13.5,
+          "dia": 4.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        },
+        {
+          "cx": 132.0,
+          "cy": 13.5,
+          "dia": 7.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        },
+        {
+          "cx": 132.0,
+          "cy": 56.5,
+          "dia": 4.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        },
+        {
+          "cx": 132.0,
+          "cy": 56.5,
+          "dia": 7.0,
+          "z0": 3.0,
+          "z1": 10.2,
+          "kind": "internal"
+        }
+      ],
+      "pocket_count": 7
+    },
+    {
+      "name": "P02_P02",
+      "label": "P02",
+      "flip_x": false,
+      "flip_y": false,
+      "rotate_z_deg": 0.0,
+      "pack_rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7,
+      "x_mm": 169.4,
+      "y_mm": 0.0,
+      "footprint_mm": [
+        139.0,
+        105.5
+      ],
+      "height_mm": 11.9,
+      "stock": {
+        "x_min": 169.4,
+        "y_min": 0.0,
+        "x_max": 308.4,
+        "y_max": 105.5,
+        "z_min": 0.0,
+        "z_max": 11.9,
+        "thickness": 11.9
+      },
+      "z_top": 11.9,
+      "layers": [
+        "DRILL_D3.40_THRU",
+        "POCKET_D0.60",
+        "DRILL_D2.60_D1.40_START0.60",
+        "DRILL_D4.40_D1.40_START0.60",
+        "POCKET_D2.80",
+        "PROFILE_THRU",
+        "THROUGH_CUT"
+      ],
+      "holes": [
+        {
+          "cx": 288.9,
+          "cy": 54.5,
+          "dia": 4.4,
+          "z0": 9.9,
+          "z1": 11.299999999999999,
+          "kind": "internal"
+        },
+        {
+          "cx": 294.9,
+          "cy": 44.5,
+          "dia": 2.6,
+          "z0": 9.9,
+          "z1": 11.299999999999999,
+          "kind": "internal"
+        },
+        {
+          "cx": 294.9,
+          "cy": 48.5,
+          "dia": 2.6,
+          "z0": 9.9,
+          "z1": 11.299999999999999,
+          "kind": "internal"
+        },
+        {
+          "cx": 301.4,
+          "cy": 13.5,
+          "dia": 3.4,
+          "z0": 0.0,
+          "z1": 11.9000001,
+          "kind": "thru"
+        },
+        {
+          "cx": 301.4,
+          "cy": 56.5,
+          "dia": 3.4,
+          "z0": 0.0,
+          "z1": 11.9000001,
+          "kind": "thru"
+        }
+      ],
+      "pocket_count": 54
+    },
+    {
+      "name": "P03_P03",
+      "label": "P03",
+      "flip_x": false,
+      "flip_y": false,
+      "rotate_z_deg": 0.0,
+      "pack_rotate_z_deg": 0,
+      "profile_tool_dia_mm": 12.7,
+      "x_mm": 338.8,
+      "y_mm": 0.0,
+      "footprint_mm": [
+        100.0,
+        64.0
+      ],
+      "height_mm": 9.0,
+      "stock": {
+        "x_min": 338.8,
+        "y_min": 0.0,
+        "x_max": 438.8,
+        "y_max": 64.0,
+        "z_min": 0.0,
+        "z_max": 9.0,
+        "thickness": 9.0
+      },
+      "z_top": 9.0,
+      "layers": [
+        "DRILL_D3.40_D0.40",
+        "DRILL_D5.00_D3.00",
+        "POCKET_D4.20",
+        "PROFILE_THRU",
+        "THROUGH_CUT"
+      ],
+      "holes": [
+        {
+          "cx": 344.8,
+          "cy": 6.0,
+          "dia": 3.4,
+          "z0": 8.6,
+          "z1": 9.0,
+          "kind": "blind_top"
+        },
+        {
+          "cx": 344.8,
+          "cy": 58.0,
+          "dia": 3.4,
+          "z0": 8.6,
+          "z1": 9.0,
+          "kind": "blind_top"
+        },
+        {
+          "cx": 351.8,
+          "cy": 42.75,
+          "dia": 5.0,
+          "z0": 6.0,
+          "z1": 9.0,
+          "kind": "blind_top"
+        },
+        {
+          "cx": 352.55,
+          "cy": 57.15,
+          "dia": 5.0,
+          "z0": 6.0,
+          "z1": 9.0,
+          "kind": "blind_top"
+        },
+        {
+          "cx": 425.05,
+          "cy": 57.15,
+          "dia": 5.0,
+          "z0": 6.0,
+          "z1": 9.0,
+          "kind": "blind_top"
+        },
+        {
+          "cx": 432.8,
+          "cy": 6.0,
+          "dia": 3.4,
+          "z0": 8.6,
+          "z1": 9.0,
+          "kind": "blind_top"
+        },
+        {
+          "cx": 432.8,
+          "cy": 58.0,
+          "dia": 3.4,
+          "z0": 8.6,
+          "z1": 9.0,
+          "kind": "blind_top"
+        }
+      ],
+      "pocket_count": 2
+    }
+  ],
+  "layers": [
+    {
+      "layer": "P01_P01__POCKET_D11.30",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 11.3,
+      "segment_count": 4,
+      "floor_z": 10.5,
+      "depth_total": 11.3,
+      "est": {
+        "area_mm2": 52.168,
+        "min_width_mm": 3.0,
+        "depth_mm": 11.3,
+        "perimeter_mm": 40.9,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P01_P01__POCKET_D12.20",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 12.2,
+      "segment_count": 4,
+      "floor_z": 9.6,
+      "depth_total": 12.2,
+      "est": {
+        "area_mm2": 19.432,
+        "min_width_mm": 1.5,
+        "depth_mm": 12.2,
+        "perimeter_mm": 29.0,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P01_P01__POCKET_D13.80",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 13.8,
+      "segment_count": 8,
+      "floor_z": 8.0,
+      "depth_total": 13.8,
+      "est": {
+        "area_mm2": 192.928,
+        "min_width_mm": 1.6,
+        "depth_mm": 13.8,
+        "perimeter_mm": 248.4,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P01_P01__POCKET_D18.80",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 18.8,
+      "segment_count": 16,
+      "floor_z": 3.0,
+      "depth_total": 18.8,
+      "est": {
+        "area_mm2": 13032.435,
+        "min_width_mm": 99.5,
+        "depth_mm": 18.8,
+        "perimeter_mm": 705.283,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P01_P01__DRILL_D2.90_D0.80_START18.80",
+      "operation": "drill",
+      "start_depth": 18.8,
+      "cut_depth": 0.8,
+      "segment_count": 6,
+      "centres": [
+        [
+          32.5,
+          6.5
+        ],
+        [
+          32.5,
+          63.5
+        ],
+        [
+          33.25,
+          77.9
+        ],
+        [
+          33.25,
+          93.2
+        ],
+        [
+          105.75,
+          77.9
+        ],
+        [
+          105.75,
+          93.2
+        ]
+      ],
+      "diameter": 2.9,
+      "depends_on": "P01_P01__POCKET_D18.80",
+      "est": {
+        "hole_count": 6,
+        "hole_dia_mm": 2.9,
+        "depth_mm": 0.8
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P01_P01__POCKET_D2.40",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 2.4,
+      "segment_count": 4,
+      "floor_z": 19.4,
+      "depth_total": 2.4,
+      "est": {
+        "area_mm2": 37.31,
+        "min_width_mm": 1.8,
+        "depth_mm": 2.4,
+        "perimeter_mm": 45.2,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P01_P01__POCKET_D9.70",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 9.7,
+      "segment_count": 4,
+      "floor_z": 12.1,
+      "depth_total": 9.7,
+      "est": {
+        "area_mm2": 11.958,
+        "min_width_mm": 1.5,
+        "depth_mm": 9.7,
+        "perimeter_mm": 19.0,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P01_P01__PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 21.8,
+      "segment_count": 8,
+      "est": {
+        "perimeter_mm": 475.85,
+        "depth_mm": 21.8
+      },
+      "part": "P01_P01"
+    },
+    {
+      "layer": "P02_P02__DRILL_D3.40_THRU",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 11.9,
+      "segment_count": 2,
+      "centres": [
+        [
+          301.4,
+          13.5
+        ],
+        [
+          301.4,
+          56.5
+        ]
+      ],
+      "diameter": 3.4,
+      "est": {
+        "hole_count": 2,
+        "hole_dia_mm": 3.4,
+        "depth_mm": 11.9
+      },
+      "part": "P02_P02"
+    },
+    {
+      "layer": "P02_P02__POCKET_D0.60",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 0.6,
+      "segment_count": 86,
+      "floor_z": 11.3,
+      "depth_total": 0.6,
+      "est": {
+        "area_mm2": 19.385,
+        "min_width_mm": 0.913,
+        "depth_mm": 0.6,
+        "perimeter_mm": 88.777,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P02_P02"
+    },
+    {
+      "layer": "P02_P02__DRILL_D2.60_D1.40_START0.60",
+      "operation": "drill",
+      "start_depth": 0.6,
+      "cut_depth": 1.4,
+      "segment_count": 2,
+      "centres": [
+        [
+          294.9,
+          44.5
+        ],
+        [
+          294.9,
+          48.5
+        ]
+      ],
+      "diameter": 2.6,
+      "depends_on": "P02_P02__POCKET_D0.60",
+      "est": {
+        "hole_count": 2,
+        "hole_dia_mm": 2.6,
+        "depth_mm": 1.4
+      },
+      "part": "P02_P02"
+    },
+    {
+      "layer": "P02_P02__DRILL_D4.40_D1.40_START0.60",
+      "operation": "drill",
+      "start_depth": 0.6,
+      "cut_depth": 1.4,
+      "segment_count": 1,
+      "centres": [
+        [
+          288.9,
+          54.5
+        ]
+      ],
+      "diameter": 4.4,
+      "depends_on": "P02_P02__POCKET_D0.60",
+      "est": {
+        "hole_count": 1,
+        "hole_dia_mm": 4.4,
+        "depth_mm": 1.4
+      },
+      "part": "P02_P02"
+    },
+    {
+      "layer": "P02_P02__POCKET_D2.80",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 2.8,
+      "segment_count": 4,
+      "floor_z": 9.1,
+      "depth_total": 2.8,
+      "est": {
+        "area_mm2": 33.882,
+        "min_width_mm": 1.7,
+        "depth_mm": 2.8,
+        "perimeter_mm": 43.4,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P02_P02"
+    },
+    {
+      "layer": "P02_P02__PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 11.9,
+      "segment_count": 12,
+      "est": {
+        "perimeter_mm": 490.133,
+        "depth_mm": 11.9
+      },
+      "part": "P02_P02"
+    },
+    {
+      "layer": "P02_P02__THROUGH_CUT",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 11.9,
+      "segment_count": 63,
+      "est": {
+        "perimeter_mm": 83.294,
+        "min_width_mm": 1.438,
+        "depth_mm": 11.9
+      },
+      "part": "P02_P02"
+    },
+    {
+      "layer": "P03_P03__DRILL_D3.40_D0.40",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 0.4,
+      "segment_count": 4,
+      "centres": [
+        [
+          344.8,
+          6.0
+        ],
+        [
+          344.8,
+          58.0
+        ],
+        [
+          432.8,
+          6.0
+        ],
+        [
+          432.8,
+          58.0
+        ]
+      ],
+      "diameter": 3.4,
+      "est": {
+        "hole_count": 4,
+        "hole_dia_mm": 3.4,
+        "depth_mm": 0.4
+      },
+      "part": "P03_P03"
+    },
+    {
+      "layer": "P03_P03__DRILL_D5.00_D3.00",
+      "operation": "drill",
+      "start_depth": 0.0,
+      "cut_depth": 3.0,
+      "segment_count": 3,
+      "centres": [
+        [
+          351.8,
+          42.75
+        ],
+        [
+          352.55,
+          57.15
+        ],
+        [
+          425.05,
+          57.15
+        ]
+      ],
+      "diameter": 5.0,
+      "est": {
+        "hole_count": 3,
+        "hole_dia_mm": 5.0,
+        "depth_mm": 3.0
+      },
+      "part": "P03_P03"
+    },
+    {
+      "layer": "P03_P03__POCKET_D4.20",
+      "operation": "pocket",
+      "start_depth": 0.0,
+      "cut_depth": 4.2,
+      "segment_count": 8,
+      "floor_z": 4.8,
+      "depth_total": 4.2,
+      "est": {
+        "area_mm2": 62.782,
+        "min_width_mm": 1.5,
+        "depth_mm": 4.2,
+        "perimeter_mm": 90.0,
+        "corner_radius_mm": 0.0
+      },
+      "part": "P03_P03"
+    },
+    {
+      "layer": "P03_P03__PROFILE_THRU",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 9.0,
+      "segment_count": 8,
+      "est": {
+        "perimeter_mm": 321.133,
+        "depth_mm": 9.0
+      },
+      "part": "P03_P03"
+    },
+    {
+      "layer": "P03_P03__THROUGH_CUT",
+      "operation": "profile",
+      "start_depth": 0.0,
+      "cut_depth": 9.0,
+      "segment_count": 8,
+      "est": {
+        "perimeter_mm": 98.0,
+        "min_width_mm": 4.6,
+        "depth_mm": 9.0
+      },
+      "part": "P03_P03"
+    }
+  ],
+  "flags": [
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,4.00) r=1.00 span=90deg Z 3.00..21.80",
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,4.00) r=4.00 span=90deg Z 1.00..21.80",
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,101.50) r=1.00 span=90deg Z 3.00..21.80",
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (4.00,101.50) r=4.00 span=90deg Z 1.00..21.80",
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,4.00) r=1.00 span=90deg Z 3.00..21.80",
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,4.00) r=4.00 span=90deg Z 1.00..21.80",
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,101.50) r=1.00 span=90deg Z 3.00..21.80",
+    "[P01_P01] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (135.00,101.50) r=4.00 span=90deg Z 1.00..21.80",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 2.20, depth 2.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 15.00, depth 15.00 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 17.50, depth 17.50 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] POCKET NOT FROM TOP (cavity opens downward): floor Z 21.20, depth 21.20 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P01_P01] PROFILE OUTLINE DIFFERS top vs bottom by 90% (top 1365 mm2, bottom 14172 mm2) \u2014 profile taken from Z 0.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "[P01_P01] VERTICAL WALLS EXTEND 1.00 mm BEYOND PROFILE \u2014 edge fillet/chamfer on both top and bottom, profile may be undersized; check the wall footprint before cutting",
+    "[P01_P01] POST-PROCESS [router_table]: fillet R1.00 mm at outer bottom edge (x8 faces) \u2014 Round over the bottom outer edge on the router table (flip the part over) after the CNC cut.",
+    "[P01_P01] POST-PROCESS [cnc_3d]: chamfer 90 deg, 2.20 mm tall at pocket floor (Z 3.00) (x24 faces) \u2014 Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+    "[P01_P01] POST-PROCESS [cnc_3d]: chamfer 45 deg, 1.55 mm tall at pocket floor (Z 3.00) (x4 faces) \u2014 Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+    "[P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (25.50,26.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (25.50,78.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (113.50,26.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (blind_bottom): dia 3.40 at (113.50,78.75) Z 0.00..1.45 \u2014 no toolpath emitted",
+    "[P01_P01] DRILL FROM SURFACE: dia 2.90 at (32.50,6.50) opens on the Z 3.00 face \u2014 POCKET_D18.80 faces it down first (start depth 18.80 mm), then drill 0.80 mm from there",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (91.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (91.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (132.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 4.00 at (132.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (91.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (91.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (132.00,13.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] HOLE NOT FROM TOP (internal): dia 7.00 at (132.00,56.50) Z 3.00..10.20 \u2014 no toolpath emitted",
+    "[P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled",
+    "[P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled",
+    "[P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled",
+    "[P01_P01] POCKET INNER WIRE at floor Z 3.00 (island / hole through floor) \u2014 check report, inner wire not auto-tooled",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.40,4.00) r=4.00 span=90deg Z 9.90..10.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.40,101.50) r=4.00 span=90deg Z 9.90..10.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.60,4.20) r=1.00 span=90deg Z 7.40..9.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (173.60,101.30) r=1.00 span=90deg Z 7.40..9.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (174.30,4.90) r=0.50 span=90deg Z 7.40..9.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (174.30,100.60) r=0.50 span=90deg Z 7.40..9.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (303.50,100.60) r=0.50 span=90deg Z 7.40..9.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.20,4.20) r=1.00 span=78deg Z 7.40..9.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.20,101.30) r=1.00 span=90deg Z 7.40..9.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.40,4.00) r=4.00 span=90deg Z 9.90..10.90",
+    "[P02_P02] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (304.40,101.50) r=4.00 span=90deg Z 9.90..10.90",
+    "[P02_P02] COUNTERSUNK THRU HOLE: dia 3.40 at (301.40,13.50) under a 45 deg countersink \u2014 treated as thru",
+    "[P02_P02] COUNTERSUNK THRU HOLE: dia 3.40 at (301.40,56.50) under a 45 deg countersink \u2014 treated as thru",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.40, depth 7.40 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 7.70, depth 7.70 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 9.90, depth 9.90 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET NOT FROM TOP (cavity opens downward): floor Z 10.12, depth 10.12 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 freeform wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] POCKET SUPPRESSED (non-vertical walls, no toolpath): floor Z 11.30, depth 0.60 \u2014 chamfer wall, Z span 0.60 mm",
+    "[P02_P02] PROFILE OUTLINE DIFFERS top vs bottom by 100% (top 14167 mm2, bottom 32 mm2) \u2014 profile taken from Z 9.90 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "[P02_P02] POST-PROCESS [router_table]: fillet R1.00 mm at outer top edge (x8 faces) \u2014 Round over the top outer edge on the router table after the CNC cut.",
+    "[P02_P02] POST-PROCESS [router_table]: sculpted surface GeomAbs_SurfaceType.GeomAbs_SurfaceOfExtrusion at outer top edge (x33 faces) \u2014 Round over the outer edge on the router table after the CNC cut \u2014 pick a roundover bit close to the modelled profile; it does not have to match exactly.",
+    "[P02_P02] POST-PROCESS [cnc_3d]: tapered wall non-vertical wall at pocket floor (Z 11.30) (x391 faces) \u2014 Tapered pocket wall: cut with a 3D finishing pass on the CNC (ball-nose), or redesign the pocket as vertical + a post chamfer.",
+    "[P02_P02] POST-PROCESS [cnc_3d]: chamfer 90 deg, 0.60 mm tall at pocket floor (Z 11.30) (x127 faces) \u2014 Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+    "[P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D3.40 at (301.40,13.50) \u2014 Countersink the hole on the drill press after drilling.",
+    "[P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D2.60 at (294.90,44.50) \u2014 Countersink the hole on the drill press after drilling.",
+    "[P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D2.60 at (294.90,48.50) \u2014 Countersink the hole on the drill press after drilling.",
+    "[P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D4.40 at (288.90,54.50) \u2014 Countersink the hole on the drill press after drilling.",
+    "[P02_P02] POST-PROCESS [drill_press]: countersink semi-angle 45.0 deg at hole D3.40 at (301.40,56.50) \u2014 Countersink the hole on the drill press after drilling.",
+    "[P02_P02] POST-PROCESS [router_table]: chamfer 90 deg, 0.60 mm tall at outer top edge \u2014 Chamfer the top outer edge on the router table after the CNC cut.",
+    "[P02_P02] DRILL FROM SURFACE: dia 2.60 at (294.90,44.50) opens on the Z 11.30 face \u2014 POCKET_D0.60 faces it down first (start depth 0.60 mm), then drill 1.40 mm from there",
+    "[P02_P02] DRILL FROM SURFACE: dia 4.40 at (288.90,54.50) opens on the Z 11.30 face \u2014 POCKET_D0.60 faces it down first (start depth 0.60 mm), then drill 1.40 mm from there",
+    "[P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening",
+    "[P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening",
+    "[P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening",
+    "[P02_P02] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P02_P02] SPLINE / NON-ARC EDGE discretised to polyline on layer THROUGH_CUT",
+    "[P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (342.80,4.00) r=4.00 span=90deg Z 6.00..9.00",
+    "[P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (342.80,60.00) r=4.00 span=90deg Z 6.00..9.00",
+    "[P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (434.80,4.00) r=4.00 span=90deg Z 6.00..9.00",
+    "[P03_P03] PARTIAL CYLINDER (fillet / rounded wall, not a hole): centre (434.80,60.00) r=4.00 span=90deg Z 6.00..9.00",
+    "[P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 3.30, depth 3.30 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 6.00, depth 6.00 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P03_P03] POCKET NOT FROM TOP (cavity opens downward): floor Z 8.60, depth 8.60 from the bottom face \u2014 no toolpath emitted; cut from the other side after a flip (BRA-13) or as post-processing",
+    "[P03_P03] PROFILE OUTLINE DIFFERS top vs bottom by 99% (top 6386 mm2, bottom 69 mm2) \u2014 profile taken from Z 6.00 face; an edge fillet/chamfer is in the post-processing plan, not in the DXF",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,7.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,4.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (342.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (347.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,59.4), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (430.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [decision_needed]: chamfer 90 deg, 2.60 mm tall at face at (435.3,56.6), Z 7.30 \u2014 No automatic call \u2014 decide CNC vs post-process by hand for this feature.",
+    "[P03_P03] POST-PROCESS [cnc_3d]: chamfer 45 deg, 1.50 mm tall at pocket floor (Z 4.80) \u2014 Cut the pocket-floor chamfer on the CNC (chamfer tool / ball-nose) \u2014 a router table cannot reach it.",
+    "[P03_P03] THROUGH CUT (slot / through opening with no pocket floor) emitted as THROUGH_CUT \u2014 verify it is not a pocket opening",
+    "TOOL PLAN: no standard tool fits: P02_P02__POCKET_D0.60 (pocket only 0.91 mm wide \u2014 smallest standard endmill is 0.50 mm) \u2014 no tool recommendations; gadget falls back to its TOOLS table"
+  ],
+  "cut_order": [
+    "drill",
+    "pocket",
+    "profile"
+  ],
+  "tool_plan": {
+    "plans": [],
+    "error": "no standard tool fits: P02_P02__POCKET_D0.60 (pocket only 0.91 mm wide \u2014 smallest standard endmill is 0.50 mm)"
+  }
+}

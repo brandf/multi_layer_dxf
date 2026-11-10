@@ -15,11 +15,13 @@ Design decisions (Brandon, 2026-11-08):
     report.md and tweak in VCarve if your library differs.
   - Brandon's bits are imperial wood bits (Bits & Bits), 1/16" to
     1/2", any given bit may be missing. So the standard endmill
-    candidates are imperial sizes, and the manifest holds MORE THAN
-    ONE plan: Plan A (fastest), Plan B/C (fallbacks — e.g. the 1/2"
-    endmill is missing, so do it all with the 1/4"). Each plan is
-    writable as its own manifest_<id>.txt; the gadget runs whichever
-    file you pick.
+    candidates are imperial sizes, plus metric fine endmills
+    (1.0 / 0.8 / 0.5 mm, BRA-18) for pockets narrower than 1/16"
+    can cut. The manifest holds MORE THAN ONE plan: Plan A
+    (fastest), Plan B/C (fallbacks — e.g. the 1/2" endmill is
+    missing, so do it all with the 1/4"). Each plan is writable
+    as its own manifest_<id>.txt; the gadget runs whichever file
+    you pick.
   - No automatic tool changer: every tool change is manual, so the
     optimiser charges tool_change_seconds per change (default 120 s)
     and can pick a SMALLER tool for everything when that beats the
@@ -46,7 +48,7 @@ How it works:
     distinct hole diameter, "drill it" or "bore it with an endmill".
     Per layer the tool is then forced (largest fitting endmill in the
     set, exact drill, or largest endmill that fits the hole for a
-    bore). Enumerating tool sets (<= 22 sets x <= 4 drill modes) is
+    bore). Enumerating tool sets (<= 46 sets x <= 4 drill modes) is
     cheap and exact — no per-layer combinatorial search.
   - Rough + finish (BRA-14): for a pocket whose corners the roughing
     tool would round beyond their design radius, the plan can add a
@@ -90,6 +92,14 @@ DEFAULTS = {
     # Brandon's actual bits: imperial, 1/16" .. 1/2". The optimiser
     # only ever recommends these sizes (drills are exact hole dia).
     "standard_endmills_in": [0.5, 0.375, 0.25, 0.1875, 0.125, 0.0625],
+    # Fine-work metric endmills (BRA-18): real tools, common for fine
+    # work — the imperial set bottoms out at 1/16" (1.59 mm), so
+    # pockets 1.50-1.80 mm wide (e.g. the Kookabus enclosure) got no
+    # plan at all. A 1.0 mm tool fits a 1.50 mm pocket under the fit
+    # rule (dia <= min_width - 0.5); 0.8 / 0.5 mm cover narrower work.
+    # Both lists merge into one candidate set; imperial sizes keep
+    # their fractional names, metric sizes are named in mm.
+    "standard_endmills_mm": [1.0, 0.8, 0.5],
     # Feeds are conservative wood defaults. If "feed_mm_s" /
     # "plunge_mm_s" are set here they are used as-is; otherwise the
     # feed scales with tool diameter (small tools go slower).
@@ -134,6 +144,14 @@ def inch_name(dia_in):
     return str(Fraction(dia_in).limit_denominator(16))
 
 
+def standard_endmill_sizes_mm(st):
+    """All standard endmill diameters in mm (BRA-18): the imperial
+    set plus the fine-work metric set, merged, deduped, sorted."""
+    sizes = {round(i * INCH_TO_MM, 4) for i in st["standard_endmills_in"]}
+    sizes.update(round(float(d), 4) for d in st.get("standard_endmills_mm", []))
+    return sorted(sizes)
+
+
 def make_endmill(dia_mm, st):
     dia_in = dia_mm / INCH_TO_MM
     feed = st["feed_mm_s"]
@@ -143,11 +161,19 @@ def make_endmill(dia_mm, st):
     if plunge is None:
         plunge = feed / 3.0
     stepdown = min(float(st["stepdown_mm"]), 0.5 * dia_mm)
+    # Imperial sizes get their fractional name ("1/4 in"); metric
+    # fine sizes are named in mm — forcing 1.00 mm through the
+    # imperial fraction would mislabel it 1/16" (1.59 mm).
+    inch_sizes = {round(i * INCH_TO_MM, 4) for i in st["standard_endmills_in"]}
+    if round(dia_mm, 4) in inch_sizes:
+        name = f"End Mill {inch_name(dia_in)} in ({dia_mm:.2f} mm)"
+    else:
+        name = f"End Mill {dia_mm:.2f} mm"
     return {
         "id": f"EM{dia_mm:.2f}",
         "kind": "endmill",
         "dia_mm": round(dia_mm, 4),
-        "name": f"End Mill {inch_name(dia_in)} in ({dia_mm:.2f} mm)",
+        "name": name,
         "feed_mm_s": round(feed, 2),
         "plunge_mm_s": round(plunge, 2),
         "spindle_rpm": int(st["spindle_rpm"]),
@@ -470,7 +496,7 @@ def profile_tool_diameter(layers, cfg=None):
     tool fits a through-cut slot — then the packer falls back to
     gap_mm and the tool plan reports the missing tool (BRA-18)."""
     st = settings(cfg)
-    em_sizes = [round(i * INCH_TO_MM, 4) for i in st["standard_endmills_in"]]
+    em_sizes = standard_endmill_sizes_mm(st)
     best = None
     for L in layers:
         if L["operation"] != "profile":
@@ -496,7 +522,7 @@ def plan_tools(layers, cfg=None):
     if not layers:
         return {"plans": [], "error": "no layers to plan"}
 
-    em_sizes = [round(i * INCH_TO_MM, 4) for i in st["standard_endmills_in"]]
+    em_sizes = standard_endmill_sizes_mm(st)
     em_tools = {d: make_endmill(d, st) for d in em_sizes}
     hole_dias = sorted({round(float(L["est"]["hole_dia_mm"]), 3)
                         for L in layers

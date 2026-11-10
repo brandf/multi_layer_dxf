@@ -261,7 +261,9 @@ Brandon has no automatic tool changer and does not want to maintain
 a tool library (bits wear out and get replaced). So the pipeline
 does not ask for one. Instead `toolplan.py` recommends tools from
 standard sizes — his bits are imperial Bits & Bits wood bits,
-1/16"–1/2", any given bit may be missing — and the manifest carries
+1/16"–1/2", any given bit may be missing — plus metric fine endmills
+(1.0 / 0.8 / 0.5 mm, BRA-18) for pockets narrower than 1/16" can
+cut, and the manifest carries
 the recommendation plus fallback plans:
 
 - **Per layer:** drills get an exact-diameter drill as primary and

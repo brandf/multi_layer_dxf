@@ -110,12 +110,23 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # (-48..-22, 18..26), no "NOT in the DXF" flag
 
 .venv/bin/python multi_part.py test/two_part.step -o test/multi_out --mode full
-# expect: 2 parts, 6 layers, 0 flags
+# expect: 2 parts, 5 layers, 1 flag — P02's pocket opens downward
+# (floor Z 3.00, depth 3.00 from the bottom face), so post-BRA-21
+# it is flagged POCKET NOT FROM TOP with no layer instead of being
+# emitted as a top pocket. The old 6 layers / 0 flags expectation
+# was pre-BRA-21, when that pocket was wrongly emitted; the new
+# numbers are the corrected behaviour (verified 2026-11-09, BRA-18
+# run). Suggested material still 200 x 80 x 10 mm; the spacing
+# check verifies plan A profile tools (3/16 in both parts).
 
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step \
     -o test/external/kookabus_out --mode check
-# expect: no crash; post-BRA-21 layers 8 / 7 / 5, holes 18 / 5 / 7,
-# flags 39 / 122 / 29 (190 total + 1 TOOL PLAN flag = 191 combined).
+# expect: no crash; post-BRA-21 layers 8 / 7 / 5, holes 18 / 5 / 7.
+# Flags in a FULL-mode run are 39 / 122 / 29 per part (190 total
+# + 1 TOOL PLAN flag = 191 combined). In --mode check the counts
+# are 39 / 82 / 29: check mode writes no DXF, so P02's 40 SPLINE /
+# NON-ARC EDGE discretisation notes (emitted when DXF entities are
+# written) do not appear there. Same classification either way.
 # Was 12 / 10 / 7 layers and 30 / 67 / 9 flags (106 total) before
 # BRA-21: 25 downward-opening pockets are now flagged POCKET NOT
 # FROM TOP instead of emitted as top pockets (9 wrong pocket layers
@@ -127,6 +138,16 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # The old numbers were wrong, not a regression. Kookabus is a
 # robustness sample, not ground truth; the check is "no crash,
 # flags identify the non-prismatic features".)
+# BRA-18 (2026-11-09): the standard endmill set now includes
+# metric fine endmills (1.0 / 0.8 / 0.5 mm). In a full-mode run
+# the merged tool-plan error narrows from 8 blocking layers to 1:
+# only P02_P02__POCKET_D0.60 (0.91 mm wide — the fit rule needs a
+# tool <= 0.41 mm, smallest standard endmill is now 0.50 mm).
+# P01 and P03 get per-part plans (Plan A uses the 1.00 mm
+# endmill); the merged job still has no plan. Whether to go below
+# 0.5 mm is BRA-22, awaiting Brandon's decision — do not extend
+# silently. Check-mode counts above are unchanged (classification
+# only; no tool plan runs there).
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50
