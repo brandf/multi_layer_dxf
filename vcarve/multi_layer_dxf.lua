@@ -1,4 +1,7 @@
+-- VECTRIC LUA SCRIPT
 -- multi_layer_dxf.lua — VCarve Pro gadget (v0.4, implemented, NOT yet run in VCarve)
+-- NOTE: the first line is required — VCarve refuses to load a gadget
+-- whose first line is not exactly "-- VECTRIC LUA SCRIPT".
 --
 -- What it does, in one click inside VCarve Pro:
 --   1. Asks for manifest.txt (written by step_to_vcarve.py / multi_part.py).
