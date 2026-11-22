@@ -73,12 +73,12 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
   Onshape test before trusting it on a real part, and the
   UNVERIFIED-marked API calls in the file are the things to check).
 - `vcarve/multi_layer_dxf.lua` — VCarve Pro gadget (Lua). Reads
-  manifest.txt, imports the DXF named on its `# dxf:` line, joins
-  vectors, creates drill / pocket / profile toolpaths per layer with
-  start_depth / cut_depth from the manifest. v0.4 — implemented from
-  the Vectric SDK docs and syntax-checked, but NOT yet run inside
-  VCarve. It does not save the job or post G-code; preview, then
-  File > Save As the `.crv` yourself.
+  manifest.txt, imports the DXF named on its `# dxf:` line, creates
+  drill / pocket / profile toolpaths per layer with start_depth /
+  cut_depth from the manifest. v0.5 — live-tested in VCarve Pro
+  V12.5 (Nov 21-22): 8 toolpaths for the real container. It does
+  not save the job or post G-code; preview, then File > Save As
+  the `.crv` yourself.
 - `VALIDATION.md` — the ready-to-run checklist for the real container
   STEP (BRA-8), including the regression commands and the Windows
   gadget test steps (plus the optional Onshape FeatureScript test).
@@ -97,18 +97,21 @@ in VCarve, instead of dozens of manual toolpaths — then you preview
 and save the `.crv` yourself (the gadget deliberately does not save
 the job or post G-code).
 
-That gadget is v0.4 — implemented from the Vectric SDK docs and
-syntax-checked with luaparser, but it has not been run inside VCarve
-yet (no VCarve on this Linux VM). The file picker is `FileDialog()`,
-confirmed from the official V12 Gadget SDK — `GetFileName()` does
-not exist in the Vectric API (found out the hard way, Nov 21: no
-dialog ever appeared). Same story for the vector selection:
-`SelectVectorsOnLayer()` is not a global either — it is a helper
-each gadget defines for itself, now included from Vectric's own
-sample. `JoinVectors()` does not exist at all and is gone. The
-remaining least-certain calls are the tool-library matching and
-the tab-count setting, guarded so the gadget fails with a message
-instead of silently doing the wrong thing.
+That gadget is v0.5 — live-tested in VCarve Pro V12.5 (Nov 21-22,
+8 toolpaths for the real container). The file picker is
+`FileDialog()`, confirmed from the official V12 Gadget SDK —
+`GetFileName()` does not exist in the Vectric API (found out the
+hard way, Nov 21: no dialog ever appeared). Same story for the
+vector selection: `SelectVectorsOnLayer()` is not a global either —
+it is a helper each gadget defines for itself, now included from
+Vectric's own sample. `JoinVectors()` does not exist at all and is
+gone. Tabs are placed as real `ToolpathTab` objects on the vectors
+before the profile is created (`UseTabs` alone creates none — Nov 22:
+profiles calculated with "No tabs defined" and no tabs). The
+remaining least-certain calls are the registry tool remembering
+(`ToolDBId` defaults) and the tab placement, both guarded so the
+gadget falls back to asking / warns instead of silently doing the
+wrong thing.
 Until it is tested on Windows, the verified path is:
 
 1. `step_to_vcarve.py` → layered DXF + manifest.json
@@ -347,16 +350,25 @@ the recommendation plus fallback plans:
   without tabs. Tab count scales down with perimeter (a 26×8 slot
   gets 2 tabs, a Ø60 hole 4); tab length is clamped to a tenth of
   the profile perimeter. Drilled/bored holes need no tabs — the
-  material leaves as chips. The tab count is not settable through
-  the documented ProfileParameterData fields; the gadget tries it in
-  a guarded call and VCarve's default applies if ignored.
+  material leaves as chips. The gadget places the tabs as real
+  `ToolpathTab` objects on the vectors before creating the profile
+  (`InsertToolpathAtTabAtPoint`, evenly spaced around each closed
+  contour); `UseTabs` alone only *uses* tabs that already exist and
+  creates none — setting it without placing tabs is how the Nov 22
+  live test got profiles with no tabs at all.
 - **Matching to your VCarve library:** the SDK has no silent
   lookup-by-diameter — `ToolDatabase` only offers `SelectTool()`
-  (interactive dialog) and `GetTool(id)`. So gadget v0.3 asks once
-  per distinct tool to pick the matching tool from your library;
-  Cancel uses the recommendation as-is (a tool created with the
-  recommended diameter/feeds). It warns in the final message if the
-  tool you picked differs in diameter from the recommendation.
+  (interactive dialog) and `GetTool(id)`. So gadget v0.5 names each
+  tool first, then opens that tool's library dialog, one tool at a
+  time; Cancel uses the recommendation as-is (a tool created with
+  the recommended diameter/feeds). A picked tool is remembered in
+  the registry (`ToolDBId` defaults, keyed by the manifest tool id)
+  and reused without asking on the next run — set
+  `REMEMBER_TOOLS = false` to always ask. It warns in the final
+  message if the tool you picked differs in diameter from the
+  recommendation (diameters are compared in mm — a 1/4 in library
+  tool reports 0.25, `InMM` false; the Nov 22 run warned about a
+  correctly picked 1/4 in tool before this was fixed).
   Set `MATCH_TO_LIBRARY = false` at the top of the gadget to skip
   the dialogs. Either way, review the plan in `report.md` first.
 - **Tool numbers** are assigned in first-use order — this fixes the
@@ -492,11 +504,14 @@ on the manifest's `# dxf:` line, selects the vectors on each layer,
 creates toolpaths in order drill -> pockets shallow to deep ->
 profile last, recalculates all. It does not save the job or post
 G-code — preview, File > Save As the `.crv`, then post. Always
-preview before posting G-code. Gadget v0.4 (2026-11-21, live-tested
+preview before posting G-code. Gadget v0.5 (2026-11-22, live-tested
 in VCarve Pro V12.5): the manifest picker is the real `FileDialog()`
 API, the layer selection is a helper defined in the gadget itself
-(`SelectVectorsOnLayer` is not a VCarve global), and the script
-starts with the required `-- VECTRIC LUA SCRIPT` line.
+(`SelectVectorsOnLayer` is not a VCarve global), tabs are placed as
+real objects on the vectors before the profile is created, tools are
+named one at a time before their library dialog and remembered for
+the next run, and the script starts with the required
+`-- VECTRIC LUA SCRIPT` line.
 
 ## Orientation search and layout (built 2026-11-08, search 2026-11-09, Brandon approved)
 

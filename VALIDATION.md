@@ -181,7 +181,22 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # locally in the gadget (adapted from Vectric's
 # Profile_Vectors_On_Layer sample), and the dead JoinVectors() call
 # was removed (it does not exist in the V12 API either; DXF import
-# already yields closed contours).
+# already yields closed contours). Nov 22 follow-ups, gadget v0.5:
+# (4) tabs: ProfileParameterData.UseTabs only USES tabs that already
+# exist on the vectors — setting it alone creates none, and both
+# profiles calculated with "No tabs defined on selected vectors" and
+# no tabs. Tabs are now placed as real ToolpathTab objects via
+# CadContour:InsertToolpathAtTabAtPoint (evenly spaced around each
+# closed contour) before the profile toolpath is created. (5) tool
+# flow: the up-front tool summary plus back-to-back dialogs made it
+# easy to lose track of which dialog was for which tool — the gadget
+# now names each tool first, then opens its dialog, and remembers
+# each pick in the registry (ToolDBId defaults) so the next run
+# reuses it without asking. The diameter-mismatch warning also read
+# ToolDia raw: a correctly picked 1/4 in library tool reported 0.25
+# (Tool.InMM false) and warned falsely — diameters are now compared
+# in mm. The 8 toolpaths themselves were correct (profile offset and
+# pocket raster spacing both match a 6.35 mm tool, not 0.25 mm).
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50

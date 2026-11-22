@@ -1,5 +1,5 @@
 -- VECTRIC LUA SCRIPT
--- multi_layer_dxf.lua — VCarve Pro gadget (v0.4, implemented, NOT yet run in VCarve)
+-- multi_layer_dxf.lua — VCarve Pro gadget (v0.5, live-tested in VCarve Pro V12.5)
 -- NOTE: the first line is required — VCarve refuses to load a gadget
 -- whose first line is not exactly "-- VECTRIC LUA SCRIPT".
 --
@@ -22,15 +22,19 @@
 --   3. TOOLS: for each distinct tool in the plan it tries to match the
 --      recommendation to a tool in YOUR VCarve tool library
 --      (ToolDatabase:SelectTool() — the SDK has no silent lookup by
---      diameter, only the interactive dialog, so it asks once per tool;
---      Cancel uses the recommendation as-is, creating a tool with the
---      recommended diameter/feeds). Set MATCH_TO_LIBRARY = false to
---      skip the dialogs and always use the recommendations.
+--      diameter, only the interactive dialog). One tool at a time:
+--      it names the tool it needs, then opens that tool's library
+--      dialog; Cancel uses the recommendation as-is, creating a tool
+--      with the recommended diameter/feeds. Set MATCH_TO_LIBRARY =
+--      false to skip the dialogs and always use the recommendations.
+--      A picked tool is remembered (REMEMBER_TOOLS, registry) and
+--      reused without asking on the next run.
 --      Tools get distinct numbers in first-use order (v0.2 made every
 --      toolpath Tool 1, so the posted code called no tool change).
 --   4. For each manifest line, in order (already drill -> pocket ->
---      profile, grouped by tool): select closed vectors on that layer,
---      join them, create the toolpath with start_depth / cut_depth
+--      profile, grouped by tool): select closed vectors on that layer
+--      (profile layers get their tabs placed on the vectors first),
+--      create the toolpath with start_depth / cut_depth
 --      from the manifest and the resolved tool.
 --        drill   -> CreateDrillingToolpath, peck if configured
 --        pocket  -> CreatePocketingToolpath, raster clearance, profile last
@@ -40,7 +44,9 @@
 --                   line when one exists: the outer profile frees the
 --                   part, a through cut frees the slug inside it (a
 --                   doughnut hole's centre is a solid disc, not sawdust),
---                   and either goes flying without tabs.
+--                   and either goes flying without tabs. Tabs are placed
+--                   as real ToolpathTab objects on the vectors first
+--                   (UseTabs alone creates none — Nov 22 live test).
 --   5. Recalculates all toolpaths and reports the tools used, with
 --      their source (your library vs the recommendation).
 --      It does NOT post G-code and does NOT save the job for you —
@@ -54,7 +60,9 @@
 --   SKIP_LAYERS = { "THROUGH_CUT" } -- layers to leave alone (matched
 --                             -- by suffix, so P01_x__THROUGH_CUT matches)
 --   MATCH_TO_LIBRARY = true  -- pick each recommended tool from your
---                             -- VCarve tool library (one dialog per tool)
+--                             -- VCarve tool library (one dialog per tool,
+--                             -- named first); REMEMBER_TOOLS = true
+--                             -- reuses a picked tool next run, no dialog
 --   TOOLS table below: fallback diameters / stepdown / stepover / feeds
 --   for old manifests without # tool lines. Feeds below are
 --   conservative placeholders — set them from your own tool library.
@@ -108,10 +116,10 @@
 --     .PeckRetractGap
 --
 -- Honest status:
---   Written from the SDK docs above, syntax-checked with luaparser on
---   Linux, but NOT yet run inside VCarve — there is no VCarve on this
---   VM. Least-certain calls, all guarded so the gadget fails with a
---   message instead of silently doing the wrong thing:
+--   Live-tested in VCarve Pro V12.5 (Nov 21-22): installs, picks the
+--   manifest, imports the DXF, matches tools, creates 8 toolpaths for
+--   the real container. Least-certain calls, all guarded so the gadget
+--   fails with a message instead of silently doing the wrong thing:
 --     FileDialog() — the file picker (confirmed, V12 SDK docs +
 --       samples). Guarded anyway: if a VCarve version lacks it, the
 --       gadget says so and MANIFEST_PATH is the fallback.
@@ -122,11 +130,13 @@
 --       the gadget reports it instead of guessing.
 --     ToolDatabase():SelectTool() — library matching; if the API is
 --       missing or you Cancel, the gadget uses the recommendation.
---     ProfileParameterData.TabCount — not in the SDK mirror's property
---       list; set in a guarded call, VCarve's default applies if it
---       is ignored. Tab length/thickness ARE set from the manifest.
---   Expect 1 round of fixing API names against your installed VCarve
---   version (v11 / v12 / v12.5) before it is trusted on a real part.
+--       Tool.ToolDia is in the tool's own units — read Tool.InMM
+--       first (a 1/4 in library tool reports 0.25, not 6.35).
+--     ToolDBId registry persistence (REMEMBER_TOOLS) and
+--       CadContour:InsertToolpathAtTabAtPoint (tabs) are new in v0.5
+--       and untested in VCarve: a failed load just asks again, and a
+--       failed tab placement warns in the final message while VCarve's
+--       own "No tabs defined" dialog still fires as a backstop.
 --   The DXF + manifest path already works without the gadget (import
 --   DXF, create toolpaths manually per layer), so you are never locked
 --   into the gadget working first try.
@@ -142,6 +152,13 @@ local SKIP_LAYERS = {} -- e.g. { "THROUGH_CUT" } (matched by suffix)
 local MATCH_TO_LIBRARY = true -- pick each recommended tool from your
                               -- VCarve tool library (one dialog per tool);
                               -- Cancel uses the recommendation as-is
+local REMEMBER_TOOLS = true   -- remember each picked library tool in
+                              -- the registry (ToolDBId defaults), keyed
+                              -- by the manifest tool id (EM6.35, D2.25):
+                              -- the next run reuses it without asking.
+                              -- Set false to always ask. A remembered
+                              -- tool is re-asked if its diameter no
+                              -- longer matches the recommendation.
 local MANIFEST_PATH = nil -- Optional override, e.g.
                           -- [[C:\cnc\multi_layer_dxf\test\real_container_out\manifest.txt]]
                           -- Leave it nil (the default) and the gadget
@@ -173,6 +190,33 @@ end
 
 local function trim(s)
   return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
+-- Diameter label for messages: metric always, plus the inch size when
+-- it is a standard imperial endmill (6.35 mm is 1/4 in — the size the
+-- library is browsed by). Drills stay metric.
+local INCH_ENDMILLS = { [12.7] = "1/2 in", [9.53] = "3/8 in",
+  [6.35] = "1/4 in", [4.76] = "3/16 in", [3.17] = "1/8 in",
+  [1.59] = "1/16 in" }
+local function dia_label(dia_mm)
+  local key = math.floor(dia_mm * 100 + 0.5) / 100
+  local inch = INCH_ENDMILLS[key]
+  local label = string.format("%.2f", dia_mm) .. " mm"
+  if inch ~= nil then label = label .. " (" .. inch .. ")" end
+  return label
+end
+
+-- Diameter of a library tool in mm. ToolDia is in the tool's own
+-- units: a 1/4 in library tool reports ToolDia 0.25 with InMM false
+-- (live test, Nov 22: the gadget warned "picked a 0.25 mm tool"
+-- for a correctly picked 1/4 in endmill — the toolpaths were right,
+-- the comparison was wrong). InMM nil/missing means mm.
+local function tool_dia_mm(tool)
+  local ok_d, dia = pcall(function() return tool.ToolDia end)
+  if not ok_d or dia == nil then return nil end
+  local ok_u, in_mm = pcall(function() return tool.InMM end)
+  if ok_u and in_mm == false then dia = dia * 25.4 end
+  return dia
 end
 
 local function layer_matches(list, layer_name)
@@ -212,6 +256,30 @@ local function tool_type_for(kind)
   return Tool.END_MILL
 end
 
+-- Remembered tools: a library pick is saved in the registry with
+-- ToolDBId:SaveDefaults (the SDK's own persistence: "useful for
+-- saving and loading defaults"), keyed by the manifest tool id, so
+-- the next run reuses it without asking. A remembered tool whose
+-- diameter no longer matches the recommendation is discarded and
+-- asked again. Everything is guarded: a failed load just asks.
+local function remembered_tool(db, key)
+  if not REMEMBER_TOOLS then return nil end
+  local ok_id, id = pcall(function() return ToolDBId("multi_layer_dxf", key) end)
+  if not ok_id or id == nil then return nil end
+  pcall(function() id:LoadDefaults("multi_layer_dxf", key) end)
+  local ok_tool, tool = pcall(function() return db:GetTool(id) end)
+  if ok_tool and tool ~= nil then return tool end
+  return nil
+end
+
+local function remember_tool(picked, key)
+  if not REMEMBER_TOOLS then return end
+  local ok_id, id = pcall(function() return picked.ToolDBId end)
+  if ok_id and id ~= nil then
+    pcall(function() id:SaveDefaults("multi_layer_dxf", key) end)
+  end
+end
+
 -- Resolve the plan's tools: match each recommendation to the VCarve
 -- tool library when asked (one dialog per distinct tool), else create
 -- a tool from the recommendation. Returns tool_id -> {tool=, source=,
@@ -220,29 +288,43 @@ local function resolve_tools(plan_tools)
   local resolved = {}
   local warnings = {}
   local use_dialog = MATCH_TO_LIBRARY and ToolDatabase ~= nil
-  if use_dialog and #plan_tools > 0 then
-    local summary = "multi_layer_dxf tool plan — pick the matching tool from "
-      .. "your VCarve library for each recommendation below.\n"
-      .. "Cancel on any tool uses the recommendation as-is.\n"
-    for _, t in ipairs(plan_tools) do
-      summary = summary .. "\nT" .. t.tool_number .. ": " .. t.name
-        .. " — feed " .. t.feed_mm_sec .. " mm/s, plunge "
-        .. t.plunge_mm_sec .. " mm/s, " .. t.spindle_rpm .. " rpm"
-    end
-    DisplayMessageBox(summary)
+  local db = nil
+  if use_dialog then
+    local ok_db, db_obj = pcall(function() return ToolDatabase() end)
+    if ok_db then db = db_obj end
   end
-  for _, t in ipairs(plan_tools) do
+  for i, t in ipairs(plan_tools) do
     local tool = nil
     local source = "recommendation"
-    if use_dialog then
-      local ok_db, db = pcall(function() return ToolDatabase() end)
-      if ok_db and db ~= nil then
+    if db ~= nil then
+      -- First: a remembered pick from an earlier run — no dialog.
+      tool = remembered_tool(db, t.id)
+      if tool ~= nil then
+        local dia = tool_dia_mm(tool)
+        if dia ~= nil and math.abs(dia - t.dia_mm) > 0.05 then
+          tool = nil -- library tool drifted; ask again below
+        else
+          source = "remembered from your library"
+          local ok_n, num = pcall(function() return tool.ToolNumber end)
+          if ok_n and num ~= nil then t.tool_number = num end
+        end
+      end
+      if tool == nil then
+        -- One tool at a time, named first: say which tool is needed,
+        -- then open its library dialog. The old flow listed every tool
+        -- up front in one message and then popped the dialogs back to
+        -- back with nothing saying which was which (Brandon, Nov 22).
+        DisplayMessageBox("Tool " .. i .. " of " .. #plan_tools
+          .. " — pick the " .. t.name .. " from your VCarve library.\n"
+          .. "Feed " .. t.feed_mm_sec .. " mm/s, plunge "
+          .. t.plunge_mm_sec .. " mm/s, " .. t.spindle_rpm .. " rpm.\n"
+          .. "Cancel uses this recommendation as-is.")
         local ok_pick, picked = pcall(function() return db:SelectTool() end)
         if ok_pick and picked ~= nil then
           tool = picked
           source = "your VCarve library"
-          local ok_d, dia = pcall(function() return picked.ToolDia end)
-          if ok_d and dia ~= nil and math.abs(dia - t.dia_mm) > 0.05 then
+          local dia = tool_dia_mm(picked)
+          if dia ~= nil and math.abs(dia - t.dia_mm) > 0.05 then
             table.insert(warnings, t.name .. ": you picked a "
               .. string.format("%.2f", dia) .. " mm tool instead of "
               .. string.format("%.2f", t.dia_mm)
@@ -250,6 +332,7 @@ local function resolve_tools(plan_tools)
           end
           local ok_n, num = pcall(function() return picked.ToolNumber end)
           if ok_n and num ~= nil then t.tool_number = num end
+          remember_tool(picked, t.id)
         end
       end
     end
@@ -315,6 +398,59 @@ local function create_pocket(name, layer, start_depth, cut_depth, tool, allowanc
   return true
 end
 
+-- Place tabs on a profile layer's closed contours: VCarve's
+-- ProfileParameterData.UseTabs only USES tabs that already exist on
+-- the vectors — setting it alone creates none, and the toolpath is
+-- calculated with the "No tabs defined on selected vectors" warning
+-- (live test, Nov 22: the profiles had no tabs). So tabs are placed
+-- here as real ToolpathTab objects, evenly spaced around each closed
+-- contour, BEFORE the profile toolpath is created.
+-- InsertToolpathAtTabAtPoint snaps to the closest point on the
+-- contour, so points on a circle around the contour's bounding-box
+-- centre land evenly spaced on the contour itself. Returns the
+-- number of tabs placed.
+local function place_tabs_on_layer(layer_obj, count)
+  if count == nil or count <= 0 then return 0 end
+  local placed = 0
+  local pos = layer_obj:GetHeadPosition()
+  while pos ~= nil do
+    local object
+    object, pos = layer_obj:GetNext(pos)
+    local contour = object:GetContour()
+    if contour ~= nil and not contour.IsOpen then
+      local ok, n = pcall(function()
+        local box = contour.BoundingBox2D
+        if box == nil or box.IsInvalid then
+          box = object:GetBoundingBox()
+        end
+        if box == nil or box.IsInvalid then return 0 end
+        local cx, cy = box.Centre.x, box.Centre.y
+        local rx = box.XLength * 0.5
+        local ry = box.YLength * 0.5
+        local radius = math.sqrt(rx * rx + ry * ry)
+        if radius <= 0 then return 0 end
+        local cad = CastCadObjectToCadContour(object)
+        if cad == nil then return 0 end
+        local m = 0
+        for k = 1, count do
+          -- Half-step offset: no tab lands exactly at angle 0,
+          -- where a profile toolpath typically starts.
+          local angle = (k - 0.5) * 2 * math.pi / count
+          local px = cx + radius * math.cos(angle)
+          local py = cy + radius * math.sin(angle)
+          local ok_tab = pcall(function()
+            return cad:InsertToolpathAtTabAtPoint(Point2D(px, py))
+          end)
+          if ok_tab then m = m + 1 end
+        end
+        return m
+      end)
+      if ok and type(n) == "number" then placed = placed + n end
+    end
+  end
+  return placed
+end
+
 local function create_profile(name, layer, start_depth, cut_depth, tool, tabs)
   local profile_data = ProfileParameterData()
   profile_data.StartDepth = start_depth
@@ -331,13 +467,14 @@ local function create_profile(name, layer, start_depth, cut_depth, tool, tabs)
     profile_data.ProfileSide = ProfileParameterData.PROFILE_OUTSIDE
   end
   if tabs ~= nil then
+    -- UseTabs only USES tabs that already exist on the vectors;
+    -- the tabs themselves are placed by place_tabs_on_layer (called
+    -- from main() before this runs). Tab length/thickness come from
+    -- the manifest; there is no TabCount property to set.
     profile_data.UseTabs = true
     profile_data.TabLength = tabs.length_mm
     profile_data.TabThickness = tabs.thickness_mm
     profile_data.Use3dTabs = true
-    -- TabCount is not in the SDK mirror's property list; try it
-    -- guarded — VCarve's default applies if it is ignored.
-    pcall(function() profile_data.TabCount = tabs.count end)
   end
   profile_data.Allowance = 0.0
   profile_data.KeepStartPoints = false
@@ -494,9 +631,9 @@ function main()
         })
         local t = plan_tools[#plan_tools]
         if t.kind == "drill" then
-          t.name = "Drill " .. string.format("%.2f", t.dia_mm) .. " mm"
+          t.name = "Drill " .. dia_label(t.dia_mm)
         else
-          t.name = "End Mill " .. string.format("%.2f", t.dia_mm) .. " mm"
+          t.name = "End Mill " .. dia_label(t.dia_mm)
         end
       end
       local tabs_txt = line:match("^#%s*tabs:%s*(.+)$")
@@ -603,6 +740,18 @@ function main()
       elseif operation == "pocket" then
         ok, err = create_pocket(tp_name, layer, start_depth, cut_depth, tool, allowance_mm)
       elseif operation == "profile" then
+        -- Place the tabs first: UseTabs alone creates none, so the
+        -- profile toolpath would warn "No tabs defined" and cut
+        -- without them (live test, Nov 22).
+        local tabs = tabs_by_layer[layer]
+        if tabs ~= nil then
+          local placed = place_tabs_on_layer(layer_obj, tabs.count)
+          if placed < tabs.count then
+            table.insert(tool_warnings, layer .. ": placed " .. placed
+              .. " of " .. tabs.count .. " tabs — the profile may cut"
+              .. " with fewer tabs than planned")
+          end
+        end
         ok, err = create_profile(tp_name, layer, start_depth, cut_depth,
                                  tool, tabs_by_layer[layer])
       else
