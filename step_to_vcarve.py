@@ -1555,11 +1555,11 @@ def main():
             chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
             st = _tp.settings(cfg)
             (outdir / "manifest.txt").write_text(
-                _tp.manifest_txt(chosen, layers, f"{stem}.dxf", st))
+                _tp.manifest_txt(chosen, layers, f"{stem}.dxf", st, flags))
             for p in tool_plan["plans"]:
                 if p["id"] != chosen["id"]:
                     (outdir / f"manifest_plan_{p['id']}.txt").write_text(
-                        _tp.manifest_txt(p, layers, f"{stem}.dxf", st))
+                        _tp.manifest_txt(p, layers, f"{stem}.dxf", st, flags))
         else:
             lines = [f"{L['layer']}|{L['operation']}|{L['start_depth']:.3f}|{L['cut_depth']:.3f}"
                      for L in layers]

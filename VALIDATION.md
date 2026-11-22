@@ -208,6 +208,23 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # (9.5 mm in 10 mm stock — the part never freed). Profiles now set
 # CutDepthFormula "z" (material thickness) so they cut through
 # whatever stock the job uses; the manifest depth stays as fallback.
+# (8) tabs, continued (2026-11-22): v0.6 placed 0 of 3 tabs on both
+# profiles — the SDK spells the method two ways
+# (InsertToolpathAtTabAtPoint in the method list,
+# InsertToolpathTabAtPoint in the ToolpathTab description) and v0.6
+# called one spelling inside a pcall that swallowed the failure. v0.7
+# tries both spellings, calls the method on the contour GetContour()
+# already returns (no cast needed), and returns the failure reason so
+# the warning names it. Verified live: the preview shows both parts
+# held in the sheet by tabs. (9) post-processing in the final dialog
+# (2026-11-22, Brandon's request): the post-process plan lived in
+# report.md but never reached the gadget, so the operator had no
+# instructions after the cut. manifest.txt now carries `# post:
+# [method] step (parts)` lines (one per unique POST-PROCESS flag,
+# grouped across parts) and the gadget lists them under "After the
+# CNC cut:" in its final dialog. For the real container that is the
+# router-table roundover on both parts. Parts with no post-processing
+# get no `# post:` lines and no dialog section.
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50

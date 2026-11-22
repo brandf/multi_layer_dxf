@@ -798,7 +798,41 @@ def choose_plan(plans, wanted_id=None):
     return plans[0]
 
 
-def manifest_txt(plan, layers, dxf_name, st=None):
+def post_steps_from_flags(flags):
+    """Post-processing steps for manifest.txt, from the POST-PROCESS
+    flags: "[PART] POST-PROCESS [method]: <detail> — <step>". Groups
+    identical (method, step) pairs across parts, so the same roundover
+    on two parts is one line with both parts listed. Returns a list
+    of "# post: [method] step (parts)" lines, in first-seen order."""
+    grouped = {}
+    order = []
+    for f in flags or []:
+        if "POST-PROCESS [" not in f:
+            continue
+        part = ""
+        if f.startswith("["):
+            part = f[1:f.index("]")]
+        rest = f.split("POST-PROCESS [", 1)[1]
+        method, _, detail = rest.partition("]: ")
+        step = detail.split(" — ", 1)[1] if " — " in detail else detail
+        step = step.strip()
+        if not step:
+            continue
+        key = (method, step)
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        if part and part not in grouped[key]:
+            grouped[key].append(part)
+    lines = []
+    for method, step in order:
+        parts = grouped[(method, step)]
+        suffix = f" ({', '.join(parts)})" if parts else ""
+        lines.append(f"# post: [{method}] {step}{suffix}")
+    return lines
+
+
+def manifest_txt(plan, layers, dxf_name, st=None, flags=None):
     """manifest.txt v2: # tool / # tabs / # plan comment lines, then
     layer|operation|start|cut|part|tool_id|allowance|kind per layer,
     in cut order. Old gadgets ignore the extra fields (they read
@@ -806,7 +840,11 @@ def manifest_txt(plan, layers, dxf_name, st=None):
     in mm (rough passes), field 8 the pass kind (rough/finish — the
     gadget names the two toolpaths on one layer differently).
     Tabs ride on `# tabs: <layer>|<count>|<length_mm>|<thickness_mm>`
-    lines, one per tabbed profile layer."""
+    lines, one per tabbed profile layer. Post-processing steps ride
+    on `# post: [method] step (parts)` lines, one per unique step —
+    the gadget lists them in its final dialog so the operator knows
+    what to do after the CNC cut (e.g. round over the outer edge
+    on the router table)."""
     st = st or settings({})
     by_name = {L["layer"]: L for L in layers}
     lines = [f"# dxf: {dxf_name}"]
@@ -825,6 +863,7 @@ def manifest_txt(plan, layers, dxf_name, st=None):
         if tabs:
             lines.append(f"# tabs: {L['layer']}|{tabs['count']}|"
                          f"{tabs['length_mm']}|{tabs['thickness_mm']}")
+    lines.extend(post_steps_from_flags(flags))
     for entry in plan["layers"]:
         L = by_name[entry["layer"]]
         part = L.get("part", "")

@@ -1,5 +1,5 @@
 -- VECTRIC LUA SCRIPT
--- multi_layer_dxf.lua — VCarve Pro gadget (v0.6, live-tested in VCarve Pro V12.5)
+-- multi_layer_dxf.lua — VCarve Pro gadget (v1.0, live-tested in VCarve Pro V12.5)
 -- NOTE: the first line is required — VCarve refuses to load a gadget
 -- whose first line is not exactly "-- VECTRIC LUA SCRIPT".
 --
@@ -405,50 +405,99 @@ end
 -- (live test, Nov 22: the profiles had no tabs). So tabs are placed
 -- here as real ToolpathTab objects, evenly spaced around each closed
 -- contour, BEFORE the profile toolpath is created.
--- InsertToolpathAtTabAtPoint snaps to the closest point on the
--- contour, so points on a circle around the contour's bounding-box
--- centre land evenly spaced on the contour itself. Returns the
--- number of tabs placed.
+-- The SDK spells the method two ways (InsertToolpathAtTabAtPoint in
+-- the method list, InsertToolpathTabAtPoint in the ToolpathTab
+-- description) and v0.6 placed 0 of 3 tabs on both profiles — the
+-- call silently failed inside a pcall. This version tries both
+-- spellings, calls the method on the contour GetContour() already
+-- returns (no cast needed), and RETURNS the failure reason so the
+-- warning names it instead of just counting to zero.
+-- Returns placed count, diagnostic string (nil when all placed).
+local function tab_fn_on(target)
+  local ok, fn = pcall(function() return target.InsertToolpathAtTabAtPoint end)
+  if ok and fn ~= nil then return fn, "InsertToolpathAtTabAtPoint" end
+  ok, fn = pcall(function() return target.InsertToolpathTabAtPoint end)
+  if ok and fn ~= nil then return fn, "InsertToolpathTabAtPoint" end
+  return nil, nil
+end
+
 local function place_tabs_on_layer(layer_obj, count)
-  if count == nil or count <= 0 then return 0 end
+  if count == nil or count <= 0 then return 0, "no tab count in manifest" end
   local placed = 0
+  local diag = nil
+  local seen_contour = false
   local pos = layer_obj:GetHeadPosition()
   while pos ~= nil do
     local object
     object, pos = layer_obj:GetNext(pos)
     local contour = object:GetContour()
     if contour ~= nil and not contour.IsOpen then
-      local ok, n = pcall(function()
+      seen_contour = true
+      local ok, n, why = pcall(function()
         local box = contour.BoundingBox2D
         if box == nil or box.IsInvalid then
           box = object:GetBoundingBox()
         end
-        if box == nil or box.IsInvalid then return 0 end
-        local cx, cy = box.Centre.x, box.Centre.y
-        local rx = box.XLength * 0.5
-        local ry = box.YLength * 0.5
-        local radius = math.sqrt(rx * rx + ry * ry)
-        if radius <= 0 then return 0 end
-        local cad = CastCadObjectToCadContour(object)
-        if cad == nil then return 0 end
+        if box == nil or box.IsInvalid then return 0, "bbox invalid" end
+        local cx = (box.MinX + box.MaxX) * 0.5
+        local cy = (box.MinY + box.MaxY) * 0.5
+        local radius = math.max(box.XLength, box.YLength) * 0.5
+        if radius <= 0 then return 0, "zero-size contour" end
+        -- The tab method lives on CadContour and GetContour()
+        -- already returns one, so use it directly. Fall back to
+        -- the cast if the contour does not carry the method.
+        local target = contour
+        local fn, which = tab_fn_on(target)
+        if fn == nil then
+          local cad = nil
+          pcall(function() cad = CastCadObjectToCadContour(object) end)
+          if cad ~= nil then
+            fn, which = tab_fn_on(cad)
+            if fn ~= nil then
+              target = cad
+              which = which .. " (via cast)"
+            end
+          end
+        end
+        if fn == nil then
+          return 0, "no InsertToolpath*Tab* method on contour or cast"
+        end
         local m = 0
+        local first_err = nil
         for k = 1, count do
           -- Half-step offset: no tab lands exactly at angle 0,
-          -- where a profile toolpath typically starts.
+          -- where a profile toolpath typically starts. The point
+          -- sits on the bbox's long radius; the method snaps it to
+          -- the closest point on the contour itself.
           local angle = (k - 0.5) * 2 * math.pi / count
           local px = cx + radius * math.cos(angle)
           local py = cy + radius * math.sin(angle)
-          local ok_tab = pcall(function()
-            return cad:InsertToolpathAtTabAtPoint(Point2D(px, py))
+          local ok_tab, tab = pcall(function()
+            return fn(target, Point2D(px, py))
           end)
-          if ok_tab then m = m + 1 end
+          if ok_tab and tab ~= nil then
+            m = m + 1
+          elseif first_err == nil then
+            first_err = tostring(tab)
+          end
         end
-        return m
+        if m == 0 then
+          return 0, "tab insert failed (" .. which .. "): "
+            .. tostring(first_err)
+        end
+        return m, which
       end)
-      if ok and type(n) == "number" then placed = placed + n end
+      if ok and type(n) == "number" then
+        placed = placed + n
+        if n > 0 and why ~= nil then diag = why end
+        if n == 0 and why ~= nil and diag == nil then diag = why end
+      elseif diag == nil then
+        diag = tostring(n)
+      end
     end
   end
-  return placed
+  if not seen_contour then return 0, "no closed contour on layer" end
+  return placed, diag
 end
 
 local function create_profile(name, layer, start_depth, cut_depth, tool, tabs)
@@ -614,6 +663,7 @@ function main()
   local plan_summary = nil
   local plan_tools = {}   -- ordered list of tool tables from # tool lines
   local tabs_by_layer = {} -- layer -> {count, length_mm, thickness_mm}
+  local post_steps = {}   -- post-processing steps from # post: lines
   local lines = {}
   local fh = io.open(manifest_path, "r")
   if not fh then
@@ -652,6 +702,10 @@ function main()
           length_mm = tonumber(f[3]) or 5.0,
           thickness_mm = tonumber(f[4]) or 1.0,
         }
+      end
+      local post_txt = line:match("^#%s*post:%s*(.+)$")
+      if post_txt then
+        table.insert(post_steps, trim(post_txt))
       end
     elseif line ~= "" then
       table.insert(lines, line)
@@ -753,11 +807,12 @@ function main()
         -- without them (live test, Nov 22).
         local tabs = tabs_by_layer[layer]
         if tabs ~= nil then
-          local placed = place_tabs_on_layer(layer_obj, tabs.count)
+          local placed, diag = place_tabs_on_layer(layer_obj, tabs.count)
           if placed < tabs.count then
             table.insert(tool_warnings, layer .. ": placed " .. placed
-              .. " of " .. tabs.count .. " tabs — the profile may cut"
-              .. " with fewer tabs than planned")
+              .. " of " .. tabs.count .. " tabs"
+              .. (diag ~= nil and (" — " .. diag) or "")
+              .. " — the profile may cut with fewer tabs than planned")
           end
         end
         ok, err = create_profile(tp_name, layer, start_depth, cut_depth,
@@ -802,6 +857,12 @@ function main()
   end
   for _, w in ipairs(tool_warnings) do
     msg = msg .. "\nWARNING: " .. w
+  end
+  if #post_steps > 0 then
+    msg = msg .. "\n\nAfter the CNC cut:"
+    for _, s in ipairs(post_steps) do
+      msg = msg .. "\n  - " .. s
+    end
   end
   msg = msg .. "\n\nPreview the toolpaths now. This gadget does not post\n"
     .. "G-code and does not save the job — File > Save As to save\n"
