@@ -113,6 +113,21 @@ DEFAULTS = {
     "stepover_pct": 40,
     "tabs": {"enabled": True, "count": 4, "length_mm": 5.0, "thickness_mm": 1.0},
     "max_plans": 3,
+    # Tool-size cap (Brandon, 2026-11-21, VCarve V12.5 live test): no
+    # endmill bigger than this fraction of the part's smallest
+    # footprint dimension. The planner used to recommend the largest
+    # tool that fits, which put a 1/2 in endmill on a 46 mm part —
+    # far too coarse for the part and for the layout around it.
+    # 1/6 caps a 46 mm part at 7.67 mm (1/4 in wins) and leaves a
+    # 139 mm panel free to use 1/2 in. Per part, not per job: each
+    # layer's tool is capped by its own part's size. The cap never
+    # goes below max_endmill_floor_mm (1/4 in): the rule is about
+    # keeping oversize tools off small parts, not about forcing
+    # tiny tools — without the floor, an 80x20 mm part would be
+    # capped at 3.33 mm and the eight_parts job went 9.0 -> 13.5
+    # min for no benefit (regression run, Nov 21).
+    "max_endmill_ratio": 1.0 / 6.0,
+    "max_endmill_floor_mm": 6.35,
     # Rough + finish (BRA-14): a pocket roughed with the largest tool
     # that fits leaves round corners (radius = tool radius). A finish
     # pass with a smaller tool, removing only a thin wall allowance,
@@ -480,6 +495,29 @@ def tabs_for_layer(layer, st):
             "thickness_mm": float(t.get("thickness_mm", 1.0))}
 
 
+def _tool_cap_mm(layer, part_min_dim, st):
+    """Largest endmill this layer's part allows (Brandon Nov 21):
+    max_endmill_ratio of the part's smallest footprint dimension.
+    part_min_dim is a float (one part) or {part_prefix: min_dim};
+    layers in a merged job carry "part". None when the part size
+    is unknown — then there is no cap. The cap never goes below
+    max_endmill_floor_mm (1/4 in)."""
+    ratio = st.get("max_endmill_ratio")
+    if ratio is None:
+        return None
+    if isinstance(part_min_dim, dict):
+        dim = part_min_dim.get((layer or {}).get("part"))
+    else:
+        dim = part_min_dim
+    if dim is None:
+        return None
+    floor = st.get("max_endmill_floor_mm")
+    cap = float(dim) * float(ratio)
+    if floor is not None:
+        cap = max(cap, float(floor))
+    return cap
+
+
 def _fits(tool_dia, min_width_mm):
     """An endmill needs clearance to move inside a pocket/slot.
     BRA-22: the clearance is proportional to the tool — half its
@@ -495,7 +533,7 @@ def _fits(tool_dia, min_width_mm):
     return tool_dia <= min_width_mm - min(0.5, 0.5 * tool_dia)
 
 
-def profile_tool_diameter(layers, cfg=None):
+def profile_tool_diameter(layers, cfg=None, part_min_dim=None):
     """The profile-cutting endmill diameter for one part (BRA-16
     spacing rule): the largest standard endmill that cuts the
     part's profile / through-cut layers, by the same fit rule the
@@ -506,18 +544,22 @@ def profile_tool_diameter(layers, cfg=None):
     Returns the diameter in mm, or None when the part has no
     profile layers (e.g. --only filtered them out) or no standard
     tool fits a through-cut slot — then the packer falls back to
-    gap_mm and the tool plan reports the missing tool (BRA-18)."""
+    gap_mm and the tool plan reports the missing tool (BRA-18).
+    The tool-size cap applies here too (same rule as plan_tools)."""
     st = settings(cfg)
     em_sizes = standard_endmill_sizes_mm(st)
     best = None
     for L in layers:
         if L["operation"] != "profile":
             continue
+        cap = _tool_cap_mm(L, part_min_dim, st)
         if _is_outer_profile(L):
             fitting = em_sizes
         else:  # through-cut slot: the tool must fit the slot
             mw = float(L.get("est", {}).get("min_width_mm", 0))
             fitting = [d for d in em_sizes if _fits(d, mw)]
+        if cap is not None:
+            fitting = [d for d in fitting if d <= cap + 1e-9]
         if not fitting:
             return None
         d = max(fitting)
@@ -546,10 +588,13 @@ def plan_profile_tools(plan):
     return per_part
 
 
-def plan_tools(layers, cfg=None):
+def plan_tools(layers, cfg=None, part_min_dim=None):
     """Rank tool-set plans for these layers. Returns
     {"plans": [best, ...up to max_plans], "error": None} or
-    {"plans": [], "error": "..."} when no standard tool can cut a layer."""
+    {"plans": [], "error": "..."} when no standard tool can cut a layer.
+    part_min_dim is the smallest footprint dimension per part (float
+    for one part, {prefix: min_dim} for a merged job) — each layer's
+    endmill is capped at max_endmill_ratio of its own part's size."""
     st = settings(cfg)
     layers = [L for L in layers]
     if not layers:
@@ -582,6 +627,7 @@ def plan_tools(layers, cfg=None):
     max_corner = st.get("max_corner_radius_mm")
     want_finish = bool(st.get("finish_corners", True))
     candidates = []
+    cap_blocked = []  # layers the tool-size cap alone ruled out
     for em_set in em_sets:
         for drill_set in drill_modes:
             assigned = []  # entry dicts (layer, tool, kind, note, seconds, ...)
@@ -609,6 +655,12 @@ def plan_tools(layers, cfg=None):
                         # fits inside the hole (needs room to orbit).
                         fitting = [d for d in sorted(em_set, reverse=True)
                                    if d <= 0.8 * dia]
+                        cap = _tool_cap_mm(L, part_min_dim, st)
+                        if cap is not None:
+                            capped = [d for d in fitting if d <= cap + 1e-9]
+                            if not capped and fitting:
+                                cap_blocked.append(L["layer"])
+                            fitting = capped
                         if not fitting:
                             ok = False
                             break
@@ -620,6 +672,12 @@ def plan_tools(layers, cfg=None):
                 elif op == "pocket":
                     mw = float(e.get("min_width_mm", 0))
                     fitting = [d for d in sorted(em_set, reverse=True) if _fits(d, mw)]
+                    cap = _tool_cap_mm(L, part_min_dim, st)
+                    if cap is not None:
+                        capped = [d for d in fitting if d <= cap + 1e-9]
+                        if not capped and fitting:
+                            cap_blocked.append(L["layer"])
+                        fitting = capped
                     if not fitting:
                         ok = False
                         break
@@ -632,6 +690,12 @@ def plan_tools(layers, cfg=None):
                     else:  # through-cut slot: the tool must fit the slot
                         mw = float(e.get("min_width_mm", 0))
                         fitting = [d for d in sorted(em_set, reverse=True) if _fits(d, mw)]
+                    cap = _tool_cap_mm(L, part_min_dim, st)
+                    if cap is not None:
+                        capped = [d for d in fitting if d <= cap + 1e-9]
+                        if not capped and fitting:
+                            cap_blocked.append(L["layer"])
+                        fitting = capped
                     if not fitting:
                         ok = False
                         break
@@ -682,6 +746,11 @@ def plan_tools(layers, cfg=None):
                 })
     if not candidates:
         bad = []
+        if cap_blocked:
+            ratio = st.get("max_endmill_ratio")
+            bad.append(f"tool cap (no endmill over {ratio:.3g} x the part's "
+                       f"smallest side) blocks a tool for: "
+                       + ", ".join(sorted(set(cap_blocked))))
         for L in layers:
             if L["operation"] == "pocket":
                 mw = float(L.get("est", {}).get("min_width_mm", 0))

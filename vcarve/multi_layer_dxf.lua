@@ -80,7 +80,12 @@
 --     pos_data, geometry_selector, create_2d_preview, interactive)
 --   VectricJob():ImportDxfDwg(pathname) — imports DXF, selects the data
 --   job.LayerManager:FindLayerWithName(name)
---   SelectVectorsOnLayer(layer, selection, closed_only, open_only, ...)
+--   Layer selection is a local helper below (adapted from Vectric's
+--     Profile_Vectors_On_Layer sample): layer:GetHeadPosition() /
+--     GetNext(pos), object:GetContour(), selection:Add(object, ...),
+--     selection:GroupSelectionFinished(). There is NO global
+--     SelectVectorsOnLayer in the API — calling it as one crashes
+--     the gadget (VCarve V12.5 live test, Nov 21).
 --   Tool(name, Tool.END_MILL / Tool.THROUGH_DRILL), with .InMM,
 --     .ToolDia, .Stepdown, .Stepover, .FeedRate, .PlungeRate,
 --     .SpindleSpeed, .ToolNumber
@@ -110,9 +115,11 @@
 --     FileDialog() — the file picker (confirmed, V12 SDK docs +
 --       samples). Guarded anyway: if a VCarve version lacks it, the
 --       gadget says so and MANIFEST_PATH is the fallback.
---     JoinVectors() — joining open vectors on a layer; if the global
---       does not exist, the gadget proceeds with the vectors as
---       imported and lets Create*Toolpath report the failure per layer.
+--     JoinVectors() does NOT exist in the V12 SDK (zero matches in
+--       the docs or the samples) — the old guarded call was dead code
+--       and is removed. DXF import already produces closed contours,
+--       which is what selection works on; if a layer ever has none,
+--       the gadget reports it instead of guessing.
 --     ToolDatabase():SelectTool() — library matching; if the API is
 --       missing or you Cancel, the gadget uses the recommendation.
 --     ProfileParameterData.TabCount — not in the SDK mirror's property
@@ -372,6 +379,52 @@ local function fallback_tool(operation, layer)
   end
 end
 
+-- SelectVectorsOnLayer — adapted from Vectric's Profile_Vectors_On_Layer
+-- sample gadget (V12 SDK; Vectric's own code, used with its licence
+-- terms: origin must not be misrepresented, altered versions marked).
+-- The sample defines this helper itself because the API has no such
+-- global. One fix vs the sample: the sample's nested if/else adds an
+-- OPEN contour when select_closed is true and select_open is false;
+-- here open/closed are tested exactly (IsOpen and select_open, or
+-- not IsOpen and select_closed).
+local function SelectVectorsOnLayer(layer, selection, select_closed, select_open, select_groups)
+  local objects_selected = false
+  local warning_displayed = false
+  local pos = layer:GetHeadPosition()
+  while pos ~= nil do
+    local object
+    object, pos = layer:GetNext(pos)
+    local contour = object:GetContour()
+    if contour == nil then
+      if (object.ClassName == "vcCadObjectGroup") and select_groups then
+        selection:Add(object, true, true)
+        objects_selected = true
+      else
+        if not warning_displayed then
+          local message = "Object(s) without contour information found on layer - ignoring"
+          if not select_groups then
+            message = message .. "\r\n\r\n"
+              .. "If layer contains grouped vectors these must be ungrouped for this script"
+          end
+          DisplayMessageBox(message)
+          warning_displayed = true
+        end
+      end
+    else
+      local is_open = contour.IsOpen
+      if (is_open and select_open) or ((not is_open) and select_closed) then
+        selection:Add(object, true, true)
+        objects_selected = true
+      end
+    end
+  end
+  -- Vectors were added in batch mode; tell the selection we are done.
+  if objects_selected then
+    selection:GroupSelectionFinished()
+  end
+  return objects_selected
+end
+
 function main()
   local job = VectricJob()
   if not job.Exists then
@@ -527,12 +580,9 @@ function main()
         DisplayMessageBox("multi_layer_dxf: no closed vectors on layer " .. layer)
         return false
       end
-      -- Join open vectors on this layer, if the SDK provides it.
-      -- Our DXF loops are closed shapes made of separate line/arc
-      -- entities, so joining is what makes them one closed vector.
-      if JoinVectors then
-        pcall(function() JoinVectors(selection, 0.01) end)
-      end
+      -- No joining step: JoinVectors() does not exist in the V12 SDK,
+      -- and DXF import already produces the closed contours that
+      -- selection works on (a layer with none is reported above).
       -- Tool for this layer: the plan's resolved tool, or the v0.2
       -- fallback for old manifests.
       local tool_entry = resolved[tool_id]

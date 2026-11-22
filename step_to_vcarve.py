@@ -1431,7 +1431,10 @@ def main():
     import toolplan as _tp
     tool_plan = None
     if not args.no_toolplan:
-        tool_plan = _tp.plan_tools(layers, cfg)
+        # Tool-size cap: this part's smallest footprint dimension
+        # (bb is the stock bbox, in scope here).
+        min_dim = min(bb.max.X - bb.min.X, bb.max.Y - bb.min.Y)
+        tool_plan = _tp.plan_tools(layers, cfg, min_dim)
         if tool_plan["plans"]:
             chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
             tool_plan["chosen"] = chosen["id"]

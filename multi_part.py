@@ -328,7 +328,8 @@ def main():
                         L2["depends_on"] = f"{p['prefix']}__{L2['depends_on']}"
                     pre_layers.append(L2)
                 p["pre_layers"] = man["layers"]  # fit-rule fallback only
-        pre_plan = _tp.plan_tools(pre_layers, cfg) if pre_layers else {"plans": [], "error": "no layers"}
+        part_min_dims = {p["prefix"]: min(p["footprint"]) for p in prepared}
+        pre_plan = _tp.plan_tools(pre_layers, cfg, part_min_dims) if pre_layers else {"plans": [], "error": "no layers"}
         if pre_plan["plans"]:
             chosen_pre = _tp.choose_plan(pre_plan["plans"], args.plan)
             profile_dias = _tp.plan_profile_tools(chosen_pre)
@@ -341,7 +342,8 @@ def main():
                             for k, v in sorted(profile_dias.items())))
         else:
             for p in prepared:
-                d = _tp.profile_tool_diameter(p["pre_layers"], cfg)
+                d = _tp.profile_tool_diameter(p["pre_layers"], cfg,
+                                              min(p["footprint"]))
                 profile_dias[p["prefix"]] = d
             profile_tool_source = "fit-rule maxima (no merged plan)"
             print(f"profile tools from fit-rule maxima "
@@ -475,9 +477,13 @@ def main():
             dz = -bb.min.Z  # outside bottom face -> Z=0
         if layout == "side_by_side":
             # placement origin is the usable area's lower-left
-            # corner (clamp margin in from the sheet edge)
-            ox = margin if material else 0.0
-            oy = margin if material else 0.0
+            # corner (clamp margin in from the sheet edge) — always,
+            # even when no material was given: the DXF is written in
+            # sheet coordinates for the suggested material, so the
+            # margin offset must be there or the parts sit at (0,0)
+            # against the sheet edge (VCarve V12.5 live test, Nov 21).
+            ox = margin
+            oy = margin
             dx = ox + placement["x"] - bb.min.X
             dy = oy + placement["y"] - bb.min.Y
         elif layout == "scene":
@@ -520,9 +526,11 @@ def main():
             combined_layers.append(L2)
         combined_flags.extend(f"[{prefix}] {f}" for f in man["flags"])
         # Sheet coordinates: placement is inside the usable area,
-        # which starts one clamp margin in from the sheet edge.
-        _ox = margin if material else 0.0
-        _oy = margin if material else 0.0
+        # which starts one clamp margin in from the sheet edge —
+        # always (see the offset above); the manifest records sheet
+        # coordinates for the suggested material.
+        _ox = margin
+        _oy = margin
         _fp = p["footprint"]
         if pack_rot_z:
             _fp = (_fp[1], _fp[0])  # 90 deg in Z swaps the footprint
@@ -559,7 +567,7 @@ def main():
     # ---- tool planning (BRA-12) on the MERGED job, so tool changes
     # are minimised across both parts, not per part. Per-part runs
     # used --no-toolplan; their layers carry the "est" inputs.
-    tool_plan = _tp.plan_tools(combined_layers, cfg) if combined_layers else {"plans": [], "error": "no layers"}
+    tool_plan = _tp.plan_tools(combined_layers, cfg, part_min_dims) if combined_layers else {"plans": [], "error": "no layers"}
     if tool_plan["plans"]:
         chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
         tool_plan["chosen"] = chosen["id"]
@@ -611,8 +619,8 @@ def main():
         "usable_area_mm": ({"x": round(usable[0], 3), "y": round(usable[1], 3)}
                            if usable else None),
         "layout": [{"name": p["prefix"],
-                    "x_mm": round((margin if material else 0.0) + pl["x"], 3),
-                    "y_mm": round((margin if material else 0.0) + pl["y"], 3),
+                    "x_mm": round(margin + pl["x"], 3),
+                    "y_mm": round(margin + pl["y"], 3),
                     "w_mm": pl["w"], "d_mm": pl["d"],
                     "rotate_z_deg": pl["rotate_z"],
                     "profile_tool_dia_mm": profile_dias.get(p["prefix"])}

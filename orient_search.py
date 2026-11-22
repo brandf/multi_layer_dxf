@@ -212,7 +212,12 @@ def score_manifest(man, cfg=None):
                  "pockets_not_from_top": 0, "flip": False,
                  "post": {}, "no_plan": False}
     layers = man.get("layers", [])
-    tp = _tp.plan_tools(layers, cfg)
+    stock = man.get("stock") or {}
+    min_dim = None
+    if stock.get("x_max") is not None:
+        min_dim = min(stock["x_max"] - stock["x_min"],
+                      stock["y_max"] - stock["y_min"])
+    tp = _tp.plan_tools(layers, cfg, min_dim)
     if tp["plans"]:
         chosen = _tp.choose_plan(tp["plans"])
         breakdown["cut_minutes"] = round(chosen["total_seconds"] / 60.0, 2)

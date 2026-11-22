@@ -102,9 +102,13 @@ syntax-checked with luaparser, but it has not been run inside VCarve
 yet (no VCarve on this Linux VM). The file picker is `FileDialog()`,
 confirmed from the official V12 Gadget SDK — `GetFileName()` does
 not exist in the Vectric API (found out the hard way, Nov 21: no
-dialog ever appeared). The remaining least-certain call is
-`JoinVectors()`, guarded so the gadget fails with a message instead
-of silently doing the wrong thing.
+dialog ever appeared). Same story for the vector selection:
+`SelectVectorsOnLayer()` is not a global either — it is a helper
+each gadget defines for itself, now included from Vectric's own
+sample. `JoinVectors()` does not exist at all and is gone. The
+remaining least-certain calls are the tool-library matching and
+the tab-count setting, guarded so the gadget fails with a message
+instead of silently doing the wrong thing.
 Until it is tested on Windows, the verified path is:
 
 1. `step_to_vcarve.py` → layered DXF + manifest.json
@@ -305,6 +309,17 @@ the recommendation plus fallback plans:
   0.50 mm endmill fits a pocket 0.75 mm wide, while every tool
   >= 1.0 mm behaves exactly as under the old flat 0.5 mm rule —
   the change only affects pockets in [0.75, 1.0) and [1.2, 1.3) mm.
+- **Tool size is capped by the part (2026-11-21, BRA-5 live test):**
+  the planner used to pick purely on cutting time, which put a
+  1/2" endmill on a 46 mm part. No endmill is now bigger than 1/6
+  of its own part's smallest footprint side — a 46 mm part caps at
+  1/4", a 139 mm panel can still use 1/2" — and the cap never goes
+  below 1/4", so a long skinny part is not forced onto a tiny tool
+  for no benefit. Config: `toolplan.max_endmill_ratio` (default
+  1/6) and `toolplan.max_endmill_floor_mm` (default 6.35). Effect:
+  the real container's Plan A is now 1/4" (5.9 min, was 5.6 with
+  1/2"); the Kookabus merged Plan A is 3/8" (215.1 min, was 212.1);
+  eight_parts is unchanged at 9.0 min.
 - **Plans, not one answer:** a plan is a tool set (endmills + per
   hole-diameter drill-or-bore). Total time = estimated cutting time
   (MRR model — volume/(feed·stepover·stepdown) for pockets,
@@ -473,11 +488,15 @@ the manifest, not the layer name, for depths.
 
 Option A — gadget (recommended for dozens of depths):
 Gadgets > multi_layer_dxf, pick manifest.txt. It imports the DXF named
-on the manifest's `# dxf:` line, joins vectors, creates toolpaths
-in order drill -> pockets shallow to deep -> profile last,
-recalculates all. It does not save the job or post G-code —
-preview, File > Save As the `.crv`, then post. Always preview
-before posting G-code.
+on the manifest's `# dxf:` line, selects the vectors on each layer,
+creates toolpaths in order drill -> pockets shallow to deep ->
+profile last, recalculates all. It does not save the job or post
+G-code — preview, File > Save As the `.crv`, then post. Always
+preview before posting G-code. Gadget v0.4 (2026-11-21, live-tested
+in VCarve Pro V12.5): the manifest picker is the real `FileDialog()`
+API, the layer selection is a helper defined in the gadget itself
+(`SelectVectorsOnLayer` is not a VCarve global), and the script
+starts with the required `-- VECTRIC LUA SCRIPT` line.
 
 ## Orientation search and layout (built 2026-11-08, search 2026-11-09, Brandon approved)
 
@@ -512,7 +531,7 @@ each part's CAM orientation by measurement, not by a heuristic
   itself costs the same either way. No special-casing for
   magnets or insides-up: the difference falls out of the
   penalties — the flipped container is FASTER on the clock
-  (3.5 vs 5.6 min) because it skips the Bottom's 8 magnet
+  (3.5 vs 5.9 min) because it skips the Bottom's 8 magnet
   holes, and worse, its pockets were cut on the WRONG side
   (BRA-21: a downward-opening pocket was emitted as a top
   pocket, which would bore into the Bottom's outside face).
@@ -586,7 +605,7 @@ Verified 2026-11-09: the container STEP rotated 90 deg about X
 (`test/rotated_container.step`) searches back to the exact
 `parts.container.json` result — Bottom +Z, Top -Z, 5 layers,
 0 flags. The real container with `--auto` gives 8 layers / 6
-flags, Plan A 2 changes / 5.6 min, Bottom +Z / Top -Z — the same
+flags, Plan A 2 changes / 5.9 min, Bottom +Z / Top -Z — the same
 as the explicit parts.json flip. The 8-part test now orients the
 sideways block to +X and reads it exactly (15x10x4 pocket,
 D5 thru hole, 0 flags) — 8 parts, 22 layers, 4 flags, Plan A 1
@@ -614,8 +633,8 @@ BRA-22 (2026-11-09, Brandon's decision: option 2) made the
 fit-rule clearance proportional to the tool instead of a flat
 0.5 mm — `toolplan._fits` now uses clearance = min(0.5, 0.5 ×
 tool diameter), capped so tools >= 1.0 mm behave exactly as
-before. The Kookabus merged job now has a plan (Plan A EM 1/2 in
-+ EM 0.50 mm, 2 changes, 212.1 min — the 0.913 mm groove is cut
+before. The Kookabus merged job now has a plan (Plan A EM 3/8 in
++ EM 0.50 mm, 2 changes, 215.1 min — the 0.913 mm groove is cut
 by the 0.50 mm endmill); 20 layers / 190 flags (was 191 — only
 the TOOL PLAN flag is gone); spacing packs from plan A. Every
 other section-4 number is unchanged — the rule only affects

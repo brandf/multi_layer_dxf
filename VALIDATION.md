@@ -118,7 +118,10 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # numbers are the corrected behaviour (verified 2026-11-09, BRA-18
 # run). Suggested material 180 x 80 x 10 mm (was 200 x 80 x 10 —
 # BRA-20 packs from plan A's 3/16 in profile tools: gap 14.5 mm,
-# P02 at sheet x 74.5, not the 30.4 mm fit-rule-maximum gap);
+# P02 at sheet x 94.5, not the 30.4 mm fit-rule-maximum gap);
+# (2026-11-21: the old 74.5 was usable-area coords — the DXF was
+# written at sheet (0,0) with no clamp margin, so "sheet x" was
+# a lie; the margin fix makes the layout true sheet coords.)
 # the spacing check verifies plan A profile tools (3/16 in both
 # parts), and manifest spacing.profile_tools_from is "plan A".
 
@@ -151,11 +154,34 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # BRA-22 (2026-11-09, Brandon's decision: option 2): the fit-rule
 # clearance is now proportional to the tool — min(0.5, 0.5 x tool
 # dia) — so the 0.50 mm endmill fits the 0.913 mm groove and the
-# merged job HAS a plan: Plan A EM 1/2 in + EM 0.50 mm, 2 changes,
-# 212.1 min (B 2/2/215.1, C 7/8/219.8); layers 20, flags 190 (was
+# merged job HAS a plan: Plan A EM 3/8 in + EM 0.50 mm, 2 changes,
+# 215.1 min (B 2/2/221.0, C 7/8/222.8); layers 20, flags 190 (was
+# 191 — only the TOOL PLAN flag is gone). (2026-11-21, tool cap:
+# P03's 64 mm side caps the merged plan at 3/8 in; was EM 1/2 in
+# / 212.1 min before the cap.)
 # 191 — only the TOOL PLAN flag is gone); spacing packs from plan
 # A, not the fit-rule maxima. Check-mode counts above are unchanged
 # (classification only; no tool plan runs there).
+#
+# BRA-5 live test (2026-11-21, VCarve Pro V12.5, Brandon running the
+# gadget): three real defects found by running the gadget, all fixed
+# and re-verified by the full section-4 suite:
+# (1) the clamp-margin offset applied only when --material was given
+# — the DXF was written at sheet (0,0) with no clamp room and the
+# profile cut at the sheet edge; the offset now always applies, so
+# layout coords are true sheet coords (two_part P02 74.525 -> 94.525).
+# (2) tool-size cap: the planner chose 1/2 in on a 46 mm part on
+# cutting time alone — new rule, no endmill bigger than 1/6 of its
+# own part's smallest footprint side, floored at 1/4 in (the floor
+# keeps an 80x20 mm part at 1/4 in — without it eight_parts went
+# 9.0 -> 13.5 min). Container Plan A is now 1/4 in, 5.9 min;
+# Kookabus merged Plan A 3/8 in, 215.1 min. (3) the gadget called
+# SelectVectorsOnLayer, which is not a VCarve global — it is a
+# helper each gadget defines itself; the helper is now defined
+# locally in the gadget (adapted from Vectric's
+# Profile_Vectors_On_Layer sample), and the dead JoinVectors() call
+# was removed (it does not exist in the V12 API either; DXF import
+# already yields closed contours).
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50
@@ -204,24 +230,29 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # P01_P01__POCKET_D1.50 has 3 DXF circles (r 23.00 / 17.97 / 15.00);
 # P02 facing pocket has 1 (r 18.00 counterbore). Bottom drills are
 # surface drills START1.50 depending on POCKET_D1.50. Plan A (BRA-15):
-# Drill 2.25 + EM 1/2", 2 changes, est 5.6 min — cut order all pockets,
+# Drill 2.25 + EM 1/4 in, 2 changes, est 5.9 min — cut order all pockets,
 # both drills, profiles last. Orientation search (BRA-17, BRA-21):
-# Bottom best +Z (score 6.9) over -Z (41.4); Top best -Z (4.7) over
+# Bottom best +Z (score 7.1) over -Z (41.4); Top best -Z (4.8) over
 # +Z (41.3) — the same flip the explicit parts.json gives; X/Y
 # orientations score 145.0 (no_plan + flip + pocket penalties).
 # Merged-job level (BRA-21): upright 9.6 vs flipped 46.1 — about
 # 4.8x, the difficulty Brandon expects (flip 25 + 8 holes x 0.5 +
 # 2 pockets x 5.0 + router_table 4, on top of 3.1 min of cutting).
+# (2026-11-21, tool cap: the 9.6/46.1 figures were computed under
+# the 1/2 in plan; per-part scores are now Bottom +Z 7.1 / Top -Z
+# 4.8, flipped 41.4 / 41.3 — the ratio is penalty-dominated and
+# still ~4.8x. Plan A is now 5.9 min, 1/4 in.)
 # Without --auto or parts.json the Top's pocket is now flagged
 # POCKET NOT FROM TOP and gets no layer (4 layers / 1 flag) instead
 # of being cut into the Top's outside face. With
 # --material 170x100x10 the X/Y orientations are pruned (height
 # 46.00 > thickness 10.00); with --material 150x100x10 the run now
-# fails at PACKING (named error, exit 1) instead: the 1/2 in profile
-# tools need 46 + 30.4 + 46 = 122.4 mm of usable width and the sheet
-# only has 110 — the old 10 mm gap would have let the two profile
-# cuts overlap. 170x100x10 is the smallest fitting sheet for the
-# default plan (or a smaller clamp margin / smaller profile tool).
+# PASSES (2026-11-21, tool cap: the default plan's 1/4 in profile
+# tools need 46 + 17.7 + 46 = 109.7 mm of usable width and the sheet
+# has 110 — it used to fail at PACKING, exit 1, because the 1/2 in
+# tools needed 122.4 mm. 150x100x10 is now the smallest fitting
+# sheet for the default plan; 170x100x10 still works and gives more
+# room).
 # With --material 150x100x5 the run fails with a named error
 # (smallest dimension 9.50 > 5.00), exit 1.
 
@@ -263,7 +294,8 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_mat_out --auto --material 170x100x10
 # expect: 2 parts, 8 layers, 6 flags; X/Y orientations pruned
 # (height 46.00 > thickness 10.00); Bottom at sheet (20, 20), Top at
-# (96.4, 20) — 30.4 mm gap.
+# (83.7, 20) — 17.7 mm gap (was (96.4, 20) / 30.4 mm under the
+# 1/2 in plan, before the 2026-11-21 tool cap).
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_small_out --auto --material 150x100x5
 # expect: exit 1, named error ("no orientation fits material
 # 150.0 x 100.0 x 5.0 mm: smallest part dimension 9.50 mm; ..."),
@@ -278,11 +310,13 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # out dir stays empty (no DXF/manifest written).
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_pins_out --auto --parts test/bra16_twosided.json --material 300x200x10
 # expect: 2 parts, 8 layers, 6 flags; manifest registration_pins =
-# [(276.0, 24.0), (24.0, 176.0)] D6, keep-out radius 18.7 mm
-# (= 12.7 mm profile tool + 3.0 mm pin radius + 3.0 mm clearance) —
+# [(276.0, 24.0), (24.0, 176.0)] D6, keep-out radius 12.35 mm
+# (= 6.35 mm profile tool + 3.0 mm pin radius + 3.0 mm clearance;
+# was 18.7 mm under the 1/2 in plan, before the 2026-11-21 cap) —
 # the widest-separated clear pair inside the usable area.
 # Suggested sizes (no material given): two_part -> 180 x 80 x 10 mm;
-# real container -> 170 x 90 x 10 mm; eight parts -> 600 x 100 x 15 mm
+# real container -> 150 x 90 x 10 mm (was 170 x 90, before the
+# 2026-11-21 tool cap); eight parts -> 600 x 100 x 15 mm
 # (packed bounds + 20 mm clamp margin, rounded up to 10 mm).
 # Tool-dependent spacing (BRA-16, built 2026-11-09; BRA-20, built
 # 2026-11-09): gaps are max(gap_mm, D_A + D_B + web_min_mm) from
@@ -293,40 +327,41 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # written. When no merged plan exists (a layer no standard tool
 # fits — Kookabus), the per-part fit-rule maxima are used instead
 # and manifest spacing.profile_tools_from says so. A 150x100x10
-# sheet no longer fits the real container with the default 1/2 in
-# plan (needs 122.4 mm usable width, has 110) — see the 170x100x10
-# check above. It also fails under --plan B (3/8 in tools need
-# 116.05 mm); it passes only when the plan's profile tools are
-# <= 6.35 mm — e.g. a config capping standard_endmills_in at 1/4 in
-# (test/bra20_small_tools_config.json): Bottom at sheet (20, 20),
+# sheet now FITS the real container with the default plan
+# (2026-11-21, tool cap: the default plan's 1/4 in profile tools
+# need 109.7 mm of usable width and the sheet has 110 — it used to
+# need 122.4 mm with 1/2 in tools and fail). Bottom at sheet (20, 20),
 # Top at (83.7, 20), gap 17.7 mm, Plan A Drill 2.25 + EM 1/4 in,
-# 8 layers / 6 flags. The BRA-20 issue's "passes under a
-# smaller-tool plan" means this: the listed --plan B is not small
-# enough; the threshold is 6.35 mm (109.7 mm packed width).
+# 8 layers / 6 flags — the same result the small-tools config used
+# to be needed for; the config (test/bra20_small_tools_config.json)
+# is now redundant for this job. The threshold is still 6.35 mm
+# (109.7 mm packed width).
 #
 # Pack from the chosen plan's actual profile tools (BRA-20,
 # verified 2026-11-09):
 .venv/bin/python multi_part.py test/two_part.step -o test/multi_out_bra20 --mode full
-# expect: 2 parts, 5 layers, 1 flag; P02 at sheet x 74.525 (gap
+# expect: 2 parts, 5 layers, 1 flag; P02 at sheet x 94.525 (gap
 # 14.525 mm — plan A cuts both profiles with a 3/16 in endmill);
+# (2026-11-21: the old 74.525 was usable-area coords, before the
+# clamp-margin fix made the layout true sheet coords.)
 # suggested 180 x 80 x 10 mm; spacing.profile_tools_from "plan A".
 .venv/bin/python multi_part.py test/eight_parts.step -o test/eight_parts_bra20_out --auto
 # expect: 8 parts, 22 layers, 4 flags, Plan A 1 change / 9.0 min;
 # gaps 17.7 mm (plan A 1/4 in everywhere); suggested 600 x 100 x 15 mm.
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_150 --auto --material 150x100x10
-# expect: exit 1, named error — packed layout 46.00 x 122.40 mm
-# exceeds usable 110.00 x 60.00 mm (plan A, 1/2 in tools); no
-# test/real_container_bra20_150 directory is created.
+# expect: PASSES (2026-11-21, tool cap) — packed layout 46.00 x
+# 109.70 mm fits usable 110.00 x 60.00 mm (plan A, 1/4 in tools,
+# gap 17.7 mm); 2 parts, 8 layers, 6 flags.
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_150B --auto --material 150x100x10 --plan B
-# expect: exit 1, named error — packed layout 46.00 x 116.05 mm
-# exceeds usable 110.00 x 60.00 mm (plan B, 3/8 in tools, gap
-# 24.05 mm); the listed plans do not go small enough for this sheet.
+# expect: PASSES (2026-11-21, tool cap) — plan B is now EM 1/4 in
+# + EM 1.59 mm, packed 109.70 mm fits usable 110.00 x 60.00 mm.
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_small --auto --material 150x100x10 --config test/bra20_small_tools_config.json
 # expect: passes — 2 parts, 8 layers, 6 flags; Bottom at sheet
 # (20, 20), Top at (83.7, 20); Plan A Drill 2.25 + EM 1/4 in.
 .venv/bin/python multi_part.py test/external/kookabus-03-enclosure.step -o test/external/kookabus_bra20_out --mode full
 # expect: no crash; layers 20, flags 190; the merged plan EXISTS
-# (BRA-22: Plan A EM 1/2 in + EM 0.50 mm, 2 changes, 212.1 min),
+# (BRA-22, re-verified 2026-11-21 under the tool cap: Plan A EM
+# 3/8 in + EM 0.50 mm, 2 changes, 215.1 min),
 # so the packer uses plan A's profile tools and
 # spacing.profile_tools_from is "plan A" — the fit-rule-maxima
 # fallback only applies when no merged plan exists. No TOOL PLAN
@@ -355,10 +390,11 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 4. Expected: one toolpath per manifest line, drill -> pocket -> profile
    order, depths from the manifest. **Preview before posting G-code.**
 5. If a call fails, the gadget reports which layer — note the exact
-   error message and the VCarve version; the two least-certain calls
-   is `JoinVectors()` (see the gadget header); the file picker is
-   the documented `FileDialog()` — `GetFileName()` does not exist
-   in the Vectric API.
+   error message and the VCarve version. The file picker is the
+   documented `FileDialog()`; `GetFileName()` does not exist in the
+   Vectric API, and neither does `JoinVectors()` (both confirmed
+   against the V12 SDK, Nov 21). Vector selection is a local helper
+   adapted from Vectric's Profile_Vectors_On_Layer sample.
 
 ## 6. FeatureScript test (BRA-6, in Onshape)
 
