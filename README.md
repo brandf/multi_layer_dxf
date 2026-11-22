@@ -75,7 +75,7 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
 - `vcarve/multi_layer_dxf.lua` — VCarve Pro gadget (Lua). Reads
   manifest.txt, imports the DXF named on its `# dxf:` line, creates
   drill / pocket / profile toolpaths per layer with start_depth /
-  cut_depth from the manifest. v0.5 — live-tested in VCarve Pro
+  cut_depth from the manifest. v0.6 — live-tested in VCarve Pro
   V12.5 (Nov 21-22): 8 toolpaths for the real container. It does
   not save the job or post G-code; preview, then File > Save As
   the `.crv` yourself.
@@ -97,7 +97,7 @@ in VCarve, instead of dozens of manual toolpaths — then you preview
 and save the `.crv` yourself (the gadget deliberately does not save
 the job or post G-code).
 
-That gadget is v0.5 — live-tested in VCarve Pro V12.5 (Nov 21-22,
+That gadget is v0.6 — live-tested in VCarve Pro V12.5 (Nov 21-22,
 8 toolpaths for the real container). The file picker is
 `FileDialog()`, confirmed from the official V12 Gadget SDK —
 `GetFileName()` does not exist in the Vectric API (found out the
@@ -320,9 +320,11 @@ the recommendation plus fallback plans:
   below 1/4", so a long skinny part is not forced onto a tiny tool
   for no benefit. Config: `toolplan.max_endmill_ratio` (default
   1/6) and `toolplan.max_endmill_floor_mm` (default 6.35). Effect:
-  the real container's Plan A is now 1/4" (5.9 min, was 5.6 with
-  1/2"); the Kookabus merged Plan A is 3/8" (215.1 min, was 212.1);
-  eight_parts is unchanged at 9.0 min.
+  the real container's Plan A is now 1/4" + 1/8" (7.0 min, was 5.9
+  with the 1/4" on the step pocket — the step pocket's 5.03 mm
+  annulus around the rib cannot take the 1/4" tool, island fix
+  2026-11-22); the Kookabus merged Plan A is 3/8" (215.1 min, was
+  212.1); eight_parts is unchanged at 9.0 min.
 - **Plans, not one answer:** a plan is a tool set (endmills + per
   hole-diameter drill-or-bore). Total time = estimated cutting time
   (MRR model — volume/(feed·stepover·stepdown) for pockets,
@@ -358,7 +360,7 @@ the recommendation plus fallback plans:
   live test got profiles with no tabs at all.
 - **Matching to your VCarve library:** the SDK has no silent
   lookup-by-diameter — `ToolDatabase` only offers `SelectTool()`
-  (interactive dialog) and `GetTool(id)`. So gadget v0.5 names each
+  (interactive dialog) and `GetTool(id)`. So gadget v0.6 names each
   tool first, then opens that tool's library dialog, one tool at a
   time; Cancel uses the recommendation as-is (a tool created with
   the recommended diameter/feeds). A picked tool is remembered in
@@ -486,7 +488,10 @@ Then in your CAD tool, for a real part:
 
 Layers in the DXF, and entries in manifest.json:
 
-- `PROFILE_THRU` — outer profile, cut through
+- `PROFILE_THRU` — outer profile, cut through (the gadget sets its
+  cut depth to VCarve's `z` formula — the material thickness — so it
+  cuts through whatever stock the job uses; a hardcoded part height
+  left 0.5 mm holding the part in 10 mm stock, Nov 22)
 - `POCKET_D6.00` — pocket, start 0.00, cut 6.00
 - `POCKET_D9.00_START6.00` — pocket-in-pocket, start 6.00, cut 3.00
 - `DRILL_D6.00_THRU` — through holes, Ø6.00
@@ -504,14 +509,15 @@ on the manifest's `# dxf:` line, selects the vectors on each layer,
 creates toolpaths in order drill -> pockets shallow to deep ->
 profile last, recalculates all. It does not save the job or post
 G-code — preview, File > Save As the `.crv`, then post. Always
-preview before posting G-code. Gadget v0.5 (2026-11-22, live-tested
+preview before posting G-code. Gadget v0.6 (2026-11-22, live-tested
 in VCarve Pro V12.5): the manifest picker is the real `FileDialog()`
 API, the layer selection is a helper defined in the gadget itself
 (`SelectVectorsOnLayer` is not a VCarve global), tabs are placed as
 real objects on the vectors before the profile is created, tools are
 named one at a time before their library dialog and remembered for
-the next run, and the script starts with the required
-`-- VECTRIC LUA SCRIPT` line.
+the next run, profiles cut through with the `z` (material thickness)
+formula instead of a hardcoded part height, and the script starts
+with the required `-- VECTRIC LUA SCRIPT` line.
 
 ## Orientation search and layout (built 2026-11-08, search 2026-11-09, Brandon approved)
 
@@ -620,7 +626,7 @@ Verified 2026-11-09: the container STEP rotated 90 deg about X
 (`test/rotated_container.step`) searches back to the exact
 `parts.container.json` result — Bottom +Z, Top -Z, 5 layers,
 0 flags. The real container with `--auto` gives 8 layers / 6
-flags, Plan A 2 changes / 5.9 min, Bottom +Z / Top -Z — the same
+flags, Plan A 3 tools / 2 changes / 7.0 min, Bottom +Z / Top -Z — the same
 as the explicit parts.json flip. The 8-part test now orients the
 sideways block to +X and reads it exactly (15x10x4 pocket,
 D5 thru hole, 0 flags) — 8 parts, 22 layers, 4 flags, Plan A 1

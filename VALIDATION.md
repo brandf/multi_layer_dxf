@@ -197,6 +197,17 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # (Tool.InMM false) and warned falsely — diameters are now compared
 # in mm. The 8 toolpaths themselves were correct (profile offset and
 # pocket raster spacing both match a 6.35 mm tool, not 0.25 mm).
+# (6) island fit width (2026-11-22, filed in BACKLOG.md — Linear is at
+# its free-plan limit): the step pocket's min_width came from the outer
+# face bbox (46 mm), ignoring the rib island, so the planner assigned
+# the 1/4 in tool to a 5.03 mm annulus and VCarve dropped the island
+# and cleared the rib — the preview showed no lip. The island gap is
+# now folded into min_width_mm (5.03 mm), so the step pocket takes
+# the 1/8 in tool and Plan A is 3 tools / 7.0 min. (7) through cuts
+# (2026-11-22): the profile cut depth was the hardcoded part height
+# (9.5 mm in 10 mm stock — the part never freed). Profiles now set
+# CutDepthFormula "z" (material thickness) so they cut through
+# whatever stock the job uses; the manifest depth stays as fallback.
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50
@@ -236,6 +247,10 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # expect (gate, max_corner_radius_mm = 1.0): chosen plan is a finish
 # variant (rough 1/4" + finish 1/16", corners to R0.79); manifest.txt
 # has two POCKET_D5.00 lines, `...|0.5|rough` then `...|0.0|finish`.
+# (2026-11-22: a --config naming a file that does not exist now fails
+# with "ERROR: config file not found" and exit 1 in both tools — it
+# used to silently run with defaults, which made this gate look broken
+# when the regression script typo'd the filename.)
 # Single-pass plans are dropped (final radius 3.18 > 1.0).
 
 # Real container (BRA-8, verified 2026-11-08; BRA-15 re-verified 2026-11-09;
@@ -245,18 +260,22 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # P01_P01__POCKET_D1.50 has 3 DXF circles (r 23.00 / 17.97 / 15.00);
 # P02 facing pocket has 1 (r 18.00 counterbore). Bottom drills are
 # surface drills START1.50 depending on POCKET_D1.50. Plan A (BRA-15):
-# Drill 2.25 + EM 1/4 in, 2 changes, est 5.9 min — cut order all pockets,
-# both drills, profiles last. Orientation search (BRA-17, BRA-21):
-# Bottom best +Z (score 7.1) over -Z (41.4); Top best -Z (4.8) over
+# EM 1/8 in (the step pocket — its 5.03 mm annulus around the rib
+# cannot take the 1/4 in tool) + Drill 2.25 + EM 1/4 in, 3 tools,
+# 2 changes, est 7.0 min — cut order all pockets, both drills,
+# profiles last. Orientation search (BRA-17, BRA-21):
+# Bottom best +Z (score 8.1) over -Z (41.4); Top best -Z (4.8) over
 # +Z (41.3) — the same flip the explicit parts.json gives; X/Y
 # orientations score 145.0 (no_plan + flip + pocket penalties).
 # Merged-job level (BRA-21): upright 9.6 vs flipped 46.1 — about
 # 4.8x, the difficulty Brandon expects (flip 25 + 8 holes x 0.5 +
 # 2 pockets x 5.0 + router_table 4, on top of 3.1 min of cutting).
 # (2026-11-21, tool cap: the 9.6/46.1 figures were computed under
-# the 1/2 in plan; per-part scores are now Bottom +Z 7.1 / Top -Z
+# the 1/2 in plan; per-part scores are now Bottom +Z 8.1 / Top -Z
 # 4.8, flipped 41.4 / 41.3 — the ratio is penalty-dominated and
-# still ~4.8x. Plan A is now 5.9 min, 1/4 in.)
+# still ~4.8x. Plan A is now 7.0 min, 3 tools: the step pocket takes
+# the 1/8 in tool because its island annulus is 5.03 mm wide —
+# 2026-11-22 island fix, see the BRA-5 note below.)
 # Without --auto or parts.json the Top's pocket is now flagged
 # POCKET NOT FROM TOP and gets no layer (4 layers / 1 flag) instead
 # of being cut into the Top's outside face. With

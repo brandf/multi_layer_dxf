@@ -101,7 +101,10 @@ def main():
     args = ap.parse_args()
 
     cfg = {}
-    if args.config and args.config.exists():
+    if args.config:
+        if not args.config.exists():
+            print(f"ERROR: config file not found: {args.config}", file=sys.stderr)
+            sys.exit(1)
         cfg = json.loads(args.config.read_text())
 
     # Material size (BRA-17 prune, BRA-16 fit-or-error): CLI wins,

@@ -336,7 +336,10 @@ def main():
     # Config file overrides CLI defaults (CLI wins if explicitly set is
     # out of scope for v1 — config is for tools / defaults you reuse)
     cfg = {}
-    if args.config and args.config.exists():
+    if args.config:
+        if not args.config.exists():
+            print(f"ERROR: config file not found: {args.config}", file=sys.stderr)
+            sys.exit(1)
         cfg = json.loads(args.config.read_text())
         args.tol = cfg.get("tol_mm", args.tol)
         args.min_tool = cfg.get("min_tool_mm", args.min_tool)
@@ -1365,6 +1368,26 @@ def main():
                 explained = "island"
                 island_polys.append(inner_poly)
                 add_layer(name, "pocket", p["start"], p["cut"], inner_segs)
+                # The island narrows the pocket: the tool must fit through
+                # the gap between the island and the outer boundary (the
+                # annulus), not just the outer pocket's bbox. Fold the
+                # narrowest gap into the layer's fit width, or the planner
+                # assigns a tool that cannot clear the annulus and VCarve
+                # drops the island and machines the rib away (live test,
+                # Nov 22: 6.35 mm tool in a 5.03 mm annulus around the
+                # container's mating rib). Bbox gap is exact for concentric
+                # circles and the narrowest side for a rectangular boss.
+                oxs = [x for x, _ in p["poly"]]
+                oys = [y for _, y in p["poly"]]
+                ixs = [x for x, _ in inner_poly]
+                iys = [y for _, y in inner_poly]
+                gap = min(min(ixs) - min(oxs), max(oxs) - max(ixs),
+                          min(iys) - min(oys), max(oys) - max(iys))
+                if gap > 0:
+                    rec = layers[_layer_index[name]]
+                    est = rec.setdefault("est", {})
+                    if "min_width_mm" in est:
+                        est["min_width_mm"] = round(min(est["min_width_mm"], gap), 3)
                 flags.append(
                     f"POCKET ISLAND at floor Z {p['z']:.2f} — a rib/boss rises above the floor "
                     f"inside the pocket outline; its outline is in the DXF as an island and the "

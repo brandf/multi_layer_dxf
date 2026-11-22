@@ -1,5 +1,5 @@
 -- VECTRIC LUA SCRIPT
--- multi_layer_dxf.lua — VCarve Pro gadget (v0.5, live-tested in VCarve Pro V12.5)
+-- multi_layer_dxf.lua — VCarve Pro gadget (v0.6, live-tested in VCarve Pro V12.5)
 -- NOTE: the first line is required — VCarve refuses to load a gadget
 -- whose first line is not exactly "-- VECTRIC LUA SCRIPT".
 --
@@ -454,7 +454,15 @@ end
 local function create_profile(name, layer, start_depth, cut_depth, tool, tabs)
   local profile_data = ProfileParameterData()
   profile_data.StartDepth = start_depth
+  -- A profile is always a through cut in this project (the outer
+  -- profile frees the part, a through cut frees the slug), so the
+  -- cut depth is the material thickness, not the part height from
+  -- the manifest: a 9.5 mm part in 10 mm stock left 0.5 mm holding
+  -- it in (live test, Nov 22). "z" is VCarve's material-thickness
+  -- formula, so the cut adapts to whatever thickness the job uses.
+  -- CutDepth stays set as the fallback if the formula is ignored.
   profile_data.CutDepth = cut_depth
+  pcall(function() profile_data.CutDepthFormula = "z" end)
   profile_data.CutDirection = ProfileParameterData.CLIMB_DIRECTION
   -- A THROUGH_CUT is a closed loop: cut ON the line. The outer
   -- profile is a part: cut OUTSIDE it. Either way, if the manifest
