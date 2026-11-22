@@ -224,7 +224,12 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # grouped across parts) and the gadget lists them under "After the
 # CNC cut:" in its final dialog. For the real container that is the
 # router-table roundover on both parts. Parts with no post-processing
-# get no `# post:` lines and no dialog section.
+# get no `# post:` lines and no dialog section. (10) tool labels
+# (2026-11-22, Brandon, post-V1 streamlining): imperial endmills are
+# labelled by their native size, compact — "1/4in" in the gadget's
+# tool prompts and final dialog and in report.md's tool lists — not
+# "6.35 mm" and not spelled out. Metric tools still display in mm.
+# Tool ids and the ToolDBId remembering keyed on them are unchanged.
 
 .venv/bin/python step_to_vcarve.py test/beveled_container.step -o test/beveled_container_out --mode full
 # expect: 3 layers, 8 holes, 1 pocket, PROFILE_THRU is CIRCLE r=50

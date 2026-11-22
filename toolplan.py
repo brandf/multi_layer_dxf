@@ -178,12 +178,15 @@ def make_endmill(dia_mm, st):
     if plunge is None:
         plunge = feed / 3.0
     stepdown = min(float(st["stepdown_mm"]), 0.5 * dia_mm)
-    # Imperial sizes get their fractional name ("1/4 in"); metric
-    # fine sizes are named in mm — forcing 1.00 mm through the
-    # imperial fraction would mislabel it 1/16" (1.59 mm).
+    # Tool labels use the tool's native designation, compact:
+    # an imperial endmill is "1/4in" — not "6.35 mm", not
+    # "quarter-inch". Metric fine sizes are named in mm — forcing
+    # 1.00 mm through the imperial fraction would mislabel it
+    # 1/16" (1.59 mm). (Brandon, Nov 22, post-V1 streamlining: the
+    # project works in mm; only the tool label uses the native unit.)
     inch_sizes = {round(i * INCH_TO_MM, 4) for i in st["standard_endmills_in"]}
     if round(dia_mm, 4) in inch_sizes:
-        name = f"End Mill {inch_name(dia_in)} in ({dia_mm:.2f} mm)"
+        name = f"End Mill {inch_name(dia_in)}in"
     else:
         name = f"End Mill {dia_mm:.2f} mm"
     return {

@@ -1,5 +1,5 @@
 -- VECTRIC LUA SCRIPT
--- multi_layer_dxf.lua — VCarve Pro gadget (v1.0, live-tested in VCarve Pro V12.5)
+-- multi_layer_dxf.lua — VCarve Pro gadget (v1.0.1, live-tested in VCarve Pro V12.5)
 -- NOTE: the first line is required — VCarve refuses to load a gadget
 -- whose first line is not exactly "-- VECTRIC LUA SCRIPT".
 --
@@ -192,18 +192,19 @@ local function trim(s)
   return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
--- Diameter label for messages: metric always, plus the inch size when
--- it is a standard imperial endmill (6.35 mm is 1/4 in — the size the
--- library is browsed by). Drills stay metric.
-local INCH_ENDMILLS = { [12.7] = "1/2 in", [9.53] = "3/8 in",
-  [6.35] = "1/4 in", [4.76] = "3/16 in", [3.17] = "1/8 in",
-  [1.59] = "1/16 in" }
+-- Diameter label for messages: a standard imperial endmill is named
+-- by its native size, compact ("1/4in" — not "6.35 mm", not
+-- "quarter-inch"); anything else is named in mm. Drills stay metric.
+-- (Brandon, Nov 22, post-V1 streamlining: the project works in mm;
+-- only the tool label uses the tool's native unit.)
+local INCH_ENDMILLS = { [12.7] = "1/2in", [9.53] = "3/8in",
+  [6.35] = "1/4in", [4.76] = "3/16in", [3.17] = "1/8in",
+  [1.59] = "1/16in" }
 local function dia_label(dia_mm)
   local key = math.floor(dia_mm * 100 + 0.5) / 100
   local inch = INCH_ENDMILLS[key]
-  local label = string.format("%.2f", dia_mm) .. " mm"
-  if inch ~= nil then label = label .. " (" .. inch .. ")" end
-  return label
+  if inch ~= nil then return inch end
+  return string.format("%.2f", dia_mm) .. " mm"
 end
 
 -- Diameter of a library tool in mm. ToolDia is in the tool's own

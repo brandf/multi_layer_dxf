@@ -1,5 +1,17 @@
 # multi_layer_dxf — Changelog
 
+## v1.0.1 — 2026-11-22
+
+Post-V1 streamlining, first item (Brandon): tool labels use the tool's
+native designation, compact. An imperial endmill is now labelled
+"1/4in" (not "6.35 mm", not "quarter-inch") in the gadget's tool
+prompts and final dialog and in report.md's tool lists. Metric tools
+(a 1.00 mm endmill, a 2.25 mm drill) still display in mm. The project
+still works in mm throughout — geometry, planner math, manifest data
+(the `# tool:` lines still carry the diameter in mm) — only the label
+changed. Tool ids (EM6.35, D2.25) and the ToolDBId remembering keyed
+on them are unchanged, so remembered tools still match.
+
 ## v1.0.0 — 2026-11-22
 
 First release. STEP → layered DXF + manifest → VCarve Pro gadget → toolpaths.

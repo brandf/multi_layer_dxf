@@ -75,7 +75,7 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
 - `vcarve/multi_layer_dxf.lua` — VCarve Pro gadget (Lua). Reads
   manifest.txt, imports the DXF named on its `# dxf:` line, creates
   drill / pocket / profile toolpaths per layer with start_depth /
-  cut_depth from the manifest. v1.0 — live-tested in VCarve Pro
+  cut_depth from the manifest. v1.0.1 — live-tested in VCarve Pro
   V12.5 (Nov 21-22): 8 toolpaths for the real container. It does
   not save the job or post G-code; preview, then File > Save As
   the `.crv` yourself.
@@ -97,7 +97,7 @@ in VCarve, instead of dozens of manual toolpaths — then you preview
 and save the `.crv` yourself (the gadget deliberately does not save
 the job or post G-code).
 
-That gadget is v1.0 — live-tested in VCarve Pro V12.5 (Nov 21-22,
+That gadget is v1.0.1 — live-tested in VCarve Pro V12.5 (Nov 21-22,
 8 toolpaths for the real container). The file picker is
 `FileDialog()`, confirmed from the official V12 Gadget SDK —
 `GetFileName()` does not exist in the Vectric API (found out the
@@ -360,7 +360,7 @@ the recommendation plus fallback plans:
   live test got profiles with no tabs at all.
 - **Matching to your VCarve library:** the SDK has no silent
   lookup-by-diameter — `ToolDatabase` only offers `SelectTool()`
-  (interactive dialog) and `GetTool(id)`. So gadget v1.0 names each
+  (interactive dialog) and `GetTool(id)`. So gadget v1.0.1 names each
   tool first, then opens that tool's library dialog, one tool at a
   time; Cancel uses the recommendation as-is (a tool created with
   the recommended diameter/feeds). A picked tool is remembered in
@@ -509,7 +509,7 @@ on the manifest's `# dxf:` line, selects the vectors on each layer,
 creates toolpaths in order drill -> pockets shallow to deep ->
 profile last, recalculates all. It does not save the job or post
 G-code — preview, File > Save As the `.crv`, then post. Always
-preview before posting G-code. Gadget v1.0 (2026-11-22, live-tested
+preview before posting G-code. Gadget v1.0.1 (2026-11-22, live-tested
 in VCarve Pro V12.5): the manifest picker is the real `FileDialog()`
 API, the layer selection is a helper defined in the gadget itself
 (`SelectVectorsOnLayer` is not a VCarve global), tabs are placed as
