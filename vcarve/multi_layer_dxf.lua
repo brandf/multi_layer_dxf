@@ -102,7 +102,8 @@
 --   VM. Least-certain calls, all guarded so the gadget fails with a
 --   message instead of silently doing the wrong thing:
 --     GetFileName() — the file picker; if VCarve has no such global,
---       the gadget aborts with a message.
+--       set MANIFEST_PATH at the top of this file instead and the
+--       gadget never calls it.
 --     JoinVectors() — joining open vectors on a layer; if the global
 --       does not exist, the gadget proceeds with the vectors as
 --       imported and lets Create*Toolpath report the failure per layer.
@@ -128,6 +129,11 @@ local SKIP_LAYERS = {} -- e.g. { "THROUGH_CUT" } (matched by suffix)
 local MATCH_TO_LIBRARY = true -- pick each recommended tool from your
                               -- VCarve tool library (one dialog per tool);
                               -- Cancel uses the recommendation as-is
+local MANIFEST_PATH = nil -- e.g. [[C:\cnc\multi_layer_dxf\test\real_container_out\manifest.txt]]
+                          -- Set this to the full path of your manifest.txt
+                          -- and the gadget uses it directly, with no file
+                          -- dialog. Leave it nil to pick the file in a
+                          -- dialog (needs GetFileName() in your VCarve).
 
 local TOOLS = {
   drill   = { dia_mm = 0,    stepdown_mm = 3.0, peck = true,  peck_gap_mm = 2.0,
@@ -369,15 +375,24 @@ function main()
   end
 
   -- --- pick manifest.txt ---
-  local manifest_path = nil
-  if GetFileName then
+  -- MANIFEST_PATH (top of this file) wins when set: no file dialog
+  -- needed at all, so the gadget works even if your VCarve version
+  -- has no GetFileName(). Otherwise pick the file in the dialog.
+  local manifest_path = MANIFEST_PATH
+  if (not manifest_path or manifest_path == "") and GetFileName then
     manifest_path = GetFileName("Select manifest.txt", "*.txt")
   end
   if not manifest_path or manifest_path == "" then
-    DisplayMessageBox("multi_layer_dxf: could not pick a manifest file.\n\n"
-      .. "Pick manifest.txt (next to the DXF from step_to_vcarve.py)\n"
-      .. "when the file dialog appears, or check that your VCarve\n"
-      .. "version provides GetFileName().")
+    local why
+    if not GetFileName then
+      why = "Your VCarve version does not provide GetFileName(), so no\n"
+        .. "file dialog is available. Set MANIFEST_PATH at the top of\n"
+        .. "multi_layer_dxf.lua to the full path of your manifest.txt."
+    else
+      why = "Pick manifest.txt (next to the DXF from step_to_vcarve.py)\n"
+        .. "when the file dialog appears."
+    end
+    DisplayMessageBox("multi_layer_dxf: could not pick a manifest file.\n\n" .. why)
     return false
   end
   local manifest_dir = manifest_path:match("^(.*[\\/])") or ""
