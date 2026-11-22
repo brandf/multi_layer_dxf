@@ -4,10 +4,10 @@ Goal: prove the pipeline on Brandon's real Top/Bottom model (Linear BRA-8),
 not just on synthetic models. Do the steps in order; stop at the first
 unexpected result and report it instead of pushing on.
 
-## 0. What you need from Onshape first
+## 0. What you need from your CAD export first
 
-- Export **both parts in one STEP**, units **mm** (File > Export, or
-  right-click the Part Studio > Export). The file must contain 2 solids.
+- Export **both parts in one STEP**, units **mm**. In Onshape: File >
+  Export, or right-click the Part Studio > Export. The file must contain 2 solids.
 - Rollback is **optional** since BRA-11 (2026-11-08): a finished STEP
   with the `post process` fillets works — the classifier recovers the
   prismatic shape and files the fillets into the post-processing plan.
@@ -16,7 +16,7 @@ unexpected result and report it instead of pushing on.
 ## 1. Run the multi-part classifier
 
 ```bash
-cd ~/workspace/cnc-onshape-vcarve
+cd ~/workspace/multi_layer_dxf
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_out --auto
 ```
 
@@ -96,7 +96,7 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 - Layer count should match the report. Drill layers must have one
   circle per hole centre. Pocket layers must be closed loops.
 - Open the DXF in VCarve (or any DXF viewer) and eyeball it against
-  the Onshape drawing — the 8-hole PCD and the central recess must
+  the CAD drawing — the 8-hole PCD and the central recess must
   look right.
 
 ## 4. Regressions (must stay green after any fix)
@@ -345,11 +345,12 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 
 ## 5. VCarve gadget test (BRA-5, on Windows)
 
-1. Copy `vcarve/Onshape25D.lua` to
-   `Public Documents\Vectric\VCarve Pro\Gadgets\Onshape25D\`, restart VCarve.
+1. Install `vcarve/multi_layer_dxf.vgadget` via Gadgets > Install New Gadget
+   (or copy `vcarve/multi_layer_dxf.lua` to
+   `Public Documents\Vectric\VCarve Pro\Gadgets\multi_layer_dxf\`), restart VCarve.
 2. Create a job with material size/thickness matching the manifest,
    Z-zero at top of material.
-3. Gadgets > Onshape25D, pick `test/real_container_out/manifest.txt`.
+3. Gadgets > multi_layer_dxf, pick `test/real_container_out/manifest.txt`.
    The gadget imports the DXF named on the manifest's `# dxf:` line.
 4. Expected: one toolpath per manifest line, drill -> pocket -> profile
    order, depths from the manifest. **Preview before posting G-code.**

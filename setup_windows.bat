@@ -1,5 +1,5 @@
 @echo off
-REM Setup for onshape-vcarve-2.5d on Windows — run once, from this folder.
+REM Setup for multi_layer_dxf on Windows — run once, from this folder.
 REM Requires: Python 3.12 from python.org, installed with
 REM "Add python to PATH" checked. No admin rights needed.
 REM

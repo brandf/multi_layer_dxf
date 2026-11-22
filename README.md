@@ -1,11 +1,11 @@
-# Onshape -> VCarve Pro, automated (2.5D, prismatic)
+# multi_layer_dxf — STEP to layered DXF for VCarve Pro (2.5D, prismatic)
 
 No £50/month app. This is the custom pipeline, built for Brandon.
 
 ## What it does
 
 ```
-Onshape (prismatic solid, bevels NOT yet added)
+Any CAD (prismatic solid, bevels NOT yet added)
   -> STEP export (mm)
   -> step_to_vcarve.py
   -> one layered DXF + manifest.json + report
@@ -38,14 +38,14 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
 
 - `step_to_vcarve.py` — STEP -> layered DXF + manifest.json
 - `make_test_model.py` — builds a known test part in build123d,
-  exports STEP, so you can verify the recognizer without Onshape
+  exports STEP, so you can verify the recognizer without a CAD install
 - `featurescript/CAM_Snapshot.fs` — Onshape custom feature, insert
   before your first bevel/chamfer/fillet. Groups Z levels in-tree
   and creates one CAM_* sketch per Z level (v0.2 — grouping and
   sketch creation are now written, not a stub; still needs a live
   Onshape test before trusting it on a real part, and the
   UNVERIFIED-marked API calls in the file are the things to check).
-- `vcarve/Onshape25D.lua` — VCarve Pro gadget (Lua). Reads
+- `vcarve/multi_layer_dxf.lua` — VCarve Pro gadget (Lua). Reads
   manifest.txt, imports the DXF named on its `# dxf:` line, joins
   vectors, creates drill / pocket / profile toolpaths per layer with
   start_depth / cut_depth from the manifest. v0.2 — implemented from
@@ -54,7 +54,7 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
   File > Save As the `.crv` yourself.
 - `VALIDATION.md` — the ready-to-run checklist for the real container
   STEP (BRA-8), including the regression commands and the Windows
-  gadget / Onshape FeatureScript test steps.
+  gadget test steps (plus the optional Onshape FeatureScript test).
 - `test/` — outputs from the synthetic test model
 
 ## Can I open something directly in VCarve, with toolpaths?
@@ -64,7 +64,7 @@ Short answer: not as a `.crv` file written from Python. VCarve's
 way to write one outside VCarve itself.
 
 The supported way to get a `.crv` *with toolpaths* is the Lua gadget
-in `vcarve/Onshape25D.lua`: run it inside VCarve, it imports the DXF,
+in `vcarve/multi_layer_dxf.lua`: run it inside VCarve, it imports the DXF,
 creates the toolpaths from `manifest.txt`, and recalculates. One click
 in VCarve, instead of dozens of manual toolpaths — then you preview
 and save the `.crv` yourself (the gadget deliberately does not save
@@ -86,7 +86,7 @@ Until it is tested on Windows, the verified path is:
 That is 8 toolpaths for the test part, not 40 — the complexity is
 already in the vectors.
 
-## Multiple parts in one scene — and CAM direction may not match Onshape
+## Multiple parts in one scene — and CAM direction may not match the CAD scene
 
 A Part Studio often holds several parts laid out logically, e.g. a
 container with a top and a bottom that fit together. Two things follow:
@@ -94,7 +94,7 @@ container with a top and a bottom that fit together. Two things follow:
 1. **CAM direction is per-part, not per-scene.** The bottom is cut
    face-up. The lid may be modelled upside-down in the scene, or its
    mating face is its bottom — you cut it flipped over, so its CAM
-   top is its Onshape bottom face. The tool must not assume the
+   top is its bottom face in the CAD scene. The tool must not assume the
    scene's Z is the CAM Z for every part.
 2. **One VCarve job can cut all of them.** Parts keep their scene XY
    layout in the DXF, so the job is one setup, one material sheet.
@@ -120,7 +120,7 @@ over its Y reverses, and the DXF shows the flipped orientation.
 ### Container example — Top/Bottom, inside up, bottom-aligned
 
 Your container (round, ~D100 in the test approximation): Bottom
-and Top are concentric in the Onshape scene, so scene XY would put
+and Top are concentric in the CAD scene, so scene XY would put
 two profiles on top of each other. The fix is in `multi_part.py`:
 `align_z: "bottom"` + `layout: "side_by_side"` (see
 `parts.container.json`).
@@ -251,7 +251,7 @@ python step_to_vcarve.py part.step -o out/ --config config.json
 
 The VCarve gadget is flexible the same way: `MODE`, `ONLY`,
 `SKIP_LAYERS`, and the `TOOLS` table at the top of
-`vcarve/Onshape25D.lua` — edit once, reuse for every model.
+`vcarve/multi_layer_dxf.lua` — edit once, reuse for every model.
 You can run it for drills only, skip the profile, preview without
 saving, etc. Nothing is all-or-nothing.
 
@@ -398,7 +398,7 @@ part; it needs a real two-sided test part before it is built.
 Linux / Mac:
 
 ```bash
-cd ~/workspace/cnc-onshape-vcarve
+cd ~/workspace/multi_layer_dxf
 python3 -m venv .venv
 .venv/bin/pip install build123d ezdxf
 .venv/bin/python make_test_model.py
@@ -414,7 +414,7 @@ and VCarve, no file shuffling between computers):
 
 1. Install Python 3.12 from python.org, checking **"Add python to
    PATH"** (the classic gotcha — without it, `python` is not found).
-2. Clone the repo somewhere short, e.g. `C:\cnc\onshape-vcarve-2.5d`.
+2. Clone the repo somewhere short, e.g. `C:\cnc\multi_layer_dxf`.
 3. Double-click `setup_windows.bat`. It creates `.venv`, installs
    build123d + ezdxf, and smoke-tests the classifier on the synthetic
    test part (expect: 8 layers, 6 holes, 3 pockets, 1 flag).
@@ -422,25 +422,25 @@ and VCarve, no file shuffling between computers):
    runs `multi_part.py --auto` and writes the DXF, manifest and
    report into `container_out`. Read `report.md` first.
 5. The DXF/manifest are already on the VCarve machine, so the gadget
-   (or manual DXF import) picks them up from the same disk — copy
-   `vcarve/Onshape25D.lua` to
-   `C:\Users\Public\Documents\Vectric\VCarve Pro\Gadgets\Onshape25D\`
-   once, restart VCarve.
+   (or manual DXF import) picks them up from the same disk — install
+   the gadget once with Gadgets > Install New Gadget, picking
+   `vcarve/multi_layer_dxf.vgadget` (build it with `make_vgadget.py`),
+   then restart VCarve.
 
 The scripts are pure Python + build123d/ezdxf — no Linux-specific
 calls — so they run identically on Windows. No GPU is used; the
 classifier is CPU-only and fast (seconds for the test models, ~1
 minute for the 978-face Kookabus file).
 
-Then in Onshape, for a real part:
+Then in your CAD tool, for a real part:
 
 1. Model all prismatic features. Do NOT add bevels/chamfers yet.
 2. Insert the CAM Snapshot feature (or roll back / version at
    this point).
 3. Add bevels/chamfers after it, for the router table.
-4. Export the prismatic solid as STEP, in **mm**.
-   Onshape API: POST .../partstudios/.../translations,
-   formatName STEP, poll until DONE. Or File > Export in the UI.
+4. Export the prismatic solid as STEP, in **mm** — in Onshape,
+   File > Export in the UI, or the translations API (POST
+   .../partstudios/.../translations, formatName STEP, poll until DONE).
 5. Run `step_to_vcarve.py part.step -o out/`
 6. Read `report.md` first. Anything flagged, check before cutting.
 
@@ -461,7 +461,7 @@ the manifest, not the layer name, for depths.
 ## VCarve side
 
 Option A — gadget (recommended for dozens of depths):
-Gadgets > Onshape25D, pick manifest.txt. It imports the DXF named
+Gadgets > multi_layer_dxf, pick manifest.txt. It imports the DXF named
 on the manifest's `# dxf:` line, joins vectors, creates toolpaths
 in order drill -> pockets shallow to deep -> profile last,
 recalculates all. It does not save the job or post G-code —
@@ -694,7 +694,7 @@ the gadget exists.
 
 ## Units
 
-Everything is mm in v1. If your Onshape document is in inches,
+Everything is mm in v1. If your CAD document is in inches,
 export STEP in mm, or run with `--scale 25.4` (not yet
 implemented — tell me and I'll add it).
 Z-up, Z=0 at the bottom of the stock, Z=top at the top face.

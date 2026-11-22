@@ -2,13 +2,13 @@
 """
 Multi-part wrapper for step_to_vcarve.py.
 
-Onshape scene reality: a Part Studio often holds several parts laid out
+CAD scene reality: a Part Studio often holds several parts laid out
 logically — e.g. a container with a top and a bottom that fit together.
 Those parts do NOT all want the same CAM direction:
   - the bottom is cut face-up (its top face is the CAM top)
   - the lid / top may be modelled upside-down in the scene, or its
     mating face is its bottom — you cut it flipped over, so its CAM
-    top is its Onshape bottom face
+    top is its bottom face in the CAD scene
   - a part may be rotated in the scene for packing, but cut unrotated
 
 This wrapper:
@@ -72,7 +72,7 @@ Layout / alignment (added for the container Top/Bottom, 2026-11-08):
     suggests a material size. The run fails with a named error if
     the layout cannot fit. Side by side is essential when the
     scene is a closed assembly: Top and Bottom share the same XY
-    footprint in Onshape (concentric), so preserving scene XY
+    footprint in the CAD scene (concentric), so preserving scene XY
     would put two profiles on top of each other in the DXF.
   - layout="scene" preserves scene XY instead (use it when the
     scene is already laid out flat for cutting).

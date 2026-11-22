@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Container test, approximating Brandon's Onshape model (2026-11-08).
+"""Container test, approximating Brandon's container model (2026-11-08).
 
 Scene (closed, concentric — the hard case for layout):
   Bottom: outer D100, H12, Z 0..12. Central pocket D60, depth 6 from
@@ -14,7 +14,7 @@ Expected after multi_part.py with parts.container.json
   Bottom: 1 profile D100, 1 pocket D6.00, 8x D5 thru holes, Z 0..12
   Top:    1 profile D100, 1 pocket D5.00, 0 holes, Z 0..10
   Layout: Bottom X 0..100, Top X 110..210, both Y 0..100, no overlap
-  No fillet — Fillet 1 in Onshape is post-process, snapshot is before it.
+  No fillet — Fillet 1 in the CAD model is post-process, snapshot is before it.
 """
 import math
 from build123d import *

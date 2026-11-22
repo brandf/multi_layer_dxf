@@ -378,7 +378,7 @@ def main():
         solids = [solid]
     if len(solids) != 1:
         print(f"WARNING: {len(solids)} solids in STEP, using first / all faces merged", file=sys.stderr)
-    # Auto-orientation (2026-11-08): a STEP exported from Onshape in
+    # Auto-orientation (2026-11-08): a STEP exported from CAD in
     # any orientation, or a part modelled on its side, is rotated so
     # its prismatic axis is Z and its most-open side faces up, before
     # any classification runs. Ambiguous parts are classified as-is

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tool planning for onshape-vcarve-2.5d (BRA-12, built 2026-11-08).
+Tool planning for multi_layer_dxf (BRA-12, built 2026-11-08).
 
 Design decisions (Brandon, 2026-11-08):
   - NO personal tool library to maintain. Tools wear out and get
