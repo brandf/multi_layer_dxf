@@ -356,7 +356,9 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
    order, depths from the manifest. **Preview before posting G-code.**
 5. If a call fails, the gadget reports which layer — note the exact
    error message and the VCarve version; the two least-certain calls
-   are `GetFileName()` and `JoinVectors()` (see the gadget header).
+   is `JoinVectors()` (see the gadget header); the file picker is
+   the documented `FileDialog()` — `GetFileName()` does not exist
+   in the Vectric API.
 
 ## 6. FeatureScript test (BRA-6, in Onshape)
 

@@ -97,12 +97,14 @@ in VCarve, instead of dozens of manual toolpaths — then you preview
 and save the `.crv` yourself (the gadget deliberately does not save
 the job or post G-code).
 
-That gadget is v0.4 — implemented from the Vectric SDK docs
-(ToolpathManager + VectricJob pages, jimandi.com/SDK mirror) and
+That gadget is v0.4 — implemented from the Vectric SDK docs and
 syntax-checked with luaparser, but it has not been run inside VCarve
-yet (no VCarve on this Linux VM). The two least-certain calls,
-`GetFileName()` and `JoinVectors()`, are guarded so the gadget fails
-with a message instead of silently doing the wrong thing.
+yet (no VCarve on this Linux VM). The file picker is `FileDialog()`,
+confirmed from the official V12 Gadget SDK — `GetFileName()` does
+not exist in the Vectric API (found out the hard way, Nov 21: no
+dialog ever appeared). The remaining least-certain call is
+`JoinVectors()`, guarded so the gadget fails with a message instead
+of silently doing the wrong thing.
 Until it is tested on Windows, the verified path is:
 
 1. `step_to_vcarve.py` → layered DXF + manifest.json

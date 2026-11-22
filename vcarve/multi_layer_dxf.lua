@@ -87,6 +87,12 @@
 --   ToolDatabase():SelectTool() — shows the Tool Database dialog,
 --     returns the tool the user picks (or nil on Cancel). GetTool(id)
 --     returns a tool by database id. There is NO search-by-diameter.
+--   FileDialog():FileOpen(default_ext, file_name, filter) — the
+--     standard file picker; the chosen path is in .PathName.
+--     Confirmed from the official V12 Gadget SDK (Lua Interface
+--     Documentation p.198 + the IFS_Fractal / List_Folders samples).
+--     GetFileName() does NOT exist in the Vectric API — the Nov 21
+--     live test proved it: no dialog ever appeared.
 --   ToolpathPosData():SetHomePosition(x, y, z), .SafeZGap
 --   ProfileParameterData: .StartDepth, .CutDepth, .CutDirection,
 --     .ProfileSide (PROFILE_OUTSIDE / PROFILE_ON), .Allowance, .UseTabs,
@@ -101,9 +107,9 @@
 --   Linux, but NOT yet run inside VCarve — there is no VCarve on this
 --   VM. Least-certain calls, all guarded so the gadget fails with a
 --   message instead of silently doing the wrong thing:
---     GetFileName() — the file picker; if VCarve has no such global,
---       set MANIFEST_PATH at the top of this file instead and the
---       gadget never calls it.
+--     FileDialog() — the file picker (confirmed, V12 SDK docs +
+--       samples). Guarded anyway: if a VCarve version lacks it, the
+--       gadget says so and MANIFEST_PATH is the fallback.
 --     JoinVectors() — joining open vectors on a layer; if the global
 --       does not exist, the gadget proceeds with the vectors as
 --       imported and lets Create*Toolpath report the failure per layer.
@@ -129,11 +135,12 @@ local SKIP_LAYERS = {} -- e.g. { "THROUGH_CUT" } (matched by suffix)
 local MATCH_TO_LIBRARY = true -- pick each recommended tool from your
                               -- VCarve tool library (one dialog per tool);
                               -- Cancel uses the recommendation as-is
-local MANIFEST_PATH = nil -- e.g. [[C:\cnc\multi_layer_dxf\test\real_container_out\manifest.txt]]
-                          -- Set this to the full path of your manifest.txt
-                          -- and the gadget uses it directly, with no file
-                          -- dialog. Leave it nil to pick the file in a
-                          -- dialog (needs GetFileName() in your VCarve).
+local MANIFEST_PATH = nil -- Optional override, e.g.
+                          -- [[C:\cnc\multi_layer_dxf\test\real_container_out\manifest.txt]]
+                          -- Leave it nil (the default) and the gadget
+                          -- shows the standard file dialog so you can
+                          -- pick manifest.txt. Set it only to skip the
+                          -- dialog for a repeat run of the same job.
 
 local TOOLS = {
   drill   = { dia_mm = 0,    stepdown_mm = 3.0, peck = true,  peck_gap_mm = 2.0,
@@ -375,22 +382,29 @@ function main()
   end
 
   -- --- pick manifest.txt ---
-  -- MANIFEST_PATH (top of this file) wins when set: no file dialog
-  -- needed at all, so the gadget works even if your VCarve version
-  -- has no GetFileName(). Otherwise pick the file in the dialog.
+  -- MANIFEST_PATH (top of this file) wins when set. Otherwise the
+  -- standard file dialog lets you pick the file: FileDialog() is the
+  -- documented Vectric API (V12 SDK, Lua Interface Documentation
+  -- p.198; IFS_Fractal sample). GetFileName() does NOT exist in the
+  -- Vectric API — the Nov 21 live test proved it: no dialog appeared.
   local manifest_path = MANIFEST_PATH
-  if (not manifest_path or manifest_path == "") and GetFileName then
-    manifest_path = GetFileName("Select manifest.txt", "*.txt")
+  if not manifest_path or manifest_path == "" then
+    if FileDialog then
+      local file_dialog = FileDialog()
+      if file_dialog:FileOpen("txt", "", "Manifest Files (*.txt)|*.txt||") then
+        manifest_path = file_dialog.PathName
+      end
+    end
   end
   if not manifest_path or manifest_path == "" then
     local why
-    if not GetFileName then
-      why = "Your VCarve version does not provide GetFileName(), so no\n"
+    if not FileDialog then
+      why = "Your VCarve version does not provide FileDialog(), so no\n"
         .. "file dialog is available. Set MANIFEST_PATH at the top of\n"
         .. "multi_layer_dxf.lua to the full path of your manifest.txt."
     else
-      why = "Pick manifest.txt (next to the DXF from step_to_vcarve.py)\n"
-        .. "when the file dialog appears."
+      why = "No manifest file was picked. Run the gadget again and pick\n"
+        .. "manifest.txt (next to the DXF from step_to_vcarve.py)."
     end
     DisplayMessageBox("multi_layer_dxf: could not pick a manifest file.\n\n" .. why)
     return false
@@ -458,8 +472,11 @@ function main()
   if MODE ~= "toolpaths_only" then
     local dxf_path = dxf_name and (manifest_dir .. dxf_name) or nil
     if not dxf_path then
-      if GetFileName then
-        dxf_path = GetFileName("Select the layered DXF", "*.dxf")
+      if FileDialog then
+        local file_dialog = FileDialog()
+        if file_dialog:FileOpen("dxf", "", "DXF Files (*.dxf)|*.dxf||") then
+          dxf_path = file_dialog.PathName
+        end
       end
     end
     if not dxf_path or dxf_path == "" then
