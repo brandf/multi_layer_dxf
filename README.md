@@ -1,6 +1,33 @@
 # multi_layer_dxf — STEP to layered DXF for VCarve Pro (2.5D, prismatic)
 
-No £50/month app. This is the custom pipeline, built for Brandon.
+Turn a STEP file of a prismatic 2.5D part into a layered DXF plus a
+manifest VCarve Pro can turn into toolpaths. Pockets, holes, and
+profiles each land on their own layer with their depths in the layer
+name, and circles stay true circles — no recreating the model in
+VCarve, no setting up one toolpath at a time for every Z depth. A
+scene with several parts becomes one VCarve job: the tool figures out
+each part's CAM orientation, lays them out side by side, and
+recommends tools from standard sizes with a ranked plan.
+
+## Quick start (Windows — Python + VCarve on one machine)
+
+1. Install Python 3.12 from python.org, checking **"Add python to
+   PATH"** (the classic gotcha — without it, `python` is not found).
+2. Clone the repo somewhere short, e.g. `C:\cnc\multi_layer_dxf`.
+3. Double-click `setup_windows.bat`. It creates `.venv`, installs
+   build123d + ezdxf, and smoke-tests the classifier on the synthetic
+   test part (expect: 8 layers, 6 holes, 3 pockets, 1 flag).
+4. Run it on your model: `run_vcarve.bat container.step container_out`
+   — that writes the DXF, `manifest.json`, `manifest.txt`, and
+   `report.md` into `container_out`. Read `report.md` first.
+5. Install the gadget once: in VCarve, Gadgets > Install New Gadget,
+   pick `vcarve\multi_layer_dxf.vgadget` (build it with
+   `make_vgadget.py`), restart VCarve.
+6. In VCarve, start a job, Gadgets > multi_layer_dxf, pick the
+   `manifest.txt`. It imports the DXF, asks you to match each tool to
+   your library, and builds the toolpaths in cut order. Preview, then
+   File > Save As the `.crv` — the gadget never saves the job or posts
+   G-code for you.
 
 ## What it does
 
@@ -48,7 +75,7 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
 - `vcarve/multi_layer_dxf.lua` — VCarve Pro gadget (Lua). Reads
   manifest.txt, imports the DXF named on its `# dxf:` line, joins
   vectors, creates drill / pocket / profile toolpaths per layer with
-  start_depth / cut_depth from the manifest. v0.2 — implemented from
+  start_depth / cut_depth from the manifest. v0.4 — implemented from
   the Vectric SDK docs and syntax-checked, but NOT yet run inside
   VCarve. It does not save the job or post G-code; preview, then
   File > Save As the `.crv` yourself.
@@ -70,7 +97,7 @@ in VCarve, instead of dozens of manual toolpaths — then you preview
 and save the `.crv` yourself (the gadget deliberately does not save
 the job or post G-code).
 
-That gadget is v0.2 — implemented from the Vectric SDK docs
+That gadget is v0.4 — implemented from the Vectric SDK docs
 (ToolpathManager + VectricJob pages, jimandi.com/SDK mirror) and
 syntax-checked with luaparser, but it has not been run inside VCarve
 yet (no VCarve on this Linux VM). The two least-certain calls,
@@ -395,7 +422,7 @@ part; it needs a real two-sided test part before it is built.
 
 ## Quick start (Python side)
 
-Linux / Mac:
+The Windows quick start is at the top of this file. Linux / Mac:
 
 ```bash
 cd ~/workspace/multi_layer_dxf
@@ -408,24 +435,6 @@ python3 -m venv .venv
 # -> test/out/manifest.txt  (for the VCarve gadget)
 # -> test/out/report.md
 ```
-
-Windows (Brandon's preference, 2026-11-08 — one machine for Python
-and VCarve, no file shuffling between computers):
-
-1. Install Python 3.12 from python.org, checking **"Add python to
-   PATH"** (the classic gotcha — without it, `python` is not found).
-2. Clone the repo somewhere short, e.g. `C:\cnc\multi_layer_dxf`.
-3. Double-click `setup_windows.bat`. It creates `.venv`, installs
-   build123d + ezdxf, and smoke-tests the classifier on the synthetic
-   test part (expect: 8 layers, 6 holes, 3 pockets, 1 flag).
-4. Per model: `run_vcarve.bat container.step container_out` — that
-   runs `multi_part.py --auto` and writes the DXF, manifest and
-   report into `container_out`. Read `report.md` first.
-5. The DXF/manifest are already on the VCarve machine, so the gadget
-   (or manual DXF import) picks them up from the same disk — install
-   the gadget once with Gadgets > Install New Gadget, picking
-   `vcarve/multi_layer_dxf.vgadget` (build it with `make_vgadget.py`),
-   then restart VCarve.
 
 The scripts are pure Python + build123d/ezdxf — no Linux-specific
 calls — so they run identically on Windows. No GPU is used; the
