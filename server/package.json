@@ -1,0 +1,1 @@
+{"description":"Bun local server for multi_layer_dxf (V2.5) — a thin shell over the mldxf CLI. Dependency-free: Bun's built-in server only.","name":"mldxf-server","private":true,"scripts":{"start":"bun run server.ts"},"type":"module","version":"2.0.0"}

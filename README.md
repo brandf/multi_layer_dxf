@@ -9,6 +9,48 @@ scene with several parts becomes one VCarve job: the tool figures out
 each part's CAM orientation, lays them out side by side, and
 recommends tools from standard sizes with a ranked plan.
 
+## Quick start (V2 — web UI, v2.0.0)
+
+The V2 way in: one command starts the local website; the CLI path
+below it still works unchanged.
+
+1. First run only: `mldxf init` copies the example machine / tool /
+   clamp / preferences libraries into your home dir (`MLDXF_HOME`,
+   else `%APPDATA%\multi_layer_dxf` on Windows, else
+   `~/.config/multi_layer_dxf`). Edit them in the UI's Tools /
+   Clamps & machine / Preferences tabs afterwards.
+2. Double-click `start.bat` (Windows), or run `mldxf serve` — it
+   starts the Bun server on localhost:3000 and opens the browser.
+   The server is localhost-only, single user, no auth in V2.
+3. Job prep tab: drop in a STEP file (or pick one already on disk),
+   set material / plan / auto-orient, run. Review the plan (tools,
+   times, changes), the flags, the post-processing steps, and the
+   2D layout preview — then download the DXF, `manifest.txt`,
+   `report.md`, or the whole job as a zip.
+4. In VCarve Pro, run the gadget on the downloaded `manifest.txt`
+   exactly as in V1 (step 6 of the Windows quick start below).
+   VCarve + the gadget (v1.0.1, unchanged in V2) are still the only
+   path from a job to toolpaths.
+
+CLI path (same results — the UI is a thin shell over it):
+
+```
+mldxf plan container.step -o container_out   # full pipeline
+mldxf plan container.step --auto             # orientation search;
+                                             # no -o means <home>/jobs/<job-id>
+mldxf check container.step                   # classify only, writes nothing
+```
+
+Notes that catch people out: the UI defaults auto-orient **off**,
+so a default container run shows 6.4 min vs the 7.0 min in
+VALIDATION.md §4 (which needs auto) — tick "Auto-orient" to match
+§4. The T-track slots in the shipped machine example are
+placeholders, not measurements: the workholding guides refuse to
+run until you measure your bed and replace them (see
+`mldxf guides` / the Job prep workholding section). The gadget
+itself is unchanged in V2 — v1.0.1, live-tested in VCarve Pro
+V12.5.
+
 ## Quick start (Windows — Python + VCarve on one machine)
 
 1. Install Python 3.12 from python.org, checking **"Add python to
@@ -28,6 +70,57 @@ recommends tools from standard sizes with a ranked plan.
    your library, and builds the toolpaths in cut order. Preview, then
    File > Save As the `.crv` — the gadget never saves the job or posts
    G-code for you.
+
+## Quick start (mldxf CLI — V2.1)
+
+One entry point over the same pipeline — `mldxf` is a thin shell over
+`step_to_vcarve.py` / `multi_part.py`, so a job it produces matches
+one from the v1 scripts directly (manifest/report byte-identical;
+the DXF matches by canonical entity+layer signature — DXF *bytes*
+are not reproducible, ezdxf writes timestamps/GUIDs; see
+`mldxf_dxf.py`). The scripts above
+keep working exactly as in v1.0.1.
+
+```
+mldxf init                                  # once: copy the example
+                                            # libraries into the home dir
+mldxf plan container.step -o container_out  # full pipeline (single- or
+                                            # multi-solid — it inspects
+                                            # the STEP; you don't choose)
+mldxf plan container.step --auto            # orientation search; no -o
+                                            # means <home>/jobs/<job-id>
+mldxf check container.step                  # classify only, writes nothing
+mldxf job container_out                     # inspect a job: plan, flags,
+                                            # post-processing, layout
+mldxf machine validate                      # validate machine.json
+mldxf tools list  /  mldxf clamps validate  # inventory commands
+mldxf serve                                 # V2.5 — start the Bun
+                                            # web server (localhost:3000);
+                                            # start.bat is the Windows
+                                            # double-click wrapper
+```
+
+Libraries live outside the repo, never in the working directory:
+`MLDXF_HOME`, else `%APPDATA%\multi_layer_dxf` on Windows, else
+`~/.config/multi_layer_dxf`. A missing home is an error naming the
+exact `mldxf init` command, not a silent creation of defaults.
+
+`--json` (every command) writes exactly one JSON object to stdout and
+nothing else — progress goes to stderr. Success is
+`{"ok": true, "job": {...}}`; failure is
+`{"ok": false, "error": "<named error>", "message": "..."}`. Exit
+codes: 0 success; 1 user error (bad input, bad config, fit-or-error —
+a part that cannot be cut fails with a named error and writes no job
+dir, as in V1); 2 internal error (a traceback — a bug). A missing
+`--config` file is a hard error, exit 1, in every command. Named
+errors include `config_file_not_found`, `step_file_not_found`,
+`step_unreadable`, `fit_error`, `home_not_initialized`,
+`home_already_initialized`, `job_not_found`, `rerun_unavailable`
+(`rerun` needs the V2.2 job model — v1 jobs are read-only), and
+`server_not_built` (only if the server files are missing).
+On Windows, double-click `mldxf.bat` (same
+commands after it). `start.bat` double-clicks straight into
+`mldxf serve` and opens the browser.
 
 ## What it does
 
@@ -64,6 +157,38 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
 ## Files
 
 - `step_to_vcarve.py` — STEP -> layered DXF + manifest.json
+- `mldxf.py` — the headless CLI (V2.1): one entry point over the v1
+  scripts (`plan`, `check`, `job`, `rerun`, `machine`, `tools`,
+  `clamps`, `serve`, `init`), with the `--json` contract. Run as
+  `python3 mldxf.py ...` or `./mldxf.py ...`; `mldxf.bat` is the
+  Windows double-click wrapper. It writes no pipeline code of its
+  own — the v1 scripts run as subprocesses.
+- `mldxf_config.py` — machine / tool / clamp / preferences libraries
+  (V2.3): home resolution, validation, `init_home`. The CLI drives it;
+  it imports nothing from the pipeline.
+- `machine.example.json`, `tools.example.json`, `clamps.example.json`,
+  `preferences.example.json` — the shipped example libraries
+  (`mldxf init` copies them into the home dir; the T-track slots in
+  the machine example are clearly-marked placeholders, not
+  measurements — the V2.9 guides refuse them).
+- `start.bat` — Windows double-click launcher for `mldxf serve`
+  (V2.5): starts the Bun server and opens the browser.
+- `server/` — Bun local server + JSON API (V2.5) and the web UI
+  (V2.6–V2.8): `server.ts` (dependency-free, localhost-only, every
+  endpoint 1:1 with a CLI command) and `server/public/` (Job prep,
+  Jobs, Tools, Clamps & machine, Preferences tabs; 2D SVG layout
+  preview in the Jobs / job-prep views). The server holds no
+  pipeline state and computes nothing about a job — it spawns
+  `mldxf` and displays its output.
+- `mldxf_guides.py` — workholding guides (V2.9): `mldxf guides
+  <job-dir>` places T-track clamps for a finished job (keep-out
+  first, support near the cuts, first-order force estimate —
+  conservative and unvalidated, labelled so everywhere it appears).
+  Post-step only; `mldxf plan` never runs guides. Placeholder
+  T-track slots refuse with a named error, never a guess.
+- `mldxf_dxf.py` — the one canonical DXF signature (entity+layer,
+  not bytes): ezdxf writes timestamps/GUIDs, so DXF bytes are NOT
+  reproducible — parity and rerun compare by this signature.
 - `make_test_model.py` — builds a known test part in build123d,
   exports STEP, so you can verify the recognizer without a CAD install
 - `featurescript/CAM_Snapshot.fs` — Onshape custom feature, insert
@@ -290,6 +415,66 @@ The VCarve gadget is flexible the same way: `MODE`, `ONLY`,
 `vcarve/multi_layer_dxf.lua` — edit once, reuse for every model.
 You can run it for drills only, skip the profile, preview without
 saving, etc. Nothing is all-or-nothing.
+
+## Machine config + libraries (V2.3 — the operator's real setup)
+
+Your machine, the tools you own, and your clamping methods live
+outside the repo in a home directory, so a `git pull` never
+clobbers them. The module is `mldxf_config.py`; the V2.1 `mldxf`
+CLI calls it, but it stands alone and is importable on its own.
+
+**Home resolution** (never the current working directory):
+`MLDXF_HOME` when set, else `%APPDATA%\multi_layer_dxf` on
+Windows, else `~/.config/multi_layer_dxf`.
+
+**First run** — copy the shipped examples into the home dir
+(`mldxf init` in the CLI; `mldxf_config.init_home()` in Python).
+It refuses to overwrite files that already exist.
+
+| File | Contents |
+|---|---|
+| `machine.json` | Machine profile: `id`, `name`, `bed` (`width_mm`, `depth_mm` — Brandon's Onefinity Elite (Masso) Foreman: 1222.4 × 1222.4 mm, i.e. 48.125 in), `t_track` (slot layout, § below), `controller` (`"masso"` — informational in V2, no post-processor is executed), optional `default_material`, `version`. |
+| `tools.json` | Owned-tool inventory, keyed by manifest tool id (`EM6.35`, `D2.25` — the ids the planner uses). Each entry: `id`, `kind` (`endmill`/`drill`), `dia_mm`, `native_label` (`"1/4in"` / `"2.25 mm"` — the v1.0.1 native-label rule), optional `feeds` overrides, `notes`. |
+| `clamps.json` | Workholding methods you actually have: `id`, `method` (`t_track_clamp`, `tape`, `glue`, `screw`, `pin`, `vise`), `footprint_mm`, `keep_out_mm`, optional `hold_force_n`, `t_track` (true/false), `count`. The example is a template — every entry has `count: 0`, fill in what you own. |
+| `preferences.json` | The V1 config values (`config.example.json` promoted to a managed file — same keys, same meaning: margins, penalties, toolplan, tabs, vcarve) plus `inventory_mode: "advisory"`. A per-job `--config` still overrides it. |
+
+**Validation is strict and loud** — a bad config is a hard error
+(`ConfigError`, named message), never a silent default, the V1
+rule extended to the new files. Every loader rejects unknown or
+misspelled keys (a typo must not silently drop a setting), bad
+JSON, a tool whose `dia_mm` does not match its id's diameter
+(`EM6.35` is 6.35 mm), a T-track slot outside the bed, and two
+same-axis slots overlapping. A missing file errors with the exact
+fix: run `mldxf init`. Exception: `tools.json` may be empty
+(empty file, `[]`, or `{"tools": []}`) — "no inventory recorded
+yet", and the planner then behaves exactly as in V1; a *missing*
+`tools.json` is still an error.
+
+**T-track placeholders.** Brandon's real slot measurements are
+unknown, so `machine.example.json` carries clearly-marked
+placeholder slots (`"placeholder": true` plus a comment saying
+they are not measurements). Placeholders load fine — `machine
+validate` passes on the example — but the workholding guides
+(V2.9) must refuse them: `assert_real_t_track(machine)` raises
+`ConfigError: "T-track slots are placeholders — measure your
+bed…"`. The refusal is driven by the flag in the file, not
+hardcoded: replace the placeholders with real measurements and
+drop the flag, and the guides work with no code change. The
+same applies at guide time to clamps: `check_clamp_mountable()`
+fails a `t_track: true` clamp that has no real slot to mount in
+— that check runs at guide time, not at load, because the bed
+may change.
+
+**Inventory is advisory, not constraining** (the settled §10
+default, kept as configuration): `preferences.json` carries
+`inventory_mode: "advisory"` — the only value V2 accepts — and
+nothing hard-fails a plan on a tool you do not own. The
+owned/not-owned display itself is V2.4, not this module.
+
+Verify it: `python test_mldxf_config.py` (21 checks: examples
+load, `resolve_home` with/without `MLDXF_HOME`, `init_home`,
+placeholder refusal, empty `tools.json`, and one deliberately
+broken file per named error, each with its exact message).
 
 ## Tool plan — recommendations, not a library (built 2026-11-08, BRA-12)
 

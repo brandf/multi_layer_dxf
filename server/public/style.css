@@ -1,0 +1,763 @@
+/* mldxf web UI (V2.11) — plain CSS, no framework.
+ *
+ * Design tokens first, components second, screens last. Every tab
+ * reuses the same tokens and components; nothing is styled one-off
+ * per screen.
+ */
+:root {
+  /* Color */
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-muted: #eef1f5;
+  --surface-hover: #e9eef5;
+  --text: #171a21;
+  --muted: #5b6470;
+  --faint: #8a93a1;
+  --border: #d9dee5;
+  --border-strong: #aab4c0;
+  --accent: #1a5fb4;
+  --accent-hover: #144e94;
+  --accent-soft: #e8f0fb;
+  --accent-text: #144e94;
+  --success: #1a7f37;
+  --success-bg: #e6f4ea;
+  --success-border: #5aa469;
+  --warn: #8a5a00;
+  --warn-bg: #fff4d6;
+  --warn-border: #c99a2b;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --danger-border: #d98880;
+  /* Type */
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+  --text-sm: 0.85rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.6rem;
+  --text-hero: 2rem;
+  --line: 1.45;
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  /* Radius / shadow / motion */
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --transition: background-color 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+* { box-sizing: border-box; }
+body {
+  font-family: var(--font);
+  color: var(--text); background: var(--bg);
+  max-width: 960px; margin: 0 auto; padding: 0 1em 3em;
+  line-height: var(--line);
+}
+h1 { margin: 0; font-size: var(--text-xl); line-height: 1.2; }
+h2 { margin-top: 1.4em; border-bottom: 1px solid var(--border); padding-bottom: 0.2em; font-size: var(--text-lg); }
+h3 { margin-top: 1.2em; font-size: 1.1rem; }
+.subtitle { color: var(--muted); margin: 0.1em 0 0; }
+/* Header brand: a small drawn layered-sheet mark beside the
+ * wordmark, so the header reads as an identity, not bare text. */
+.brand { display: flex; align-items: center; gap: 0.65em; margin-top: 0.8em; }
+.brand > svg { flex: 0 0 auto; }
+.brand-text { min-width: 0; }
+code { background: var(--surface-muted); padding: 0 0.3em; border-radius: 3px; font-family: var(--font-mono); font-size: 0.92em; }
+code.clamp-id { overflow-wrap: normal; word-break: normal; white-space: nowrap; }
+/* Visually hidden but still in the layout for automation: a
+ * display:none file input cannot be driven by CDP setFileInputFiles
+ * in some drivers, and its "No file chosen" label would show. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  opacity: 0;
+}
+
+/* ---- Tabs: a modern underline bar, not file-folder tabs ---- */
+nav#tab-nav {
+  display: flex; gap: 0.2em; margin: 1em 0 0; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+nav#tab-nav button {
+  font: inherit; padding: 0.55em 0.85em 0.5em; cursor: pointer;
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--muted); margin-bottom: -1px;
+  transition: var(--transition);
+}
+nav#tab-nav button:hover { background: var(--surface-hover); color: var(--text); }
+nav#tab-nav button:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+nav#tab-nav button[aria-selected="true"] {
+  background: transparent; font-weight: 600; color: var(--accent-text);
+  border-bottom-color: var(--accent);
+}
+nav#tab-nav button .tab-icon {
+  display: inline-flex; vertical-align: -3px; margin-right: 0.4em;
+}
+nav#tab-nav button .tab-icon svg { display: block; }
+main#tab-main {
+  background: var(--surface); border: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 1em 1.2em 1.5em; box-shadow: var(--shadow);
+}
+
+/* ---- Tables ---- */
+table { border-collapse: collapse; width: 100%; margin: 0.6em 0; }
+th, td { border: 1px solid var(--border); padding: 0.35em 0.6em; text-align: left; vertical-align: top; }
+th { background: var(--surface-muted); font-size: var(--text-sm); }
+tr.owned-yes td:first-child { font-weight: 600; }
+td.num, th.num { text-align: right; }
+tbody tr { transition: var(--transition); }
+tbody tr:hover { background: var(--surface-muted); }
+
+/* ---- Forms ---- */
+label { display: block; margin: 0.5em 0 0.1em; font-weight: 600; }
+label .hint { font-weight: 400; color: var(--muted); }
+.field-desc { font-weight: 400; color: var(--muted); font-size: var(--text-sm); margin: 0.15em 0 0.3em; }
+input[type="text"], input[type="number"], select, textarea {
+  font: inherit; padding: 0.3em 0.45em; border: 1px solid var(--border-strong);
+  border-radius: 4px; width: 100%; max-width: 32em;
+  background: var(--surface); color: var(--text);
+  transition: var(--transition);
+}
+input[type="text"]:hover, input[type="number"]:hover, select:hover, textarea:hover { border-color: var(--accent); }
+input[type="text"]:focus-visible, input[type="number"]:focus-visible,
+select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent);
+}
+input[type="number"] { max-width: 10em; }
+input[type="checkbox"] { width: auto; accent-color: var(--accent); }
+textarea { min-height: 4em; }
+/* Long values get the full row instead of truncating in a narrow box. */
+input.field-wide, select.field-wide, textarea.field-wide { max-width: none; }
+/* A fieldset's default min-width is min-content: at 390 px the
+ * T-track fieldset sized itself to its slots table (~685 px) and
+ * forced page-level horizontal scroll, which no inner overflow
+ * could contain. min-width: 0 lets every fieldset shrink to its
+ * container; wide content inside scrolls instead (round 10). */
+fieldset {
+  border: 1px solid var(--border); border-radius: var(--radius); margin: 1em 0; padding: 0.8em 1em 1em;
+  min-width: 0; min-inline-size: 0;
+}
+legend { font-weight: 700; padding: 0 0.4em; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16em, 1fr)); gap: 0 1.2em; }
+/* A wide field (long values) spans the whole grid row — inside a
+ * half-width column even a max-width:none input still clips. */
+.form-grid > .field-span-all { grid-column: 1 / -1; }
+/* A field the UI shows but V2 does not let you change: greyed out,
+ * with a "(fixed in V2)" tag on its label. */
+.field-fixed input, .field-fixed select {
+  background: var(--surface-muted); color: var(--muted);
+  border-style: dashed; cursor: not-allowed;
+}
+.field-fixed label { color: var(--muted); }
+.tag-fixed {
+  font-weight: 600; font-size: var(--text-sm); color: var(--muted);
+  background: var(--surface-muted); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0 0.45em; margin-left: 0.4em; white-space: nowrap;
+}
+
+/* ---- Buttons ---- */
+button {
+  font: inherit; padding: 0.4em 1em; margin: 0.6em 0.4em 0 0; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface-muted);
+  transition: var(--transition);
+}
+button:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+button.danger:hover:not(:disabled) { background: #8f1b12; border-color: #8f1b12; }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Message / state boxes ---- */
+.msg { padding: 0.6em 0.9em; border-radius: 4px; margin: 0.8em 0; white-space: pre-wrap; }
+.msg.ok { background: var(--success-bg); border: 1px solid var(--success-border); }
+.msg.err { background: var(--danger-bg); border: 1px solid var(--danger); }
+.msg.warn { background: var(--warn-bg); border: 1px solid var(--warn-border); }
+.msg:empty { display: none; }
+.version { color: var(--muted); }
+.owned { color: var(--success); font-weight: 600; }
+.not-owned { color: var(--warn); }
+.muted { color: var(--muted); }
+footer { margin-top: 2em; color: var(--muted); font-size: 0.9em; }
+footer .about { font-size: 0.85em; color: var(--faint); }
+.placeholder-note { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.8em 1em; }
+/* T-track slots: one compact table, not a card per slot. Inputs
+ * stay small; the comment column takes the spare width. */
+.slots-table td input[type="number"] { max-width: 6.5em; }
+.slots-table td input[type="text"] { min-width: 9em; }
+/* The slot comment is a wrapping textarea, not a one-line input:
+ * the full comment reads in the cell instead of truncating
+ * ("PLACEHOLDER — not a mea…") with no way to see the rest. */
+.slots-table td textarea { width: 100%; min-width: 12em; font: inherit; }
+.slots-table td select { width: auto; }
+.slots-table td button { margin: 0; }
+/* Comment fields are wide; notes sit behind a one-line "Notes"
+ * toggle, collapsed by default at every width, so long paragraphs
+ * never inflate the row — the full note reads when opened. */
+.notes-cell { max-width: 22em; overflow-wrap: break-word; }
+.note-toggle > summary { display: list-item; cursor: pointer; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.note-toggle > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note-toggle > span { overflow-wrap: break-word; }
+/* Action cells keep Edit/Remove on one row. */
+td.actions-cell, table.inventory-table td[data-label=""] { white-space: nowrap; }
+table.inventory-table td[data-label=""] button { margin: 0 0.4em 0 0; }
+/* Clamp inventory: the Id column is wide enough for a full id and
+ * never wraps; actions stay on one row. */
+table.clamps-table td:first-child { min-width: 9em; white-space: nowrap; }
+table.clamps-table td:last-child { white-space: nowrap; }
+
+/* ---- Badges ---- */
+.badge {
+  display: inline-block; font-size: var(--text-sm); font-weight: 600;
+  line-height: 1.3; padding: 0.1em 0.55em; border-radius: 999px;
+  border: 1px solid transparent; white-space: nowrap; vertical-align: middle;
+}
+.badge-chosen { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent); }
+.badge-owned { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+/* The not-owned badge is a full sentence ("not in your inventory —
+ * check before you cut"): it wraps inside its card instead of
+ * sticking out past the card's right edge at 390 px (round 9).
+ * The other badges stay single-line pills. */
+.badge-not-owned { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-border); white-space: normal; max-width: 100%; }
+.badge-must { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-border); }
+.badge-info { background: var(--surface-muted); color: var(--muted); border-color: var(--border); }
+/* Status badges (Jobs list + detail header). */
+.status-badge { background: var(--surface-muted); color: var(--muted); border-color: var(--border); }
+.status-badge.st-complete { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.status-badge.st-running { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent); }
+.status-badge.st-failed { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+.status-badge.st-interrupted { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-border); }
+.status-badge.st-invalid { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+
+/* ---- Plan cards (job prep + jobs detail share the shape) ---- */
+.plan-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.9em 1em 1em; margin: 0.8em 0; background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.plan-card.plan-chosen { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+.plan-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4em 0.8em; margin: 0 0 0.2em; }
+.plan-head h5 { font-size: 1.05rem; margin: 0; }
+.plan-total { font-size: var(--text-hero); font-weight: 700; line-height: 1.1; color: var(--accent-text); }
+.plan-total small { font-size: var(--text-sm); font-weight: 400; color: var(--muted); }
+.plan-meta { color: var(--muted); margin: 0.15em 0 0.6em; }
+.plan-tools { margin: 0.4em 0; }
+/* Plan tables scroll horizontally instead of wrapping a tool cell
+ * mid-phrase ("End Mill 3/16in EM4.76 · endmill" stays one line). */
+.plan-table-scroll { overflow-x: auto; margin: 0.4em 0; }
+.plan-table-scroll > .plan-tools { margin: 0; }
+/* The Tool column gets room so names don't wrap mid-phrase
+ * ("End Mill / 1/8in") — the tool name itself never wraps. */
+.plan-tools th:nth-child(2), .plan-tools td:nth-child(2) { min-width: 11em; white-space: nowrap; }
+.plan-tools td:nth-child(2) strong { white-space: nowrap; }
+.plan-tools td:first-child { font-weight: 600; white-space: nowrap; }
+.plan-warn {
+  background: var(--warn-bg); border: 1px solid var(--warn-border);
+  border-radius: 4px; padding: 0.5em 0.8em; margin: 0.6em 0;
+}
+
+/* ---- Flags: grouped by part, severity-badged ---- */
+.flag-group { margin: 0.7em 0; }
+.flag-group > h5 { margin: 0.4em 0 0.3em; font-size: 0.95rem; }
+.flag-list { list-style: none; margin: 0; padding: 0; }
+.flag-list li {
+  display: flex; gap: 0.6em; align-items: flex-start;
+  padding: 0.35em 0; border-top: 1px solid var(--border);
+}
+.flag-list li:first-child { border-top: none; }
+.flag-list .badge { flex: 0 0 auto; margin-top: 0.1em; }
+/* Title in normal case on its own line, one detail line under it. */
+.flag-text { display: flex; flex-direction: column; gap: 0.1em; min-width: 0; }
+.flag-title { font-size: 0.95rem; }
+.flag-detail { color: var(--muted); font-size: 0.95em; }
+
+/* Flag detail toggle (round 11): the one-line summary is the flag
+ * title; the full detail sits behind this disclosure, closed by
+ * default, so the flags scan before a cut. */
+.flag-detail-toggle { margin-top: 0.2em; font-size: 0.95em; }
+.flag-detail-toggle summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.flag-detail-toggle summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Guides error: message and action are separate blocks (round 11),
+ * in both tabs — the button used to sit inline mid-sentence. */
+.guides-error-msg { display: block; }
+.guides-error-action { margin-top: 0.5em; }
+.guides-error-action button { margin: 0; display: block; }
+.jobs-guides-link { display: block; }
+.flag-count { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent); }
+.flag-variants { margin-top: 0.3em; font-size: 0.9em; }
+.flag-variants summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.flag-variants summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.flag-variant { color: var(--muted); padding: 0.15em 0; overflow-wrap: anywhere; }
+.stat-strip {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6em; margin: 0.7em 0;
+}
+.stat {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.55em 0.8em; background: var(--surface-muted);
+  min-width: 0;
+}
+.stat-label {
+  display: block; font-size: var(--text-sm); color: var(--muted);
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em;
+}
+.stat-value { display: block; font-weight: 600; overflow-wrap: anywhere; }
+
+/* ---- Collapsed form summary bar (job prep, after a run) ---- */
+.jp-summary-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5em 0.9em;
+  border: 1px solid var(--border); background: var(--surface-muted);
+  border-radius: var(--radius); padding: 0.6em 0.9em; margin: 0.8em 0;
+}
+.jp-summary-bar .jp-summary-text { font-weight: 600; overflow-wrap: anywhere; }
+.jp-summary-bar button { margin: 0; }
+.jp-summary-bar a { white-space: nowrap; }
+
+/* ---- Run progress bar + pulsing current pill ---- */
+/* The progress block sticks to the top while a run is in flight:
+ * progress + Cancel stay visible while the form/result scrolls
+ * underneath (at 1440x900 the block used to sit below the fold). */
+.jp-progress {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.6em 0;
+}
+/* Once the run is over the progress block stops being sticky: a
+ * stuck block keeps its flow slot reserved below the collapsed
+ * form, which read as ~200 px of dead space between the summary
+ * bar and "Progress: Complete" when scrolling back up. Static in
+ * flow, it sits directly under the summary bar at every scroll
+ * position. While a run is in flight the block stays sticky. */
+.jp-progress.jp-progress-done { position: static; }
+.jp-progress-bar {
+  height: 6px; background: var(--surface-muted); border-radius: 999px;
+  overflow: hidden; margin: 0.5em 0 0.2em;
+}
+.jp-progress-fill {
+  height: 100%; background: var(--accent); border-radius: 999px;
+  transition: width 0.4s ease;
+}
+@keyframes jp-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(26, 95, 180, 0.35); }
+  50% { box-shadow: 0 0 0 5px rgba(26, 95, 180, 0.10); }
+}
+.stages li.stage-current { animation: jp-pulse 1.6s ease-in-out infinite; }
+
+/* ---- Run progress: 4-stage summary + collapsed raw log ---- */
+.jp-stages, .stages {
+  list-style: none; display: flex; flex-wrap: wrap; gap: 0.4em 0;
+  margin: 0.6em 0; padding: 0;
+}
+.stages li {
+  display: flex; align-items: center; gap: 0.45em;
+  padding: 0.3em 0.7em 0.3em 0.45em; border: 1px solid var(--border);
+  border-radius: 999px; background: var(--surface); color: var(--muted);
+  font-size: var(--text-sm); margin-right: 0.4em;
+}
+.stages li .stage-dot {
+  width: 1.35em; height: 1.35em; border-radius: 50%; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.8em; font-weight: 700; background: var(--surface-muted);
+  border: 1px solid var(--border-strong); color: var(--muted);
+}
+.stages li.stage-done { color: var(--success); border-color: var(--success-border); background: var(--success-bg); }
+.stages li.stage-done .stage-dot { background: var(--success); border-color: var(--success); color: #fff; }
+.stages li.stage-current { color: var(--accent-text); border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.stages li.stage-current .stage-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+details.run-log { margin: 0.7em 0; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+details.run-log summary {
+  cursor: pointer; padding: 0.5em 0.8em; font-weight: 600; border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+details.run-log summary:hover { background: var(--surface-muted); }
+details.run-log summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+details.run-log ol { margin: 0.2em 0 0.6em 0; padding-left: 2em; font-size: var(--text-sm); }
+details.run-log li { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 0.85em; color: var(--muted); }
+
+/* ---- Job prep ---- */
+/* Bottom padding equal to the sticky Run bar's height: at maximum
+ * scroll the last field (auto-orient) clears the bar instead of
+ * sliding under it. The first-paint clearance comes from the
+ * tighter spacing below — the bar overlays whatever sits at the
+ * viewport bottom, so the form above it has to end higher. */
+.jp-form { padding-bottom: 4em; }
+.jp-drop {
+  border: 2px dashed var(--border-strong); border-radius: var(--radius);
+  padding: 0.7em; text-align: center; margin: 0.6em 0;
+  transition: var(--transition);
+}
+.jp-drop:hover { border-color: var(--accent); background: var(--accent-soft); }
+.jp-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.jp-drop-over { border-color: var(--accent); background: var(--accent-soft); }
+.jp-hint { color: var(--muted); font-size: 0.95em; }
+.jp-elapsed { color: var(--muted); font-size: 0.95em; margin-left: 0.5em; }
+/* The progress head is separate labelled pieces, not one run-on
+ * line (round 10): "Progress: Running… · Orientation · 0:01 in
+ * stage · 25% of stages complete · 0:01 elapsed · job …". The
+ * percent is the share of the four pipeline stages done, so it
+ * says so — a bare "25% complete" read as overall progress and
+ * sat near 0% through a long stage. */
+.jp-progress-head {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 0.15em 0.7em;
+}
+.jp-progress-head .jp-pct, .jp-progress-head .jp-stage-headline,
+.jp-progress-head .jp-elapsed { margin-left: 0; }
+.jp-progress-sep { color: var(--faint); }
+/* Percent complete, as text in the progress head: the 6px bar
+ * alone reads as ~2% fill four seconds into a three-minute run. */
+.jp-pct { font-weight: 700; color: var(--accent-text); margin-left: 0.5em; }
+/* The current stage + its live elapsed is the progress headline
+ * while a run is in flight ("Orientation · 4:12 in stage") — the
+ * percent alone sat still through a 7-minute stage. */
+.jp-stage-headline { font-weight: 700; color: var(--accent-text); margin-left: 0.5em; }
+/* The layout-preview link fallback (round 11): shown in the Job
+ * prep result only when the Jobs module is not loaded, so the
+ * preview cannot render inline — a prominent button, not a
+ * buried text link. */
+.jp-preview-link { margin: 0.8em 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5em 0.9em; }
+.jp-preview-link button { margin: 0; }
+/* The guides refusal's way back to the fix: a button inside the
+ * inline error, to the Clamps & machine tab. */
+.jp-guides-link { margin: 0.5em 0 0 0; display: block; }
+/* Per-stage elapsed, inside the stage pill: "Solids ✓ 0:12". */
+.stages li .stage-time { font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Sticky Run bar: the Run row sticks to the bottom of the viewport
+ * while the form scrolls, so the primary action is visible on
+ * first paint at 1440x900 (it used to sit under the Plan options
+ * fieldset, below the fold). The options stay where they are. */
+.jp-run-bar {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em 0.9em;
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 0.45em 0; margin: 0.6em 0 0;
+}
+.jp-run-bar button { margin: 0; }
+/* The file picker is a real button-styled label driving the
+ * visually-hidden native input (see job-prep.js). */
+.jp-choose-btn {
+  display: inline-block; padding: 0.4em 1em; cursor: pointer;
+  border: 1px solid var(--accent); border-radius: 4px;
+  background: var(--accent-soft); color: var(--accent-text); font-weight: 600;
+  transition: var(--transition);
+}
+.jp-choose-btn:hover { background: var(--accent); color: #fff; }
+.jp-clear {
+  padding: 0.15em 0.6em; margin: 0 0 0 0.5em; font-size: var(--text-sm);
+}
+.jp-error { background: var(--danger-bg); border: 1px solid var(--danger); border-radius: 4px; padding: 0.6em 0.9em; margin: 0.8em 0; }
+.jp-note, .jp-warn { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.6em 0.9em; margin: 0.8em 0; }
+.jp-run-hint { color: var(--muted); font-size: 0.95em; margin-left: 0.4em; }
+
+/* ---- Workholding: one summary line + a compact table ---- */
+.jp-wh-summary, .jobs-wh-summary { font-weight: 600; margin: 0.5em 0; }
+.wh-table { margin: 0.4em 0; }
+.wh-table td:nth-child(2), .wh-table td:nth-child(5) { white-space: nowrap; }
+details.jp-force-details, details.jobs-force-details {
+  margin: 0.5em 0; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.4em 0.8em;
+}
+details.jp-force-details summary, details.jobs-force-details summary {
+  cursor: pointer; font-weight: 600;
+}
+details.jp-force-details summary:hover, details.jobs-force-details summary:hover { color: var(--accent-text); }
+details.jp-force-details summary:focus-visible, details.jobs-force-details summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.download-list { list-style: none; margin: 0.6em 0; padding: 0; display: grid; gap: 0.5em; }
+.download-list li { margin: 0; }
+/* Label above, size below in smaller muted text (round 9): the
+ * size used to wrap onto a second line, right-aligned, at 390 px
+ * ("Download DXF (…)" / "39.3 KB"). The button never splits its
+ * label from its size across lines now. */
+a.download-btn {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0.05em;
+  padding: 0.45em 1em; border: 1px solid var(--accent); border-radius: 4px;
+  background: var(--accent-soft); color: var(--accent-text); text-decoration: none;
+  font-weight: 600; transition: var(--transition);
+}
+a.download-btn:hover { background: var(--accent); color: #fff; }
+a.download-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.download-size { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+a.download-btn:hover .download-size { color: #dbe8fa; }
+
+/* ---- Jobs tab (V2.8) + 2D layout preview. ---- */
+.jobs-table td { vertical-align: top; }
+/* The Job column leads with the job name + date; the full id sits
+ * in muted small text beneath it, never truncated. */
+.jobs-table td.job-cell { min-width: 12em; }
+.jobs-table .job-name { font-weight: 600; white-space: nowrap; }
+.jobs-table .job-date { color: var(--muted); white-space: nowrap; }
+.jobs-table .job-id-full { font-size: 0.85em; color: var(--muted); margin-top: 0.15em; overflow-x: auto; scrollbar-width: thin; }
+/* Round 11 — the list's job id stays on one line (smaller mono
+ * type, no mid-token wrap): the id used to break across lines
+ * ("20261124-123737-real-container" split mid-token). The table
+ * scrolls horizontally at narrow widths, so the nowrap id extends
+ * the table's own scroller, never the page. */
+.jobs-table .job-id-full code { white-space: nowrap; overflow-wrap: normal; word-break: normal; background: none; padding: 0; font-size: 0.92em; }
+.jobs-readonly { color: var(--muted); font-size: 0.9em; }
+.jobs-hint { color: var(--muted); font-size: 0.95em; }
+.jobs-caption { color: #444; font-size: 0.95em; margin: 0.4em 0; }
+/* Preview legend: one line of color chips (margin band / part /
+ * clamp), replacing the caption prose that used to bury state. */
+.jobs-legend {
+  display: flex; flex-wrap: wrap; gap: 0.4em 1.2em;
+  font-size: var(--text-sm); color: var(--muted); margin: 0.4em 0;
+}
+.jobs-legend .legend-swatch {
+  display: inline-block; width: 0.9em; height: 0.9em; border-radius: 2px;
+  vertical-align: -1px; margin-right: 0.35em; border: 1px solid var(--border-strong);
+}
+.legend-swatch.sw-margin { background: rgba(183, 121, 31, 0.26); }
+.legend-swatch.sw-usable { background: rgba(183, 121, 31, 0.14); border-color: #8a5a00; border-width: 2px; }
+.legend-swatch.sw-part { background: #dcebf7; border-color: #1a5fb4; }
+.legend-swatch.sw-clamp { background: #b42318; border-color: #7a150d; }
+.jobs-note { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.6em 0.9em; margin: 0.8em 0; }
+.jobs-error { background: var(--danger-bg); border: 1px solid var(--danger); border-radius: 4px; padding: 0.6em 0.9em; margin: 0.8em 0; white-space: pre-wrap; }
+.jobs-ok { background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 4px; padding: 0.6em 0.9em; margin: 0.8em 0; }
+.jobs-notice { background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 4px; padding: 0.6em 0.9em; margin: 0.8em 0; }
+.jobs-warn { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.6em 0.9em; margin: 0.6em 0; }
+.jobs-owned { color: var(--success); font-weight: 600; }
+.jobs-not-owned { color: var(--warn); }
+.jobs-download { display: block; margin: 0.3em 0; }
+.jobs-actions { margin: 0.6em 0; }
+.jobs-preview { margin: 1em 0; }
+.jobs-svg { width: 100%; height: auto; background: #fff; border: 1px solid var(--border); border-radius: 4px; }
+.jobs-sheet { fill: #ffffff; stroke: #333; stroke-width: 1.2; }
+/* The clamp margin is a shaded band, not a stroked rectangle: the
+ * band path is the sheet with the usable area cut out (even-odd).
+ * Round 11 — deepened from 0.14 to 0.26 alpha: the band was so pale
+ * it barely read against the sheet, while the usable-area outline
+ * was not self-evident from the legend swatch. Still subtle enough
+ * that parts and clamps read clearly over it. */
+.jobs-margin { fill: rgba(183, 121, 31, 0.26); stroke: none; pointer-events: none; }
+/* The usable area's own boundary: a visible 1px stroke, so the
+ * margin band is not just a pale wash against the sheet. */
+.jobs-margin-boundary { fill: none; stroke: #8a5a00; stroke-width: 1; pointer-events: none; }
+/* Re-drawn sheet border over the clamp rects: a clamp whose top
+ * edge coincides with the sheet edge reads as inside the sheet,
+ * not straddling it. Positions/footprints are unchanged — this is
+ * paint order only. */
+.jobs-sheet-top { fill: none; stroke: #333; stroke-width: 1.2; pointer-events: none; }
+.jobs-axis-tick { stroke: #5b6470; stroke-width: 0.8; }
+.jobs-part { fill: #dcebf7; stroke: #1a5fb4; stroke-width: 1; }
+.jobs-part-label { font-size: 5px; font-family: var(--font); fill: #1a1a1a; }
+.jobs-part-dims { font-size: 3.5px; font-family: var(--font); fill: #555; }
+/* Clamps draw to scale as rectangles; the label sits inside in white. */
+.jobs-clamp { fill: #b42318; stroke: #7a150d; stroke-width: 0.6; }
+.jobs-clamp-label { font-size: 3.5px; font-family: var(--font); fill: #fff; font-weight: 600; }
+.jobs-axis { font-size: 3.5px; font-family: var(--font); fill: #5b6470; }
+.jobs-scalebar { stroke: #333; stroke-width: 1; }
+.jobs-scalebar-label { font-size: 3.5px; font-family: var(--font); fill: #333; }
+.jobs-empty { background: var(--surface-muted); border: 1px solid var(--border); border-radius: var(--radius); padding: 1em 1.2em; margin: 0.8em 0; }
+
+/* ---- Preferences: advanced section + plain-language fields ---- */
+details.prefs-advanced { margin: 1em 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6em 1em 1em; }
+details.prefs-section { margin: 1em 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.6em 1em 1em; }
+details.prefs-section summary { cursor: pointer; font-weight: 700; padding: 0.2em 0; }
+/* Per-section summary line, inside the <summary> so it reads even
+ * while the section is closed: the first screen says what each
+ * section holds instead of showing a wall of bare titles. */
+.prefs-summary-line {
+  display: block; font-weight: 400; font-size: var(--text-sm);
+  color: var(--muted); padding-top: 0.15em;
+}
+details.prefs-section summary:hover { color: var(--accent-text); }
+details.prefs-section summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+details.prefs-advanced summary { cursor: pointer; font-weight: 700; padding: 0.2em 0; }
+details.prefs-advanced summary:hover { color: var(--accent-text); }
+details.prefs-advanced summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Sticky save bar at the top of the Preferences tab: the Save
+ * button and the section jump links stay on screen while the
+ * ~30-field form scrolls underneath. */
+.prefs-savebar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em 1em;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0.6em 0; margin: 0.6em 0 0.2em;
+}
+.prefs-savebar button { margin: 0; }
+.prefs-jump { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2em 0.9em; font-size: var(--text-sm); }
+.prefs-jump-label { color: var(--muted); font-weight: 600; }
+.prefs-jump a { color: var(--accent-text); }
+
+/* ---- Post-processing step cards (job prep + jobs detail) ---- */
+.post-step {
+  display: flex; gap: 0.7em; align-items: flex-start;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.7em 0.9em; margin: 0.6em 0; background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.post-step .badge { flex: 0 0 auto; margin-top: 0.15em; }
+.post-step-action { margin: 0; font-weight: 600; }
+.post-step-feature { margin: 0.15em 0 0; color: var(--muted); font-size: 0.95em; }
+.post-step-parts { display: flex; flex-wrap: wrap; gap: 0.35em; margin-top: 0.45em; }
+.post-step-parts .chip {
+  font-size: var(--text-sm); font-weight: 600; color: var(--accent-text);
+  background: var(--accent-soft); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 0.05em 0.55em; white-space: nowrap;
+}
+/* A table that scrolls horizontally instead of crushing its
+ * columns at narrow widths (workholding guides). */
+.table-scroll { overflow-x: auto; margin: 0.4em 0; }
+.table-scroll > .wh-table { margin: 0; min-width: 36em; }
+/* Job-prep plan options: labels in one column, controls aligned
+ * to a common left edge in the second. */
+.jp-options { margin: 0.7em 0; padding: 0.6em 1em 0.8em; }
+.jp-options .jp-opt-row {
+  display: grid; grid-template-columns: 9.5em minmax(0, 1fr);
+  gap: 0.5em; align-items: center; margin: 0.35em 0;
+}
+.jp-options .jp-opt-row > label { margin: 0; }
+.jp-options .jp-opt-row > input[type="text"],
+.jp-options .jp-opt-row > input[type="number"] { width: 100%; }
+.jp-options .jp-opt-row.jp-opt-check { grid-template-columns: auto 1fr; }
+.jp-options .jp-opt-row.jp-opt-check > label { font-weight: 400; }
+/* Checkbox beside its label on one line (Preferences bools,
+ * "Only" operations, T-track placeholder). */
+.field-bool { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em 0.6em; }
+.field-bool > label { margin: 0; order: 2; }
+.field-bool > input { order: 1; }
+.field-bool > .field-desc { order: 3; flex-basis: 100%; margin: 0; }
+/* About dialog (footer link, every tab). */
+dialog.about-dialog {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1em 1.2em; max-width: 32em; color: var(--text);
+  background: var(--surface); box-shadow: var(--shadow);
+}
+dialog.about-dialog::backdrop { background: rgba(16, 24, 40, 0.35); }
+dialog.about-dialog h2 { margin-top: 0; }
+dialog.about-dialog dl { margin: 0.6em 0; }
+dialog.about-dialog dt { font-weight: 600; }
+dialog.about-dialog dd { margin: 0 0 0.4em; color: var(--muted); }
+/* Jobs list: plan summary as two lines, not one run-on sentence. */
+.jobs-table .plan-facts-line { color: var(--muted); font-size: 0.95em; }
+
+/* The tab scroll cue (round 10) is narrow-width only: at wide
+ * widths the whole tab bar fits and there is nothing to cue. */
+.tab-scroll-cue { display: none; }
+
+/* ---- Narrow viewports ---- */
+@media (max-width: 560px) {
+  /* Brand: icon above the wordmark, so the logo and "mldxf" never
+   * misalign when the subtitle wraps to two lines. */
+  .brand { flex-direction: column; align-items: flex-start; gap: 0.3em; }
+  /* Round 11 — the tab bar wraps to two rows instead of scrolling
+   * horizontally behind a chevron: at 390 px "Clamps & machine"
+   * and "Preferences" sat off-screen with only a small ">" cue.
+   * Two rows put every tab label on screen at once; the selected
+   * tab is always visible, so the scroll cue is no longer needed
+   * and is hidden at this width (app.js also stops toggling it). */
+  nav#tab-nav { flex-wrap: wrap; overflow-x: visible; -webkit-overflow-scrolling: auto; scrollbar-width: auto;
+    -webkit-mask-image: none; mask-image: none; }
+  nav#tab-nav button { flex: 0 0 auto; padding: 0.55em 0.65em 0.5em; }
+  .tab-scroll-cue { display: none !important; }
+  /* Round 10 — a scroll cue beyond the fade: a chevron pinned to
+   * the header's right edge, over the tab bar, visible only while
+   * more tabs lie to the right. Round 11 — the bar wraps to two
+   * rows at this width, so the cue is hidden here (display: none
+   * above) and app.js stops toggling it; these positioning rules
+   * survive only for wider viewports, where the cue is already
+   * display: none outside this block. */
+  header { position: relative; }
+  .tab-scroll-cue {
+    display: flex; position: absolute; right: 0; z-index: 2;
+    align-items: center; padding: 0 0.35em 0 0.9em;
+    background: linear-gradient(to right, rgba(245, 247, 250, 0), var(--bg) 45%);
+    color: var(--accent-text); font-size: 1.4rem; font-weight: 700; line-height: 1;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s ease;
+  }
+  header.has-more-right .tab-scroll-cue { opacity: 1; }
+  main#tab-main { padding: 0.8em 0.8em 1.2em; }
+  /* Wide tables scroll instead of squeezing the page. */
+  table { display: block; overflow-x: auto; max-width: 100%; }
+  /* Round 10 — the slot comment textarea's 12em min-width was
+   * the slots table's widest column (~651 px of table content):
+   * at 8em the comment still wraps and reads in full (2-row
+   * wrapping textarea, full text as its title), while the table
+   * scrolls inside the fieldset instead of widening the page. */
+  .slots-table td textarea { min-width: 8em; }
+  .plan-total { font-size: 1.6rem; }
+  /* The tool inventory becomes a card list: one labelled block per
+   * row, so off-screen wrapped columns no longer inflate rows to
+   * ~400 px tall. Every other table keeps its horizontal scroll. */
+  table.inventory-table { display: block; overflow: visible; }
+  table.inventory-table thead { display: none; }
+  table.inventory-table tbody, table.inventory-table tr { display: block; }
+  table.inventory-table tr {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin: 0.6em 0; padding: 0.5em 0.7em;
+  }
+  table.inventory-table td {
+    display: flex; gap: 0.6em; border: none; padding: 0.25em 0;
+  }
+  table.inventory-table td::before {
+    content: attr(data-label); font-weight: 600; color: var(--muted);
+    font-size: 0.85rem; flex: 0 0 5.5em;
+  }
+  table.inventory-table td[data-label=""]::before { display: none; }
+  table.inventory-table td button { margin: 0 0.4em 0 0; }
+  table.inventory-table td.notes-cell { display: block; }
+  /* At narrow widths the Notes label is the toggle's own summary,
+   * so the cell's ::before label stays hidden to avoid doubling it. */
+  table.inventory-table td.notes-cell::before { display: none; }
+  /* Plan tables (job prep + jobs detail) become the same stacked
+   * card list at narrow widths, so the "In your inventory"
+   * decision column is never stranded off-screen inside a
+   * horizontal scroller. The header row is hidden; each cell
+   * carries its label from data-label. */
+  table.plan-tools { display: block; overflow: visible; }
+  .plan-table-scroll { overflow: visible; }
+  table.plan-tools tbody, table.plan-tools tr { display: block; }
+  table.plan-tools tr {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin: 0.6em 0; padding: 0.5em 0.7em;
+  }
+  table.plan-tools tr:first-child { display: none; }
+  table.plan-tools td {
+    display: flex; gap: 0.6em; border: none; padding: 0.25em 0;
+    white-space: normal;
+  }
+  table.plan-tools td::before {
+    content: attr(data-label); font-weight: 600; color: var(--muted);
+    font-size: 0.85rem; flex: 0 0 5.5em;
+  }
+  table.plan-tools td:nth-child(2), table.plan-tools td:nth-child(2) strong {
+    white-space: normal; min-width: 0;
+  }
+  /* Guides tables (job prep + jobs detail) become the same stacked
+   * card list at narrow widths (round 9 — the Supports column used
+   * to clip inside a horizontal scroller with no cue). The header
+   * row is hidden; each cell carries its label from data-label. */
+  .table-scroll { overflow: visible; }
+  .table-scroll > .wh-table { min-width: 0; }
+  table.wh-table { display: block; overflow: visible; }
+  table.wh-table tbody, table.wh-table tr { display: block; }
+  table.wh-table tr {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin: 0.6em 0; padding: 0.5em 0.7em;
+  }
+  table.wh-table tr:first-child { display: none; }
+  table.wh-table td {
+    display: flex; gap: 0.6em; border: none; padding: 0.25em 0;
+    white-space: normal;
+  }
+  table.wh-table td::before {
+    content: attr(data-label); font-weight: 600; color: var(--muted);
+    font-size: 0.85rem; flex: 0 0 5.5em;
+  }
+  /* Two-up stat strip at narrow widths. */
+  .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

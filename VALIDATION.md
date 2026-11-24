@@ -101,6 +101,33 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 
 ## 4. Regressions (must stay green after any fix)
 
+**Run through the CLI (V2.1).** The commands below are written in
+their v1 direct-script form because that is what the expectations were
+verified against — but the suite is run through `mldxf plan`, which is
+a thin shell over the same scripts and must not move a single number
+below. The mapping is mechanical: `step_to_vcarve.py X -o Y <flags>`
+becomes `mldxf plan X -o Y <flags>` (the CLI inspects the STEP's solid
+count, so a single-solid input takes the `step_to_vcarve.py` path and
+a multi-solid input the `multi_part.py` path — `--auto` maps to
+`--auto-orient` on the single-solid path); `multi_part.py X -o Y
+<flags>` becomes `mldxf plan X -o Y <flags>`; the kookabus
+`--mode check` run becomes `mldxf check X`. The one exception is the
+`--no-toolplan` variant in the tool-plan step, which has no CLI flag
+(the carried-over list in V2_SCOPE.md §2.2 does not include it) and
+stays a direct-script check. The CLI run is verified two ways: the
+three key inputs (real container, Kookabus, eight parts) are diffed
+against fresh direct-v1 runs — manifest.json, manifest.txt and
+report.md byte-for-byte except the two specified V2 additions (the
+V2.4 `owned` flag on every tool in `tool_plan`, and the advisory
+"Tool inventory" section in report.md — V2_SCOPE.md §4.4; ranking
+and times unchanged), and the DXF by canonical entity+layer
+signature (`mldxf_dxf.py`), never by bytes (DXF bytes are not
+reproducible even v1-vs-v1 — ezdxf writes $TDCREATE/$TDUPDATE
+timestamps, random $FINGERPRINTGUID/$VERSIONGUID, a timestamped
+dictionary variable, and CLASS order swaps between processes;
+wave 1, 2026-11-23) — and every expectation below is checked
+against the CLI-produced job dirs.
+
 ```bash
 .venv/bin/python step_to_vcarve.py test/test_part.step -o test/out --mode full
 # expect: 8 layers, 6 holes, 3 pockets, 1 flag (through slot)
@@ -299,9 +326,13 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # the 1/8 in tool because its island annulus is 5.03 mm wide —
 # 2026-11-22 island fix, see the BRA-5 note below.)
 # Without --auto or parts.json the Top's pocket is now flagged
-# POCKET NOT FROM TOP and gets no layer (4 layers / 1 flag) instead
-# of being cut into the Top's outside face. With
-# --material 170x100x10 the X/Y orientations are pruned (height
+# POCKET NOT FROM TOP and gets no layer — 5 layers / 16 flags (not
+# 4 / 1: corrected 2026-11-23, V2.10 — the old figure predated the
+# HOLE NOT FROM TOP flag taxonomy; direct v1 gives the same 5/16,
+# flags and layers byte-identical to the CLI). P01 keeps its 4
+# layers, P02 keeps only its profile; the 16 flags are the --auto
+# run's 6 plus 2x POCKET NOT FROM TOP plus 8x HOLE NOT FROM TOP.
+# With --material 170x100x10 the X/Y orientations are pruned (height
 # 46.00 > thickness 10.00); with --material 150x100x10 the run now
 # PASSES (2026-11-21, tool cap: the default plan's 1/4 in profile
 # tools need 46 + 17.7 + 46 = 109.7 mm of usable width and the sheet
@@ -409,8 +440,10 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
 # 109.70 mm fits usable 110.00 x 60.00 mm (plan A, 1/4 in tools,
 # gap 17.7 mm); 2 parts, 8 layers, 6 flags.
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_150B --auto --material 150x100x10 --plan B
-# expect: PASSES (2026-11-21, tool cap) — plan B is now EM 1/4 in
-# + EM 1.59 mm, packed 109.70 mm fits usable 110.00 x 60.00 mm.
+# expect: PASSES (2026-11-21, tool cap) — Plan B is EM3.17 +
+# D2.25 + EM4.76, 7.8 min (corrected 2026-11-23, V2.10 — the old
+# "EM 1/4 in + EM 1.59 mm" prose did not match the manifest),
+# packed 109.70 mm fits usable 110.00 x 60.00 mm.
 .venv/bin/python multi_part.py test/real_container.step -o test/real_container_bra20_small --auto --material 150x100x10 --config test/bra20_small_tools_config.json
 # expect: passes — 2 parts, 8 layers, 6 flags; Bottom at sheet
 # (20, 20), Top at (83.7, 20); Plan A Drill 2.25 + EM 1/4 in.
@@ -467,3 +500,258 @@ print(Counter(e.dxf.layer for e in doc.modelspace()))
    the UNVERIFIED-marked calls in the file are the prime suspects —
    and fall back to the CAM_Prismatic duplicate-part design in the
    file header.
+
+## 7. Config model (V2.3, 2026-11-22 — machine + libraries)
+
+The library/config model (`mldxf_config.py`, examples
+`machine/tools/clamps/preferences.example.json`) is additive: no
+manifest contract, DXF output, gadget, or existing Python tool
+changed. The V2.1 `mldxf` CLI calls the module's loaders; until
+it exists the module verifies on its own.
+
+```bash
+.venv/bin/python test_mldxf_config.py
+# expect: 21 passed, 0 failed — "ALL V2.3 CONFIG CHECKS PASSED".
+# The script loads the shipped examples, checks resolve_home with
+# and without MLDXF_HOME, init_home into a temp home (copies all
+# four files + validates them), the placeholder T-track refusal,
+# empty tools.json (4 variants), and one deliberately broken file
+# per named error, printing each exact message:
+# - tool dia mismatch: "tools.json[0]: tool EM6.35: 'dia_mm' 6.0
+#   does not match the diameter in its id (6.35 mm) — the id is
+#   the diameter"
+# - slot outside the bed: "machine.json: t_track.slots[0]: slot runs
+#   at y=2000.0 mm, outside the bed (depth 1222.4 mm)"
+# - overlapping slots: "machine.json: t_track.slots[0] and slots[2]
+#   overlap — two x-axis slots at 150.0 mm and 154.0 mm with slot
+#   width 8.0 mm"
+# - missing file: "machine.json not found in <home> ... — run
+#   'mldxf init' to create it from the shipped examples"
+# - unknown/misspelled key: "preferences.json: unknown key(s):
+#   clamp_margn_mm — check for a typo; unknown keys are rejected,
+#   never ignored"
+# - bad JSON: "clamps.json: invalid JSON: Expecting property name
+#   enclosed in double quotes: line 1 column 2 (char 1)"
+# - placeholder guard: "T-track slots are placeholders — measure
+#   your bed and replace the placeholder slots in machine.json with
+#   your real measurements" (loading the example machine passes;
+#   only the guide-time assert_real_t_track refuses)
+# - guide-time clamp check: "clamp 't-track-clamp' needs a T-track
+#   slot to mount in, but machine 'onefinity-elite-foreman' has no
+#   real T-track slot — its slots are placeholders ..."
+# - inventory_mode other than advisory is rejected, not silently
+#   treated as advisory
+```
+
+Validation rules (all fail loudly with a named `ConfigError`,
+never silently default — the V1 rule):
+
+- Home: `MLDXF_HOME`, else `%APPDATA%\multi_layer_dxf` on
+  Windows, else `~/.config/multi_layer_dxf`; never the cwd.
+- `machine.json`: bed 1222.4 × 1222.4 mm (Onefinity Elite
+  (Masso) Foreman), controller `"masso"` informational in V2.
+  Slot outside the bed or two same-axis slots overlapping is an
+  error at load; crossing (x vs y) slots are a normal grid.
+- `tools.json`: ids are the planner's (`EM6.35`, `D2.25`,
+  `EM3.17` = the 3.175 mm 1/8 in tool, `EM9.53` = the 9.525 mm
+  3/8 in tool — the two-decimal id truncates the true diameter,
+  tolerated to 0.01 mm); `native_label` must agree with `dia_mm`
+  (`"1/4in"` / `"2.25 mm"`). Empty file / `[]` / `{"tools": []}`
+  is a valid empty inventory; a missing file is an error.
+- `clamps.json`: only common methods (`t_track_clamp`, `tape`,
+  `glue`, `screw`, `pin`, `vise`); the example is a template with
+  `count: 0` everywhere — no clamp inventory is invented.
+  `method: t_track_clamp` with `t_track: false` is an error at
+  load; a `t_track: true` clamp with no real slot is an error at
+  guide time only (`check_clamp_mountable`), not at load.
+- `preferences.json`: accepts every key in `config.example.json`
+  (same keys, same meaning) plus `post_method_overrides`,
+  `max_drill_mm`, `stock_size_mm` (keys V1 code reads) and
+  `inventory_mode` (`"advisory"` only in V2; absent defaults to
+  advisory on the returned dict).
+- `init_home` copies the four examples and validates them, and
+  refuses to overwrite existing files.
+- §4 regressions (§4 above) are untouched by this item — no
+  pipeline code changed, so no §4 number moves.
+
+## 8. V2 acceptance (V2.10, 2026-11-23 — V2_SCOPE.md §7)
+
+V2 is done when all seven items hold. No partial credit. This
+section is the acceptance record: the item, its criterion, and the
+run evidence. Slots marked **TBD** are for the coordinator to fill
+once the suite/parity workers report — nothing here is filled in
+from a run that did not happen.
+
+Reading rules for the evidence (V2_SCOPE.md §8 Q4, corrected in
+wave 1): DXF bytes are NOT reproducible, even v1-vs-v1 — ezdxf
+writes `$TDCREATE` / `$TDUPDATE` timestamps, random
+`$FINGERPRINTGUID` / `$VERSIONGUID`, a timestamped dictionary
+variable, and the CLASS order swaps between processes. Parity and
+rerun therefore compare DXF by canonical entity+layer signature
+(`mldxf_dxf.py`), never by bytes. `job.json` is likewise not
+byte-identical across reruns for the nondeterministic files (DXFs,
+exported per-part STEPs, per-part manifest.json files) — those are
+compared by canonical DXF signature / timestamp-blanked STEP /
+normalized JSON, and `job.json`'s `outputs` sha256 values stay
+truthful per-run hashes. "Identical" below always means identical
+under those comparison rules.
+
+### Item 1 — §4 suite green
+
+Criterion: the full 25-step §4 regression suite passes run through
+`mldxf plan`, with the same numbers — container Plan A 3 tools /
+7.0 min, Kookabus 215.1 min, eight_parts 9.0 min. The CLI is a
+shell; it must not move a single §4 number.
+
+- **Status: PASS — 2026-11-23, verified by the coordinator.**
+- Suite log: `~/workspace/goals/onshape-to-vcarve-2-5d-automation/hidden_files/regress_v210_2026-11-23.log` (one end-to-end log, 2026-11-23; script `regress_v210_2026-11-23.sh` + `regress_v210_2026-11-23.py`). Log-wide tally 117 PASS / 3 FAIL; all 3 FAILs investigated with fresh direct-v1 discriminator runs and exonerated as harness/doc artifacts, not code regressions (below). 25/25 steps pass.
+- Observed numbers: container Plan A **3 tools / 7.0 min** (EM3.17 + D2.25 + EM6.35); Kookabus **215.1 min** (Plan A EM9.53 + EM0.50, 2 changes, 20 layers / 190 flags); eight_parts **9.0 min** (Plan A 2 tools / 1 change, suggested 600×100×15); sections passed **25 / 25**.
+- Any §4 number that moved, and why: **none.** The three logged FAILs: (S09) rotated-container DXF ≠ container DXF — the worker's strengthening check, not a §4 line; the two STEPs list solids in opposite order, so P01↔P02 swap; direct v1 rotated run DXF signature identical to the CLI rotated run (`a90f35da2a9f47a2` both sides — confirmed independently by the coordinator's own direct-v1 runs, 2026-11-23). (S10) beveled_sideways DXF ≠ unrotated beveled container — same, not a §4 line; the rotated-back solid sits +6.00 mm in x; direct v1 sideways run DXF signature identical to the CLI run (`bb7dd802d1bd2d91` both sides — confirmed independently by the coordinator's own direct-v1 runs). Both are pre-existing v1 behaviour; no §4 expectation covers them. (S14) no-`--auto` real container expected 4 layers / 1 flag, got 5 / 16 — a §4 line, but the §4 figure was stale: the behaviour is correct per §4's own prose (P01 keeps 4 layers, P02 keeps only its profile = 5; the 16 flags are the --auto run's 6 plus 2× POCKET NOT FROM TOP plus 8× HOLE NOT FROM TOP), and direct v1 gives the same 5/16, flags and layers byte-identical to the CLI (confirmed independently by the coordinator). §4 corrected 2026-11-23 (V2.10): no-`--auto` is 5 layers / 16 flags; plan B composition prose corrected to EM3.17 + D2.25 + EM4.76, 7.8 min.
+- V2.4 named exception **confirmed by the coordinator**: the §4 byte-identity diff rule now carries it — the CLI adds `"owned": false` to every tool in `tool_plan` and appends a 6-line advisory "Tool inventory" section to report.md (specified V2.4 behaviour, V2_SCOPE.md §4.4; ranking/times unchanged). §4's diff wording updated to match.
+- Runtime restart during the run (~08:17 UTC, during step 23): no suite process survived; steps 1–22 stood, steps 23–25 resumed in the same log with a recovery marker. The log's trailing "SUITE RESULT: 13/0" is the resumed portion's partial tally only; the true log-wide tally is 117 PASS / 3 FAIL above.
+
+### Item 2 — CLI/UI parity
+
+Criterion: for the same STEP + config snapshot, the job dir from
+`mldxf plan` and the job dir from the web UI are identical except
+`created_at` and `job_id` (and the §8 Q4 nondeterministic-file
+exceptions above). If they differ, the UI is computing something —
+find it and move it into the CLI.
+
+- **Status: PASS — 2026-11-23, verified by the coordinator.**
+- Parity run: `~/workspace/goals/onshape-to-vcarve-2-5d-automation/hidden_files/parity_2026-11-23/` (report.md, parity.py, parity.log, server.log), 2026-11-23. **169/169 checks, 6/6 jobs.** The single logged FAIL was a harness false positive (its orphan check used bare `pgrep -f server.ts`, which matched two unrelated AgentTS worker-servers; the coordinator confirmed those are AgentTS processes, not mldxf — no mldxf server process remains).
+- Compared: job.json **identical modulo §8 Q4 exceptions** (`created_at`, `job_id`, `outputs` sha256 of nondeterministic files); manifest.txt **byte-identical**; DXF **signature-identical** (`mldxf_dxf.py`); report.md **identical**. Jobs: real container (`--auto`, Plan A 3 tools / 418.8 s on both sides), two_part, square, donut, beveled_container, eight_parts (`--auto`, Plan A 2 tools / 542.3 s on both sides). Container used CLI `--auto` / API `auto=true` (the UI default is auto OFF; auto passed explicitly through the API).
+- Server smoke (same run): `mldxf serve` on scratch port 3891 — `/api/health` 200 (`cli_version: "2.0.0"`), `GET /` 200 HTML, `GET /api/jobs` 200; stopped cleanly by SIGTERM to the process group, port free immediately after.
+- Wave-3 evidence on file (not the acceptance run): CLI parity 21/21, UI run of the real container = Plan A 3 tools / 7.0 min, recorded in CHANGELOG.md. Acceptance re-check above supersedes it.
+
+### Item 3 — Rerun reproduces
+
+Criterion: `mldxf rerun <job-dir>` reproduces the job (same
+outputs, same hashes under the §8 Q4 comparison rules) from the
+embedded inputs and config snapshot. A rerun with a different CLI
+version warns on stderr and proceeds, recording the new
+`cli_version` — that warning is expected after the 1.0.1 → 2.0.0
+bump, not a failure.
+
+- **Status: PASS — 2026-11-23, verified by the coordinator.**
+- Rerun run: same parity run as item 2 (`hidden_files/parity_2026-11-23/report.md`, 2026-11-23) plus the hold-force rerun below.
+- Compared: manifest.txt / report.md **byte-identical**; DXF signature **identical**; job.json **identical modulo `created_at` + nondeterministic `outputs` sha256**. (a) Plain CLI job: `mldxf rerun` rc=0, Plan A still 3 tools / 418.8 s. (b) Guided job: `mldxf guides` then `mldxf rerun` rc=0 — workholding clamps, recommendation, and provenance reproduce exactly; DXF signature identical including the GUIDE_CLAMP layer (`1056c0433b5b9999` before and after — the coordinator recomputed it independently on the guided job dir). (c) v1 job (copy of `test/real_container_out`): `mldxf rerun` rc=1 with named error `rerun_unavailable`, directory hash unchanged — fails up front, no partial job dir.
+- Hold-force provenance rerun (open wave-4 item, closed here): fixture home with `hold_force_n: 400` on the T-track clamp → `mldxf guides` gives 2 clamps at (43,88)/(106.7,88), force_check `holds`, provenance records 400. Live home then mutated (400 → 999) and `mldxf rerun` run: replayed workholding exactly identical — clamps, force model, recommendation equal; replayed `hold_force_n` still 400, status still `holds`, provenance still records 400; DXF signature identical; plan still 3 tools / 7.0 min. The replay uses recorded provenance, not the live home. Log: `hidden_files/guides_v210_2026-11-23.log` (task 3, 8/8 checks).
+- Wave-2 evidence on file (not the acceptance run): rerun reproduces a job — manifest/report byte-identical, DXF signature-identical, recorded in CHANGELOG.md.
+
+### Item 4 — One live end-to-end job (Brandon)
+
+Criterion: Brandon runs a real job through the web UI (drop STEP
+→ review plan → download → gadget in VCarve → preview) and
+confirms the loop works. V1's live test found real defects; V2's
+will too — budget for the fix round.
+
+- **Status: NOT DONE — awaiting Brandon. Do not mark done here.**
+- Instructions for the run: `V2_LIVE_RUN.md` (goal files dir).
+- Live-run report from Brandon: **TBD** (date, job, what worked,
+  what did not).
+- Fix round filed from the live run: **TBD** (BACKLOG.md heading /
+  Linear key, or "none needed").
+
+### Item 5 — Guides verified on the container
+
+Criterion: the real container job gets clamp recommendations on
+real T-track slots, with keep-out respected, and the guide layer
+shows in the DXF.
+
+- **Status: PARTIAL — verified on a test fixture, NOT on real
+  slots.** No real T-track measurements exist yet: on Brandon's
+  real (placeholder) home, guides correctly refuse with the named
+  error `t_track_placeholder` — that refusal is the correct
+  behaviour until he measures his slots (V2_SCOPE.md §10 Q1).
+- V2.10 re-verification (2026-11-23, log `hidden_files/guides_v210_2026-11-23.log`, effective 31/31): fresh container job (`mldxf plan --auto --material 150x100x10`, Plan A 3 tools / 7.0 min) + `mldxf guides` on the wave-4 fixture home (verbatim copy — x-slot at y=88, x-slot at y=12, y-slot at x=140; t-track-clamp count 4, footprint 30×20, keep_out 5, no `hold_force_n`; TEST FIXTURE only) → **2× t-track-clamp at (43, 88) and (106.7, 88)** on the x-axis slot at y=88 mm, worst estimated force 2.58 N, holding force unknown ("verify by hand"), tape as the only alternative, glue absent — identical to wave 4. GUIDE_CLAMP layer present in the DXF with the two 30×20 footprint rects; non-guide DXF geometry unchanged by guides; plan/layout unchanged; report.md carries the Workholding guides section; provenance records the fixture machine + clamps. The single logged FAIL was a harness list-vs-tuple comparison bug (the printed rects are exactly the expected ones); re-verified directly against the on-disk DXF, rects == expected is True. Placeholder refusal re-verified: same job under the shipped-example home → exit 1, `t_track_placeholder`, job byte-identical.
+- Wave-4 evidence on file: real container + clearly-marked test
+  T-track fixture (not real measurements) → 2× t-track-clamp at
+  (43, 88) and (106.7, 88) on the x-axis slot at y=88 mm, worst
+  estimated force 2.58 N; independent checker ALL GUIDE CHECKS
+  PASSED; refusals verified at CLI + HTTP; rerun of a guided job
+  reproduces the workholding byte-identical; §4 number holds (Plan
+  A 3 tools / 7.0 min). Recorded in CHANGELOG.md.
+- Verification on Brandon's real slots: **TBD** (needs his
+  measurements in `machine.json` first; then re-run `mldxf
+  guides` on the container job and check the `GUIDE_CLAMP` layer
+  in the DXF).
+- Force model caveat (stays in the record): the force estimate is
+  first-order only — `F = Kc·MRR/v_c`, `Kc = 30 N/mm²` (top of the
+  published 10–30 range), labelled conservative and unvalidated
+  everywhere it appears. It is not a validated physics model.
+
+### Item 6 — Docs
+
+Criterion: README (new quick start: `mldxf serve`), VALIDATION
+(V2 acceptance added), CHANGELOG, VERSION 2.0.0.
+
+- **Status: DONE by the V2.10 docs worker, 2026-11-23 (local
+  only, nothing pushed).**
+- README.md: V2 quick start added at the top (`mldxf serve` /
+  `start.bat` → UI; `mldxf plan` for the CLI path); the stale
+  "`mldxf serve` — not built yet" line corrected; the
+  "byte-identical" claim corrected to the §8 Q4 signature rule;
+  `server/` + `start.bat` + `mldxf_guides.py` + `mldxf_dxf.py`
+  added to the Files list. V1 CLI usage kept documented; the
+  gadget stays v1.0.1 (unchanged in V2).
+- VALIDATION.md: this section (§8).
+- CHANGELOG.md: v2.0.0 entry added, 2026-11-23, summarizing V2.1–
+  V2.9; the wave build log kept below it.
+- VERSION: 1.0.1 → 2.0.0. Runtime effect (verified by grep,
+  2026-11-23): `mldxf.py` reads VERSION at import and stamps it
+  into every v2 job as `job.json` → `cli_version`, prints it from
+  `mldxf --version`, and passes it to the guides subprocess (lands
+  in `workholding.provenance.guides_cli_version`); `server.ts`
+  reads it at startup, logs it, and returns it from
+  `GET /api/health` as `cli_version`. Consequence of the bump: jobs
+  written under 1.0.1 warn on rerun under 2.0.0 ("different CLI
+  version … rerunning with the current CLI") and proceed, recording
+  `cli_version: "2.0.0"` — expected, by design. `mldxf --version`
+  now prints `mldxf 2.0.0` (verified after the bump).
+- Left as-is deliberately: `vcarve/multi_layer_dxf.lua` header
+  (gadget v1.0.1 — unchanged in V2); `mldxf_config.py` "v1.0.1
+  rule" docstring (historical). `server/package.json` version was
+  "1.0.1" in the docs pass; the coordinator bumped it to "2.0.0"
+  for consistency (2026-11-23) — it is the server package's own
+  version, not read by the CLI.
+
+### Item 7 — Release
+
+Criterion: tag v2.0.0 + release page (the release policy:
+labelling something V2 is a release).
+
+- **Status: NOT DONE — V2.11, after acceptance.** No tag, no
+  release, nothing pushed — the docs worker does not push, tag,
+  or create releases.
+- Tag / release page: **TBD**.
+
+### §10 defaults in force for this acceptance (Brandon, Nov 22)
+
+The four open questions' defaults, authorized as reasonable
+assumptions until Brandon gives the real answers; the code keeps
+them as config, not hardcoded:
+
+1. T-track placeholders refuse to run the guides (named error,
+   never a guess).
+2. Jobs under `<MLDXF_HOME>/jobs/`.
+3. Tool inventory informational (advisory, not constraining) —
+   `preferences.json` `inventory_mode: "advisory"`, the only value
+   V2 accepts.
+4. 2D layout preview included in V2.
+
+### What the docs worker verified directly (2026-11-23)
+
+- `mldxf --help` lists all commands: plan, check, job, rerun,
+  guides, machine, tools, clamps, preferences, serve, init.
+- `mldxf serve` starts the Bun server: smoke test on port 3999,
+  2026-11-23 ~07:00 PST — `GET /` HTTP 200 (UI HTML),
+  `GET /api/jobs` returned the job list (8 job dirs scanned, all
+  marked interrupted from earlier verification runs — expected:
+  those runs ended without a completion marker). Server stopped
+  cleanly afterwards; no `mldxf serve` / `server.ts` process left
+  (the one remaining bun process was an unrelated AgentTS
+  worker-server).
+- The §4 suite and the parity sweep were NOT run by the docs
+  worker — the suite worker and the parity worker own them (items
+  1–3 above, filled in by the coordinator 2026-11-23).

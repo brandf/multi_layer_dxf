@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mldxf — multi-layer DXF</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 29 9.5 16 16 3 9.5Z' fill='%231a5fb4'/%3E%3Cpath d='M5.5 14.5 16 19.8 26.5 14.5' fill='none' stroke='%231a5fb4' stroke-width='2.4' stroke-linejoin='round'/%3E%3Cpath d='M5.5 20 16 25.3 26.5 20' fill='none' stroke='%235b8fd6' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/public/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 3 29 9.5 16 16 3 9.5Z" fill="#1a5fb4"/>
+      <path d="M5.5 14.5 16 19.8 26.5 14.5" fill="none" stroke="#1a5fb4" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M5.5 20 16 25.3 26.5 20" fill="none" stroke="#5b8fd6" stroke-width="2.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="brand-text">
+      <h1>mldxf</h1>
+      <p class="subtitle">Turn a STEP file into cut-ready DXF, tool plans, and clamp guides for your CNC.</p>
+    </div>
+  </div>
+  <nav id="tab-nav" aria-label="Tabs"></nav>
+</header>
+<main id="tab-main"></main>
+<footer>
+  <p>Local only — this server binds 127.0.0.1 and serves no data beyond
+  this machine.</p>
+  <p><a href="#" id="about-link">About this app</a></p>
+</footer>
+<dialog id="about-dialog" class="about-dialog" aria-labelledby="about-title">
+  <h2 id="about-title">About this app</h2>
+  <p class="muted">The UI displays what the server API returns; the API
+  mirrors the mldxf CLI. Library edits are validated before they are
+  saved: an invalid save is refused and the file on disk is left
+  unchanged.</p>
+  <dl id="about-versions"></dl>
+  <p class="muted">Saving Preferences updates your settings right away.</p>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
+<script src="/public/job-prep.js"></script>
+<script src="/public/jobs.js"></script>
+<script src="/public/app.js"></script>
+</body>
+</html>
