@@ -8,7 +8,7 @@ Drives the integrated UI the way a user would, through the live server:
      CLI sees them.
   3. Run the real container STEP through the UI flow (multipart upload
      + auto=true, as job-prep.js sends it), follow status to completion.
-  4. Confirm the plan (Plan A 3 tools / 7.0 min), owned flags, and the
+  4. Confirm the plan (Plan A 3 tools / 7.7 min), owned flags, and the
      workholding note in the fetched job.
   5. Download DXF + manifest.txt + report.md + zip; check the zip.
   6. Run the same STEP through `mldxf plan` (CLI) and compare the two
@@ -247,8 +247,8 @@ def main():
         plans = (manifest.get("tool_plan") or {}).get("plans") or []
         plan_a = plans[0] if plans else {}
         minutes = plan_a.get("total_seconds", 0) / 60.0
-        check("Plan A is 3 tools / 7.0 min (auto)",
-              len(plan_a.get("tools", [])) == 3 and abs(minutes - 7.0) < 0.05,
+        check("Plan A is 3 tools / 7.7 min (auto) (V3.14 calibrated)",
+              len(plan_a.get("tools", [])) == 3 and abs(minutes - 7.7) < 0.05,
               f"got {len(plan_a.get('tools', []))} tools / {minutes:.1f} min")
         owned = {t["id"]: t.get("owned") for t in plan_a.get("tools", [])}
         check("Plan A tools all owned after the library edit",

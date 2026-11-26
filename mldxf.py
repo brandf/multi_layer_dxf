@@ -32,6 +32,47 @@ Commands (V2_SCOPE.md §2.2):
         from the live machine/clamp libraries. Plan never runs
         guides and never fails for placeholder T-track; guides
         refuse placeholders with a named error instead.
+    mldxf toolpaths <job-dir>        in-house TypeScript toolpath
+        generation (V3.1): a post-step on a finished v2 job —
+        writes the toolpaths section into job.json and bumps
+        job_version to 3. Plan never generates toolpaths; a job
+        without toolpaths is still a complete V2 job. The merged
+        job is validated (V3.2, ts/validate_job.ts) before it is
+        published — an invalid merge fails instead of shipping.
+    mldxf validate-job <job-dir>     validate a job dir's job.json
+        against the v3 schema (docs-v3/job_model_v3.md) via the
+        TypeScript validator ts/validate_job.ts. Exit 0 when the
+        job is a valid v2/v3 job; a named error otherwise.
+    mldxf geometry <job-dir>         layer geometry for the 3D view
+        (V3.3): per-layer DXF loops as sampled points + each
+        layer's Z depths, via ts/geometry.ts — the data behind
+        GET /api/jobs/:id/geometry. Reads job.json + the job's
+        root DXF; writes nothing.
+    mldxf build-view3d [--force]     build the 3D view bundle
+        (V3.3, ts/view3d/build.ts): three.js vendored locally into
+        server/public/vendor/view3d.js. The bundle is a build
+        artifact, not checked in; `mldxf serve` builds it when it
+        is missing or stale.
+    mldxf gcode <job-dir> [--post <post-id>]   G-code export (V3.6):
+        native Masso (mm/inch) / GRBL posts; the file is parsed
+        back and re-simulated, and the `gcode` entry records the
+        round-trip verdict (verified, or UNVERIFIED + exit 1).
+    mldxf gcode --verify <job-dir> [--post <post-id>]
+        re-verify the recorded .nc (V3.8): the file as it sits on
+        disk against the current toolpaths — entry? file? sha?
+        round-trip? — syncing the `verified` stamp to the observed
+        result; exit 1 with a named error when it no longer verifies.
+    mldxf sim --verify <job-dir>     headless sim verification
+        (V3.4): dexel sim of the toolpaths against the intended
+        geometry; writes the `sim` section into job.json +
+        manifest.json on PASS, fails with `sim_mismatch` (exit 1)
+        and writes nothing on a mismatch. On PASS it also writes
+        the V3.5 delta log (sim/delta.bin) + the checkpoint index
+        into the `sim` section.
+    mldxf sim --seek <job-dir> --move N | --time T
+        headless seek (V3.5): rewind the simmed stock to a move
+        index or cut time and report the stock state there;
+        read-only (never writes job.json).
     mldxf machine show | validate    print / validate machine.json.
     mldxf tools list | validate      print / validate tools.json.
     mldxf clamps list | validate     print / validate clamps.json.
@@ -121,6 +162,15 @@ def pipeline_python_available():
     else:
         cand = REPO_ROOT / ".venv" / "bin" / "python"
     return cand.is_file()
+
+
+def bun_executable():
+    """The Bun runtime for the V3 TypeScript generator: $BUN when
+    set, else `bun` on PATH. Returns the path or None."""
+    env = os.environ.get("BUN")
+    if env:
+        return env
+    return shutil.which("bun")
 
 
 # ---------------------------------------------------------------- errors
@@ -342,6 +392,21 @@ def _canonical_json_bytes(obj):
     return (json.dumps(obj, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
+_MOTION_KEYS = ("motion_time_s", "motion_by_tool", "motion_by_operation")
+
+
+def _toolpaths_identity_bytes(section):
+    """Canonical bytes of a toolpaths section minus the derived
+    motion fields (V3.14). Motion is a deterministic function of
+    the moves, so it carries no identity of its own: the rerun
+    comparison guards the moves, and a pre-V3.14 job (no motion
+    recorded) must still rerun clean against a regenerated section
+    that carries it."""
+    stripped = {k: v for k, v in (section or {}).items()
+                if k not in _MOTION_KEYS}
+    return _canonical_json_bytes(stripped)
+
+
 def _now_iso():
     """ISO-8601 timestamp with local offset (created_at). Excluded
     from the rerun byte-identity check (V2_SCOPE.md §8 Q4)."""
@@ -491,16 +556,57 @@ def _snapshot_libraries():
     return libraries, home
 
 
+def _validate_config_z_zero(contents, source):
+    """Fail-fast check for one key of a --config file: ``vcarve.z_zero``
+    must be "top" or "bottom" when present (mirrors mldxf_config's
+    rule for the same key). The --config file is otherwise
+    unvalidated at plan time, so this is the only guard before the
+    child runs — _effective_z_zero calls it again at snapshot time
+    for the value that is actually recorded."""
+    if not isinstance(contents, dict):
+        return
+    vc = contents.get("vcarve")
+    if not isinstance(vc, dict) or "z_zero" not in vc:
+        return
+    value = vc["z_zero"]
+    if value not in ("top", "bottom"):
+        fail("config_error",
+             f"{source}: vcarve: 'z_zero' must be 'top' or "
+             f"'bottom', got {value!r}")
+
+
+def _effective_z_zero(config_contents, libraries):
+    """The job's Z-zero (docs-v3/z_zero.md): the --config file's
+    ``vcarve.z_zero`` wins, else the home preferences.json
+    ``vcarve.z_zero``, else "top". Returns (value, source).
+    A bad value in preferences.json never reaches here:
+    load_preferences validates it when the snapshot loads the
+    libraries, so that file fails the run first."""
+    for contents, source in (
+            (config_contents, "config file"),
+            ((libraries.get("preferences") or {}).get("contents")
+             if (libraries.get("preferences") or {}).get("status") == "loaded"
+             else None, "home preferences")):
+        if not isinstance(contents, dict):
+            continue
+        vc = contents.get("vcarve")
+        if not isinstance(vc, dict) or "z_zero" not in vc:
+            continue
+        _validate_config_z_zero(contents, source)
+        return vc["z_zero"], source
+    return "top", "default"
+
+
 def _build_config_snapshot(args, step_path, path_kind):
     """The resolved config for a plan run (V2_SCOPE.md §3.3): the
     CLI flags that affect the run, the --config file (path, sha256,
     contents) when one was given, and the four home library files
     (each with version / hash / contents) — plus the precedence
     order they were resolved in. The v1 scripts do not read
-    preferences.json (no V2.2 pipeline code does); it is recorded
-    under libraries for provenance, and the snapshot says so
-    rather than implying it affected the run. Returns
-    (snapshot, machine_profile)."""
+    preferences.json for anything EXCEPT the Z-zero fallback (see
+    _effective_z_zero): it is recorded under libraries for
+    provenance, and the snapshot says so rather than implying it
+    affected the run. Returns (snapshot, machine_profile)."""
     libraries, home = _snapshot_libraries()
     config_file = None
     if getattr(args, "config", None):
@@ -512,10 +618,14 @@ def _build_config_snapshot(args, step_path, path_kind):
     parts = None
     if path_kind == "multi" and getattr(args, "parts", None):
         parts = Path(args.parts).name
+    z_zero, z_zero_source = _effective_z_zero(
+        config_file["contents"] if config_file else None, libraries)
     snapshot = {
         "precedence": ["code defaults (step_to_vcarve.py / toolplan.py)",
                        "config file (--config)",
                        "CLI flags"],
+        "z_zero": z_zero,
+        "z_zero_source": z_zero_source,
         "cli_flags": {
             "mode": args.mode,
             "only": args.only or "",
@@ -529,10 +639,11 @@ def _build_config_snapshot(args, step_path, path_kind):
         "config_file": config_file,
         "home": str(home) if home is not None else None,
         "libraries": libraries,
-        "notes": ["preferences.json is recorded for provenance; no "
-                  "V2.2 pipeline code reads it — the run's effective "
-                  "config is code defaults + the --config file + CLI "
-                  "flags."],
+        "notes": ["preferences.json is recorded for provenance and "
+                  "supplies the Z-zero fallback (docs-v3/z_zero.md); "
+                  "nothing else in it affects the run — the run's "
+                  "effective config is code defaults + the --config "
+                  "file + CLI flags."],
     }
     machine_entry = libraries.get("machine") or {}
     machine_profile = None
@@ -743,6 +854,12 @@ def _assemble_job(tmpdir, *, job_id, source_step, source_step_sha256,
         "inputs_embedded": inputs_embedded,
         "config_snapshot": config_snapshot,
         "machine_profile": machine_profile,
+        # The job's Z-zero (docs-v3/z_zero.md): resolved by
+        # _build_config_snapshot from the --config file, else the
+        # home preferences, else "top". The view, the posts, and
+        # the verify path all read this one field; a job without
+        # it predates the setting and reads as "top".
+        "z_zero": config_snapshot.get("z_zero", "top"),
         # V2.9 (workholding guides): null until `mldxf guides` runs
         # as a post-step on the finished job. `cmd_rerun` replays
         # guides from the recorded provenance when the old job had
@@ -904,6 +1021,113 @@ def post_process_steps(manifest):
     return steps
 
 
+def _chosen_plan_for_toolpaths(job):
+    """The plan the toolpaths were generated from (toolpaths.plan),
+    falling back to the chosen plan, then plans[0]."""
+    tp = job.get("toolpaths") or {}
+    tool_plan = job.get("tool_plan") or {}
+    plans = tool_plan.get("plans") or []
+    if not plans:
+        return None
+    want = tp.get("plan") or tool_plan.get("chosen")
+    for p in plans:
+        if p.get("id") == want:
+            return p
+    return plans[0]
+
+
+def _toolpaths_motion_lines(job, indent=""):
+    """The estimate-vs-motion lines (V3.14), shared by `mldxf job`
+    and report.md so both print the same words. [] when the job has
+    no toolpaths; when the toolpaths predate V3.14 (no motion
+    recorded) it says so instead of inventing a number."""
+    tp = job.get("toolpaths")
+    if tp is None:
+        return []
+    motion = tp.get("motion_time_s")
+    if motion is None:
+        return [f"{indent}motion time: not recorded — this job's "
+                "toolpaths predate V3.14; re-run `mldxf toolpaths` "
+                "to measure it"]
+    lines = [f"{indent}motion time (measured from the toolpaths): "
+             f"{motion:.1f} s ({motion / 60.0:.1f} min) — feed/plunge "
+             "per move, arcs by true length, rapids at 50 mm/s"]
+    by_tool = tp.get("motion_by_tool") or {}
+    if by_tool:
+        lines.append(f"{indent}  by tool: " + ", ".join(
+            f"{t} {s:.1f} s" for t, s in sorted(by_tool.items())))
+    plan = _chosen_plan_for_toolpaths(job)
+    if plan is not None:
+        cut = float(plan.get("cutting_seconds", 0))
+        total = float(plan.get("total_seconds", 0))
+        changes = int(plan.get("tool_changes", 0))
+        change_s = float(plan.get("change_seconds", changes * 120.0))
+        delta = motion - cut
+        pct = (100.0 * delta / cut) if cut else 0.0
+        if total:
+            total_pct = 100.0 * (motion + change_s - total) / total
+            lines.append(
+                f"{indent}plan estimate (Plan {plan.get('id', '?')}): "
+                f"{cut:.1f} s cutting, {total:.1f} s "
+                f"({total / 60.0:.1f} min) with {changes} "
+                f"change{'s' if changes != 1 else ''} — "
+                f"motion is {delta:+.1f} s ({pct:+.1f}%) vs the "
+                f"cutting estimate; motion + changes "
+                f"{motion + change_s:.1f} s vs plan total "
+                f"({total_pct:+.1f}%)")
+        else:
+            lines.append(
+                f"{indent}plan estimate (Plan {plan.get('id', '?')}): "
+                f"{cut:.1f} s cutting — motion is {delta:+.1f} s "
+                f"({pct:+.1f}%) vs the estimate")
+    lines.append(f"{indent}motion time is the toolpath clock, not a "
+                 "machine measurement — the live cut settles what "
+                 "the machine actually takes")
+    return lines
+
+
+def _toolpaths_report_section(job):
+    """The report.md section (V3.14). [] when the job has no
+    toolpaths — a v2 job's report gains no section."""
+    lines = _toolpaths_motion_lines(job)
+    if not lines:
+        return []
+    return ["", "## Toolpaths (V3.14)", ""] + lines + [""]
+
+
+def _update_report_toolpaths(job_dir, job):
+    """Replace-or-append the Toolpaths (V3.14) section in report.md
+    (the guides' pattern: find the heading, cut to the next
+    `## `, append) and refresh job["outputs"] hashes for the files
+    this step changed. No-op when the job has no toolpaths or no
+    report.md. Mutates job in place; the caller republishes
+    job.json + manifest.json after calling this."""
+    section = _toolpaths_report_section(job)
+    if not section:
+        return
+    job_dir = Path(job_dir)
+    report_path = job_dir / "report.md"
+    if not report_path.is_file():
+        return
+    heading = "## Toolpaths (V3.14)"
+    text = report_path.read_text()
+    start = text.find(heading)
+    if start != -1:
+        rest = text[start + len(heading):]
+        nxt = rest.find("\n## ")
+        text = text[:start] + (rest[nxt + 1:] if nxt != -1 else "")
+    if text and not text.endswith("\n"):
+        text += "\n"
+    report_path.write_text(text + "\n".join(section))
+    entries = []
+    for path in sorted(p for p in job_dir.rglob("*") if p.is_file()):
+        rel = path.relative_to(job_dir).as_posix()
+        if rel in ("job.json", "manifest.json"):
+            continue
+        entries.append({"file": rel, "sha256": _sha256_file(path)})
+    job["outputs"] = entries
+
+
 def _format_workholding_human(workholding, indent=""):
     """Human-readable workholding lines: the recommendation, one
     line per clamp, alternatives, and the force-model note. Shared
@@ -913,6 +1137,25 @@ def _format_workholding_human(workholding, indent=""):
     rec = workholding.get("recommendation")
     if rec:
         lines.append(f"{indent}  {rec}")
+    r = workholding.get("balance") or {}
+    if r:
+        lines.append(f"{indent}  {r.get('note', '')}")
+        wc = r.get("worst_cut") or {}
+        if wc:
+            lines.append(
+                f"{indent}    worst cut: {wc.get('force_n')} N at "
+                f"({wc.get('x_mm')}, {wc.get('y_mm')}) on "
+                f"{wc.get('layer')}")
+    else:
+        # Old jobs carry the edge-model restraint object; the
+        # model is superseded, so say so rather than presenting
+        # its verdict as current.
+        ro = workholding.get("restraint") or {}
+        if ro:
+            lines.append(
+                f"{indent}  restraint (old edge model — superseded; "
+                f"re-run guides for the contact balance): "
+                f"{ro.get('verdict')}")
     for c in workholding.get("clamps") or []:
         lines.append(
             f"{indent}  - {c.get('clamp_id')} ({c.get('method')}) at "
@@ -1028,6 +1271,868 @@ def cmd_guides(args):
     return 0
 
 
+def _run_validate_job_subprocess(job_dir=None, file=None):
+    """Run the V3.2 job-model validator (ts/validate_job.ts, Bun)
+    against a job dir (or a single job.json file). Returns the
+    validator's parsed stdout JSON. A non-JSON stdout or a failed
+    run maps onto the CLI contract (the validator's own named error
+    passes through unchanged)."""
+    bun = bun_executable()
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.2 job "
+             "validator needs it (https://bun.sh, or set $BUN to the "
+             "Bun executable)")
+    argv = [bun, str(REPO_ROOT / "ts" / "validate_job.ts")]
+    if file is not None:
+        argv += ["--file", str(file)]
+    else:
+        argv += [str(job_dir)]
+    argv += ["--json"]
+    result = subprocess.run(argv, capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        fail("internal_error",
+             "ts/validate_job.ts produced no JSON on stdout "
+             f"(exit {result.returncode}): "
+             f"{_last_lines(result.stderr, 2)}",
+             exit_code=2)
+    return body
+
+
+def cmd_validate_job(args):
+    """`mldxf validate-job <job-dir>` (V3.2): validate the job
+    dir's job.json against the v3 schema (docs-v3/job_model_v3.md)
+    via the TypeScript validator. The validator is the executable
+    form of the schema doc; this command is the CLI shell over it
+    (the API reaches it 1:1 as GET /api/jobs/:id/validate, and
+    `mldxf toolpaths` / `mldxf rerun` run it before publishing)."""
+    require_config_file(args.config)
+    job_dir = Path(args.job_dir)
+    if not job_dir.is_dir():
+        fail("job_not_found", f"job dir not found: {job_dir}")
+    body = _run_validate_job_subprocess(job_dir=job_dir)
+    if not body.get("ok"):
+        fail(body.get("error") or "job_invalid",
+             body.get("message") or f"{job_dir} failed validation",
+             exit_code=2 if body.get("error") == "internal_error" else 1)
+    if args.json:
+        emit_success({"job_version": body.get("job_version"),
+                      "has_toolpaths": body.get("has_toolpaths"),
+                      "checks": body.get("checks")})
+    else:
+        n = len(body.get("checks") or [])
+        print(f"{job_dir} is a valid v{body.get('job_version')} job "
+              f"({n} checks passed"
+              f"{', has toolpaths' if body.get('has_toolpaths') else ', no toolpaths'})")
+    return 0
+
+
+def _run_geometry_subprocess(job_dir):
+    """Run the V3.3 layer-geometry extractor (ts/geometry.ts, Bun)
+    against a job dir. Returns the extractor's parsed stdout JSON
+    (its `layers` + `bounds`). A non-JSON stdout or a failed run
+    maps onto the CLI contract (the extractor's own named error
+    passes through unchanged). The extractor never writes anything
+    — it reads job.json + the job's root DXF."""
+    bun = bun_executable()
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.3 layer "
+             "geometry extractor needs it (https://bun.sh, or set "
+             "$BUN to the Bun executable)")
+    result = subprocess.run(
+        [bun, str(REPO_ROOT / "ts" / "geometry.ts"),
+         str(job_dir), "--json"],
+        capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        fail("internal_error",
+             "ts/geometry.ts produced no JSON on stdout "
+             f"(exit {result.returncode}): "
+             f"{_last_lines(result.stderr, 2)}",
+             exit_code=2)
+    if not body.get("ok"):
+        fail(body.get("error") or "geometry_failed",
+             body.get("message") or f"geometry failed for {job_dir}",
+             exit_code=2 if body.get("error") == "internal_error" else 1)
+    return body
+
+
+def cmd_geometry(args):
+    """`mldxf geometry <job-dir>` (V3.3): emit the job's layer
+    geometry for the 3D view — one entry per job.json layer, with
+    the DXF loops as sampled points and the layer's Z depths
+    (cut top / cut bottom). Read-only: job.json and the DXF are
+    never written. The API reaches this 1:1 as
+    GET /api/jobs/:id/geometry."""
+    require_config_file(args.config)
+    job_dir = Path(args.job_dir)
+    if not job_dir.is_dir():
+        fail("job_not_found", f"job dir not found: {job_dir}")
+    body = _run_geometry_subprocess(job_dir)
+    if args.json:
+        emit_success({"job_id": body.get("job_id"),
+                      "dxf": body.get("dxf"),
+                      "layers": body.get("layers"),
+                      "bounds": body.get("bounds")})
+    else:
+        layers = body.get("layers") or []
+        print(f"geometry for {job_dir} ({body.get('dxf')}, "
+              f"{len(layers)} layers)")
+        for layer in layers:
+            print(f"  {layer.get('layer')} — Z {layer.get('z_top_mm')} "
+                  f"-> {layer.get('z_bottom_mm')} mm, "
+                  f"{layer.get('loop_count')} loop(s)")
+    return 0
+
+
+def _run_toolpaths_subprocess(job_dir):
+    """Run the V3.1 toolpath generator (ts/toolpaths.ts, Bun) against
+    a job dir. Returns the generator's parsed stdout JSON (its
+    `toolpaths` section). A non-JSON stdout or a failed run maps onto
+    the CLI contract (the generator's own named error passes through
+    unchanged). The generator never writes job.json itself — the CLI
+    merges the section in (cmd_toolpaths), so the file keeps its
+    canonical form."""
+    bun = bun_executable()
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.1 toolpath "
+             "generator needs it (https://bun.sh, or set $BUN to the "
+             "Bun executable)")
+    result = subprocess.run(
+        [bun, str(REPO_ROOT / "ts" / "toolpaths.ts"),
+         str(job_dir), "--json"],
+        capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        fail("internal_error",
+             "ts/toolpaths.ts produced no JSON on stdout "
+             f"(exit {result.returncode}): "
+             f"{_last_lines(result.stderr, 2)}",
+             exit_code=2)
+    if not body.get("ok"):
+        fail(body.get("error") or "toolpaths_failed",
+             body.get("message") or f"toolpaths failed for {job_dir}",
+             exit_code=2 if body.get("error") == "internal_error" else 1)
+    return body
+
+
+def _run_sim_verify_subprocess(job_dir):
+    """Run the V3.4 headless sim verifier (ts/sim_verify.ts, Bun)
+    against a job dir. Returns the verifier's parsed stdout JSON
+    (its `sim` section plus the per-layer probe results and the
+    global no-gouge scan). A non-JSON stdout or a failed run maps
+    onto the CLI contract (the verifier's own named error passes
+    through unchanged). The verifier never writes job.json itself —
+    the CLI merges the `sim` section in (cmd_sim), so the file
+    keeps its canonical form — and only on PASS."""
+    bun = bun_executable()
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.4 sim "
+             "verifier needs it (https://bun.sh, or set $BUN to the "
+             "Bun executable)")
+    result = subprocess.run(
+        [bun, str(REPO_ROOT / "ts" / "sim_verify.ts"),
+         str(job_dir)],
+        capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        fail("internal_error",
+             "ts/sim_verify.ts produced no JSON on stdout "
+             f"(exit {result.returncode}): "
+             f"{_last_lines(result.stderr, 2)}",
+             exit_code=2)
+    if not body.get("ok"):
+        fail(body.get("error") or "sim_mismatch",
+             body.get("message") or f"sim verification failed for {job_dir}",
+             exit_code=2 if body.get("error") == "internal_error" else 1)
+    return body
+
+
+def cmd_toolpaths(args):
+    """`mldxf toolpaths <job-dir>` (V3.1): generate in-house TypeScript
+    toolpaths for a finished v2 job and write the `toolpaths` section
+    into job.json, bumping job_version to 3 (presence of toolpaths IS
+    the v3 marker; V3.2 formalises the rest of the v3 model). The
+    plan is never touched and manifest.txt is never touched (frozen
+    gadget contract). `mldxf plan` never generates toolpaths — a job
+    without toolpaths is still a complete V2 job. Re-running
+    toolpaths on a v3 job recomputes from the current plan + DXF
+    (the step is idempotent and deterministic: same job + same config
+    snapshot -> identical toolpaths). report.md gains the Toolpaths
+    (V3.14) section (plan estimate vs toolpath motion time);
+    re-running replaces the section, never duplicates it."""
+    require_config_file(args.config)
+    job_dir = Path(args.job_dir)
+    if not job_dir.is_dir():
+        fail("job_not_found", f"job dir not found: {job_dir}")
+    manifest, filename = _load_job_file(job_dir)
+    if filename != "job.json" or manifest.get("job_version", 1) < 2:
+        fail("toolpaths_unavailable",
+             f"{job_dir} is a v1 job (manifest.json only) — toolpaths "
+             "need the V2.2 job model (job.json with layout + tool "
+             "plan + material). v1 jobs are read-only; re-run "
+             "`mldxf plan` on the source STEP instead")
+    body = _run_toolpaths_subprocess(job_dir)
+    job, _filename = _load_job_file(job_dir)
+    job["toolpaths"] = body["toolpaths"]
+    job["job_version"] = 3
+    # V3.14: the report carries the estimate-vs-motion lines, and
+    # the outputs hashes refresh for the rewritten report.md —
+    # before validation, so the validated bytes are the published
+    # ones (the guides' pattern).
+    _update_report_toolpaths(job_dir, job)
+    blob = _canonical_json_bytes(job)
+    # V3.2: validate the merged job BEFORE publishing it, and keep
+    # manifest.json a byte-identical copy of job.json (the V2 rule
+    # V3.1 broke — it wrote job.json only, leaving manifest.json
+    # stale at v2 on every v3 job). The validator runs against the
+    # merged bytes in a temp file; a failed validation means the
+    # generator and the schema disagree, so the old job is left
+    # untouched and the failure is an internal error (exit 2).
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(prefix="mldxf_toolpaths_validate_",
+                                   suffix=".json")
+        with os.fdopen(fd, "wb") as f:
+            f.write(blob)
+        vbody = _run_validate_job_subprocess(file=tmp)
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    if not vbody.get("ok"):
+        fail(vbody.get("error") or "toolpaths_invalid",
+             "generated toolpaths failed job-model validation "
+             f"(a generator/schema disagreement, not a user mistake): "
+             f"{vbody.get('message') or 'no detail'}",
+             exit_code=2)
+    (job_dir / "job.json").write_bytes(blob)
+    (job_dir / "manifest.json").write_bytes(blob)
+    job, _filename = _load_job_file(job_dir)
+    job["job_dir"] = str(job_dir.resolve())
+    if args.json:
+        emit_success({"job": job})
+    else:
+        tp = job.get("toolpaths") or {}
+        stats = tp.get("stats") or {}
+        print(f"toolpaths for {job_dir} (job_version 3, plan "
+              f"{tp.get('plan', '?')})")
+        print(f"  {stats.get('operations', '?')} operations, "
+              f"{stats.get('moves', '?')} moves "
+              f"({stats.get('rapid', '?')} rapid, "
+              f"{stats.get('feed', '?')} feed, "
+              f"{stats.get('arc', '?')} arc)")
+        skipped = tp.get("skipped") or []
+        if skipped:
+            print(f"  {len(skipped)} skipped loop(s):")
+            for s in skipped:
+                print(f"    - {s.get('layer')}: {s.get('reason')}: "
+                      f"{s.get('detail', '')}")
+    return 0
+
+
+def _refresh_toolpaths_motion(job_dir, job):
+    """Recompute the derived motion fields from the toolpaths as they
+    sit now (V3.14) and store them on the in-memory job. Motion is a
+    deterministic function of the moves, so a hand edit to the moves
+    leaves the recorded motion stale — and a stale record blocks any
+    later publish that validates the job. The concrete case is the
+    V3.8 `gcode --verify` stamp sync: toolpaths moved after posting
+    must flip the stamp to verified:false, but the sync publish
+    re-validates the job and dies with toolpaths_invalid on the
+    stale motion instead (the moved toolpaths genuinely take a
+    different time — e.g. shifting one feed endpoint collapses the
+    following helical arc's sweep, 221.7 s -> 212.8 s on the
+    reference container). Refreshing the derived record before
+    publishing keeps the stamp sync (and a fresh post from edited
+    toolpaths) publishable. When the moves themselves are broken,
+    cuttime fails and the stale fields are left alone, so the
+    validator still fails honestly. Read-only w.r.t. the job dir —
+    cuttime never writes the job; the caller publishes or not."""
+    tp = job.get("toolpaths")
+    if not isinstance(tp, dict) or not tp.get("operations"):
+        return
+    bun = bun_executable()
+    if not bun:
+        return
+    result = subprocess.run(
+        [bun, str(REPO_ROOT / "ts" / "cuttime.ts"), str(job_dir), "--json"],
+        capture_output=True, text=True)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        return
+    if not body.get("ok"):
+        return
+    if isinstance(body.get("motion_time_s"), (int, float)):
+        tp["motion_time_s"] = body["motion_time_s"]
+    if isinstance(body.get("motion_by_tool"), dict):
+        tp["motion_by_tool"] = body["motion_by_tool"]
+    if isinstance(body.get("motion_by_operation"), dict):
+        tp["motion_by_operation"] = body["motion_by_operation"]
+
+
+def _publish_job_validated(job_dir, job):
+    """Validate a merged job (the V3.2 pattern) and publish it as
+    job.json + manifest.json (byte-identical). A failed validation
+    means the writer and the schema disagree, so the old job is
+    left untouched and the failure is an internal error (exit 2)."""
+    blob = _canonical_json_bytes(job)
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(prefix="mldxf_gcode_validate_",
+                                   suffix=".json")
+        with os.fdopen(fd, "wb") as f:
+            f.write(blob)
+        vbody = _run_validate_job_subprocess(file=tmp)
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    if not vbody.get("ok"):
+        fail(vbody.get("error") or "gcode_invalid",
+             "job failed job-model validation "
+             f"(a writer/schema disagreement, not a user "
+             f"mistake): {vbody.get('message') or 'no detail'}",
+             exit_code=2)
+    (job_dir / "job.json").write_bytes(blob)
+    (job_dir / "manifest.json").write_bytes(blob)
+
+
+def _run_gcode_subprocess(job_dir, post_id):
+    """Run the V3.6 G-code exporter (ts/gcode.ts, Bun) against a job
+    dir with the named post. Returns the driver's parsed stdout
+    JSON (its `gcode` entry, the round-trip numbers, the posted
+    line/move counts). The driver writes the .nc file itself but
+    never touches job.json — the CLI merges the entry in
+    (cmd_gcode), so the file keeps its canonical form. A
+    non-JSON stdout or a failed run maps onto the CLI contract
+    (the driver's own named error passes through unchanged) —
+    EXCEPT `gcode_unverified`: the body is returned, not failed,
+    so cmd_gcode can record the unverified entry (the file is on
+    disk for inspection) and fail only after publishing it."""
+    bun = bun_executable()
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.6 "
+             "G-code exporter needs it (https://bun.sh, or set "
+             "$BUN to the Bun executable)")
+    result = subprocess.run(
+        [bun, str(REPO_ROOT / "ts" / "gcode.ts"),
+         str(job_dir), "--post", post_id, "--json"],
+        capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        fail("internal_error",
+             "ts/gcode.ts produced no JSON on stdout "
+             f"(exit {result.returncode}): "
+             f"{_last_lines(result.stderr, 2)}",
+             exit_code=2)
+    if not body.get("ok") and body.get("error") != "gcode_unverified":
+        fail(body.get("error") or "gcode_failed",
+             body.get("message") or f"gcode failed for {job_dir}",
+             exit_code=2 if body.get("error") == "internal_error" else 1)
+    return body
+
+
+def _run_gcode_verify_subprocess(job_dir, post_id):
+    """Run the V3.8 re-verification driver (ts/gcode.ts --verify, Bun)
+    against the recorded .nc for a post. Returns the driver's parsed
+    stdout JSON (its `gcode` entry, the round-trip numbers, the
+    on-disk sha256). The driver writes nothing. A non-JSON stdout or
+    a failed run maps onto the CLI contract (the driver's own named
+    error passes through unchanged) — EXCEPT `gcode_unverified` and
+    `gcode_sha_mismatch`: those bodies are returned, not failed, so
+    cmd_gcode can sync the recorded stamp to the observed result
+    first (a stale verified:true must not survive a failed
+    re-verification) and fail only after publishing the sync."""
+    bun = bun_executable()
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.8 "
+             "G-code re-verifier needs it (https://bun.sh, or set "
+             "$BUN to the Bun executable)")
+    result = subprocess.run(
+        [bun, str(REPO_ROOT / "ts" / "gcode.ts"),
+         str(job_dir), "--post", post_id, "--verify", "--json"],
+        capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        fail("internal_error",
+             "ts/gcode.ts produced no JSON on stdout "
+             f"(exit {result.returncode}): "
+             f"{_last_lines(result.stderr, 2)}",
+             exit_code=2)
+    if not body.get("ok") and body.get("error") not in (
+            "gcode_unverified", "gcode_sha_mismatch"):
+        fail(body.get("error") or "gcode_failed",
+             body.get("message") or f"gcode verify failed for {job_dir}",
+             exit_code=2 if body.get("error") == "internal_error" else 1)
+    return body
+
+
+def _cmd_gcode_verify(args, job_dir, post_id):
+    """`mldxf gcode --verify <job-dir> [--post <post-id>]` (V3.8):
+    re-verify the recorded .nc for a post — the file as it sits on
+    disk, against the toolpaths as they sit in job.json now. The
+    recorded `verified` stamp is synced to the observed result
+    (validated before publishing, manifest.json byte-identical)
+    and the command exits 0 when the file verifies, 1 with the
+    named error otherwise (`gcode_not_posted` / `gcode_file_missing`
+    / `gcode_sha_mismatch` / `gcode_unverified`). A file that no
+    longer verifies is never presented as ready to run: the stamp
+    says so in job.json, and the UI shows UNVERIFIED. A sync that
+    changes nothing writes nothing — a clean re-verification leaves
+    the job bytes untouched (not even `generated_at`)."""
+    body = _run_gcode_verify_subprocess(job_dir, post_id)
+    entry = dict(body.get("gcode") or {})
+    roundtrip = body.get("roundtrip") or {}
+    observed = bool(body.get("ok")) and bool(entry.get("verified"))
+    job, _filename = _load_job_file(job_dir)
+    entries = job.get("gcode")
+    if not isinstance(entries, list):
+        entries = []
+    recorded = next(
+        (e for e in entries
+         if isinstance(e, dict) and e.get("post_id") == post_id),
+        None)
+    if recorded is not None:
+        changed = False
+        if bool(recorded.get("verified")) != observed:
+            recorded["verified"] = observed
+            changed = True
+        actual_sha = body.get("sha256")
+        if (isinstance(actual_sha, str) and actual_sha
+                and recorded.get("sha256") != actual_sha):
+            recorded["sha256"] = actual_sha
+            changed = True
+            outputs = job.get("outputs")
+            if isinstance(outputs, list):
+                for o in outputs:
+                    if (isinstance(o, dict)
+                            and o.get("file") == recorded.get("file")):
+                        o["sha256"] = actual_sha
+        if changed:
+            # V3.14: refresh the derived motion record from the
+            # toolpaths as they sit now before the validating
+            # publish — a hand edit to the moves stales the recorded
+            # motion, and the stale record must not block the stamp
+            # sync (a failed re-verification must flip the stamp to
+            # verified:false, not die with toolpaths_invalid).
+            _refresh_toolpaths_motion(job_dir, job)
+            _publish_job_validated(job_dir, job)
+    job, _filename = _load_job_file(job_dir)
+    job["job_dir"] = str(job_dir.resolve())
+    if observed:
+        if args.json:
+            emit_success({"job": job, "gcode": entry,
+                          "roundtrip": roundtrip})
+        else:
+            print(f"gcode for {job_dir} (post {post_id}, verified)")
+            print(f"  {entry.get('file')} — sha "
+                  f"{str(entry.get('sha256', ''))[:12]}… matches the "
+                  "recorded entry; round-trip: "
+                  f"{roundtrip.get('mismatched', '?')} mismatched / "
+                  f"{roundtrip.get('columns', '?')} columns after the "
+                  "band test (largest cluster "
+                  f"{roundtrip.get('maxCluster', '?')}, max diff "
+                  f"{roundtrip.get('maxDiffMm', '?')} mm)")
+        return 0
+    # Refusal: in --json mode print nothing here — the error below
+    # is the only stdout object, so a consumer (notably the server's
+    # runCliJob, which parses stdout as one JSON object) reads the
+    # named error cleanly; the synced entry is on disk
+    # (`mldxf job --json` shows it, verified: false).
+    if not args.json:
+        print(f"gcode for {job_dir} (post {post_id}, "
+              "UNVERIFIED — do not run)")
+        print(f"  {entry.get('file')} — the recorded stamp is now "
+              "unverified in job.json + manifest.json; the file is "
+              "for inspection only")
+    fail(body.get("error") or "gcode_unverified",
+         body.get("message")
+         or f"recorded G-code through {post_id} does NOT verify — "
+         "the entry is recorded unverified in job.json + "
+         "manifest.json; the file is for inspection only, never "
+         "ready to run")
+
+
+def _resolve_post_id(job, args):
+    """Post selection (V3.6, hardened V3.8): `--post` > the job's
+    `machine_profile.post_processor` > the home `machine.json`
+    `post_processor` > the default `masso-mm`. A missing or
+    unreadable machine.json falls through to the default — the
+    post is a property of the job run, not of the library, so a
+    missing library file never blocks posting. But a machine.json
+    that EXISTS and fails validation (including an unknown
+    post_processor) is a LOUD failure, never a silent fall-through:
+    swallowing it here used to post the default while the operator
+    believed their chosen post was in effect (V3.8). Only
+    home_not_initialized (no home / no machine.json at all) falls
+    through. An unknown name from --post or the job profile is
+    refused downstream by the TS driver (`post_unknown`)."""
+    flag = getattr(args, "post", None)
+    if isinstance(flag, str) and flag:
+        return flag
+    profile = job.get("machine_profile")
+    if isinstance(profile, dict):
+        pp = profile.get("post_processor")
+        if isinstance(pp, str) and pp:
+            return pp
+    try:
+        _cfg, machine = _load_library("load_machine")
+    except CliError as e:
+        if e.name == "home_not_initialized":
+            machine = None
+        else:
+            raise
+    except Exception:
+        machine = None
+    if isinstance(machine, dict):
+        pp = machine.get("post_processor")
+        if isinstance(pp, str) and pp:
+            return pp
+    return "masso-mm"
+
+
+def cmd_gcode(args):
+    """`mldxf gcode <job-dir> [--post <post-id>]` (V3.6): G-code
+    export through a native post-processor (ts/gcode.ts + ts/posts).
+    The post is selected `--post` > the job's
+    `machine_profile.post_processor` > the home `machine.json`
+    `post_processor` > the default `masso-mm`; the effective post
+    is recorded back into the job's `machine_profile` (when the
+    profile is a dict). The driver posts, parses the file back,
+    and re-simulates it through the V3.4 dexel engine; the
+    resulting `gcode` entry (one per post run — a re-post replaces
+    the same `post_id`'s entry) is merged into job.json +
+    manifest.json (byte-identical, canonical form, validated
+    before publishing — the cmd_toolpaths pattern), and the file
+    is listed in `outputs`. On a round-trip mismatch the entry is
+    still published — `verified: false`, downloadable for
+    inspection — and the command then fails `gcode_unverified`
+    (exit 1): an unverified file is never presented as ready to
+    run. Limit, unknown-post, and tool failures write no file and
+    no entry. Deterministic: re-posting the same job through the
+    same post reproduces the same bytes and sha256 (the entry
+    carries its own `generated_at`, so the job.json bytes change
+    only in that timestamp). `mldxf rerun` rebuilds the job and
+    drops the `gcode` section and files — re-post after a rerun.
+    The plan is never touched and manifest.txt is never touched
+    (frozen gadget contract). `--verify` (V3.8) re-verifies the
+    recorded .nc instead of posting: entry, file, sha256, then the
+    round-trip — syncing the recorded `verified` stamp to the
+    observed result, exit 1 with a named error when it no longer
+    verifies (see _cmd_gcode_verify)."""
+    require_config_file(args.config)
+    job_dir = Path(args.job_dir)
+    if not job_dir.is_dir():
+        fail("job_not_found", f"job dir not found: {job_dir}")
+    manifest, filename = _load_job_file(job_dir)
+    if filename != "job.json" or manifest.get("job_version", 1) < 2:
+        fail("toolpaths_unavailable",
+             f"{job_dir} is a v1 job (manifest.json only) — G-code "
+             "export needs the V2.2 job model (job.json with layout "
+             "+ tool plan + material). v1 jobs are read-only; "
+             "re-run `mldxf plan` on the source STEP instead")
+    if not manifest.get("toolpaths"):
+        fail("toolpaths_unavailable",
+             f"{job_dir} has no toolpaths — G-code is posted from "
+             "the toolpaths. Run `mldxf toolpaths` first")
+    post_id = _resolve_post_id(manifest, args)
+    if getattr(args, "verify", False):
+        return _cmd_gcode_verify(args, job_dir, post_id)
+    body = _run_gcode_subprocess(job_dir, post_id)
+    entry = dict(body.get("gcode") or {})
+    entry["generated_at"] = _now_iso()
+    roundtrip = body.get("roundtrip") or {}
+    posted = body.get("posted") or {}
+    job, _filename = _load_job_file(job_dir)
+    entries = job.get("gcode")
+    if not isinstance(entries, list):
+        entries = []
+    entries = [e for e in entries
+               if not (isinstance(e, dict)
+                       and e.get("post_id") == entry.get("post_id"))]
+    entries.append(entry)
+    job["gcode"] = entries
+    outputs = job.get("outputs")
+    if not isinstance(outputs, list):
+        outputs = []
+    outputs = [o for o in outputs
+               if not (isinstance(o, dict)
+                       and o.get("file") == entry.get("file"))]
+    outputs.append({"file": entry.get("file"),
+                    "sha256": entry.get("sha256")})
+    job["outputs"] = outputs
+    profile = job.get("machine_profile")
+    if isinstance(profile, dict):
+        profile["post_processor"] = entry.get("post_id")
+    # V3.2: validate the merged job BEFORE publishing it, and keep
+    # manifest.json a byte-identical copy of job.json. A failed
+    # validation means the exporter and the schema disagree, so
+    # the old job is left untouched and the failure is an internal
+    # error (exit 2). (The .nc file is already on disk; it is
+    # simply not recorded — it is not listed in `outputs` and has
+    # no `gcode` entry.) Refresh the derived motion record first
+    # (V3.14): a hand edit to the moves stales the recorded motion,
+    # and the stale record must not block recording a fresh post.
+    _refresh_toolpaths_motion(job_dir, job)
+    _publish_job_validated(job_dir, job)
+    job, _filename = _load_job_file(job_dir)
+    job["job_dir"] = str(job_dir.resolve())
+    verified = bool(entry.get("verified"))
+    stamp = "verified" if verified else "UNVERIFIED — do not run"
+    if verified and args.json:
+        emit_success({"job": job, "gcode": entry,
+                      "roundtrip": roundtrip, "posted": posted})
+    elif verified:
+        print(f"gcode for {job_dir} (post {entry.get('post_id')}, "
+              f"{stamp})")
+        print(f"  {entry.get('file')} — "
+              f"{posted.get('lines', '?')} lines, "
+              f"{roundtrip.get('movesParsed', '?')} moves parsed "
+              f"(sha {str(entry.get('sha256', ''))[:12]}…) — entry "
+              "written to job.json + manifest.json")
+        print(f"  round-trip: {roundtrip.get('mismatched', '?')} "
+              f"mismatched / {roundtrip.get('columns', '?')} columns "
+              f"after the band test (largest cluster "
+              f"{roundtrip.get('maxCluster', '?')}, max diff "
+              f"{roundtrip.get('maxDiffMm', '?')} mm, tolerance "
+              f"{roundtrip.get('toleranceMm', '?')} mm)")
+    else:
+        # Unverified: the entry IS published (above), but the
+        # command fails. In --json mode print nothing here — the
+        # error below is the only stdout object, so a consumer
+        # (notably the server's runCliJob, which parses stdout as
+        # one JSON object) reads `gcode_unverified` cleanly; the
+        # recorded entry is on disk (`mldxf job --json` shows it).
+        # In human mode print the lines first, so the failure
+        # still names the file and the numbers.
+        if not args.json:
+            print(f"gcode for {job_dir} (post "
+                  f"{entry.get('post_id')}, {stamp})")
+            print(f"  {entry.get('file')} — "
+                  f"{posted.get('lines', '?')} lines, "
+                  f"{roundtrip.get('movesParsed', '?')} moves parsed "
+                  f"(sha {str(entry.get('sha256', ''))[:12]}…) — "
+                  "entry written to job.json + manifest.json")
+            print(f"  round-trip: "
+                  f"{roundtrip.get('mismatched', '?')} mismatched / "
+                  f"{roundtrip.get('columns', '?')} columns after "
+                  f"the band test (largest cluster "
+                  f"{roundtrip.get('maxCluster', '?')}, max diff "
+                  f"{roundtrip.get('maxDiffMm', '?')} mm, tolerance "
+                  f"{roundtrip.get('toleranceMm', '?')} mm)")
+        fail("gcode_unverified",
+             body.get("message")
+             or f"posted G-code through {entry.get('post_id')} does "
+             "NOT round-trip — the entry is recorded unverified in "
+             "job.json + manifest.json; the file is for inspection "
+             "only, never ready to run")
+    return 0
+
+
+def _run_sim_seek_subprocess(job_dir, move, time_s):
+    """Run the V3.5 headless seek (ts/sim_seek_cli.ts, Bun) against a
+    job dir. Returns the seek CLI's parsed stdout JSON (the stock
+    state at the requested move/time). Read-only: the seek never
+    writes job.json — a missing/stale delta log is rebuilt in memory
+    (the CLI says so in `delta_log`). A non-JSON stdout or a failed
+    run maps onto the CLI contract (the seek CLI's own named error
+    passes through unchanged)."""
+    bun = bun_executable()
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.5 sim "
+             "seek needs it (https://bun.sh, or set $BUN to the "
+             "Bun executable)")
+    cmd = [bun, str(REPO_ROOT / "ts" / "sim_seek_cli.ts"),
+           str(job_dir)]
+    if move is not None:
+        cmd += ["--move", str(move)]
+    else:
+        cmd += ["--time", str(time_s)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        fail("internal_error",
+             "ts/sim_seek_cli.ts produced no JSON on stdout "
+             f"(exit {result.returncode}): "
+             f"{_last_lines(result.stderr, 2)}",
+             exit_code=2)
+    if not body.get("ok"):
+        fail(body.get("error") or "sim_seek_failed",
+             body.get("message") or f"sim seek failed for {job_dir}",
+             exit_code=2 if body.get("error") == "internal_error" else 1)
+    return body
+
+
+def cmd_sim(args):
+    """`mldxf sim --verify <job-dir>` (V3.4): headless cut-simulation
+    verification (dexel sim of the job's toolpaths against the
+    intended geometry, ts/sim_verify.ts). On PASS the `sim` section
+    is merged into job.json and manifest.json (byte-identical,
+    canonical form, validated before publishing — the cmd_toolpaths
+    pattern). On FAIL the named error propagates, exit 1, and
+    nothing is written — a failing verification never records a
+    `sim` section. The plan is never touched and manifest.txt is
+    never touched (frozen gadget contract).
+
+    `mldxf sim --seek <job-dir> --move N | --time T` (V3.5):
+    rewind/seek the stock to a move index or cut time, headlessly
+    (ts/sim_seek_cli.ts), and report the stock state there. Read
+    only — it never writes job.json."""
+    require_config_file(args.config)
+    if getattr(args, "seek", False):
+        if getattr(args, "verify", False):
+            fail("usage_error",
+                 "`mldxf sim` takes exactly one of --verify / --seek")
+        if (args.move is None) == (args.time is None):
+            fail("usage_error",
+                 "`mldxf sim --seek` needs exactly one of --move N "
+                 "(move index) or --time T (cut seconds)")
+        if args.move is not None and args.move < 0:
+            fail("usage_error", "--move needs a non-negative integer")
+        if args.time is not None and args.time < 0:
+            fail("usage_error", "--time needs a non-negative number of seconds")
+        job_dir = Path(args.job_dir)
+        if not job_dir.is_dir():
+            fail("job_not_found", f"job dir not found: {job_dir}")
+        body = _run_sim_seek_subprocess(job_dir, args.move, args.time)
+        if args.json:
+            emit_success(body)
+        else:
+            stock = body.get("stock") or {}
+            seek = body.get("seek") or {}
+            print(f"sim seek for {job_dir}: move {body.get('move')} "
+                  f"of {body.get('total_moves')} "
+                  f"({body.get('time_s')} s of {body.get('total_seconds')} s cut time)")
+            print(f"  delta log: {body.get('delta_log')} "
+                  f"({body.get('delta_file') or 'rebuilt in memory — run `mldxf sim --verify` to write it'})")
+            print(f"  stock: {stock.get('columns_lowered', '?')} columns lowered, "
+                  f"min height {stock.get('min_height_mm', '?')} mm, "
+                  f"volume removed {stock.get('volume_removed_mm3', '?')} mm3 "
+                  f"({stock.get('volume_fraction', '?')} of the stock)")
+            print(f"  seek took {seek.get('seek_ms', '?')} ms "
+                  f"({seek.get('resimulated_moves', '?')} moves re-simulated, "
+                  f"+{seek.get('applied_chunks', '?')} chunks, "
+                  f"-{seek.get('reverted_chunks', '?')} chunks)")
+        return 0
+    if not getattr(args, "verify", False):
+        fail("usage_error",
+             "`mldxf sim` only runs as `mldxf sim --verify <job-dir>` "
+             "(headless verification, V3.4) or `mldxf sim --seek "
+             "<job-dir> --move N | --time T` (headless seek, V3.5)")
+    job_dir = Path(args.job_dir)
+    if not job_dir.is_dir():
+        fail("job_not_found", f"job dir not found: {job_dir}")
+    manifest, filename = _load_job_file(job_dir)
+    if filename != "job.json" or manifest.get("job_version", 1) < 2:
+        fail("toolpaths_unavailable",
+             f"{job_dir} is a v1 job (manifest.json only) — sim "
+             "verification needs the V2.2 job model (job.json with "
+             "layout + tool plan + material). v1 jobs are read-only; "
+             "re-run `mldxf plan` on the source STEP instead")
+    if not manifest.get("toolpaths"):
+        fail("toolpaths_unavailable",
+             f"{job_dir} has no toolpaths — the sim simulates the "
+             "toolpaths. Run `mldxf toolpaths` first")
+    body = _run_sim_verify_subprocess(job_dir)
+    job, _filename = _load_job_file(job_dir)
+    job["sim"] = body["sim"]
+    blob = _canonical_json_bytes(job)
+    # V3.2: validate the merged job BEFORE publishing it, and keep
+    # manifest.json a byte-identical copy of job.json. The validator
+    # runs against the merged bytes in a temp file; a failed
+    # validation means the verifier and the schema disagree, so the
+    # old job is left untouched and the failure is an internal error
+    # (exit 2).
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(prefix="mldxf_sim_validate_",
+                                   suffix=".json")
+        with os.fdopen(fd, "wb") as f:
+            f.write(blob)
+        vbody = _run_validate_job_subprocess(file=tmp)
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    if not vbody.get("ok"):
+        fail(vbody.get("error") or "sim_invalid",
+             "verified sim failed job-model validation "
+             f"(a verifier/schema disagreement, not a user mistake): "
+             f"{vbody.get('message') or 'no detail'}",
+             exit_code=2)
+    (job_dir / "job.json").write_bytes(blob)
+    (job_dir / "manifest.json").write_bytes(blob)
+    job, _filename = _load_job_file(job_dir)
+    job["job_dir"] = str(job_dir.resolve())
+    if args.json:
+        emit_success({"job": job})
+    else:
+        sim = body.get("sim") or {}
+        counts = body.get("counts") or {}
+        timing = body.get("timing") or {}
+        glob = body.get("global") or {}
+        print(f"sim verified for {job_dir} (pitch "
+              f"{sim.get('pitch_mm', '?')} mm"
+              f"{', coarse' if sim.get('pitch_coarse') else ''}, "
+              f"{counts.get('probes', '?')} probes, "
+              f"{counts.get('failed_probes', '?')} failed, "
+              f"{glob.get('gouge_columns', '?')} gouge columns)")
+        print(f"  sim ran in {timing.get('sim_ms', '?')} ms "
+              f"({timing.get('ratio_vs_plan', '?')}x real time); "
+              "`sim` section written to job.json + manifest.json")
+        seek = body.get("seek") or {}
+        if seek:
+            print(f"  delta log: {seek.get('file', '?')} — "
+                  f"{seek.get('chunks', '?')} chunks, "
+                  f"{seek.get('entries', '?')} entries, "
+                  f"{seek.get('checkpoints', '?')} checkpoints, "
+                  f"{seek.get('bytes', '?')} bytes")
+    return 0
+
+
 def format_job_human(manifest, job_dir):
     """Human-readable `mldxf job` output: plan, flags, post-processing
     steps, layout — from the manifest (v1) or job.json (v2)."""
@@ -1094,6 +2199,51 @@ def format_job_human(manifest, job_dir):
                          "inventory — check before you cut (flagged, "
                          "not dropped)")
     steps = post_process_steps(manifest)
+    tp = manifest.get("toolpaths")
+    if tp is not None:
+        # V3.2: the toolpaths summary in `mldxf job` — operations /
+        # moves per operation, skipped loops shown, never hidden.
+        stats = tp.get("stats") or {}
+        lines.append(
+            f"toolpaths (v3, plan {tp.get('plan', '?')}, clearance "
+            f"{tp.get('clearance_z_mm', '?')} mm): "
+            f"{stats.get('operations', '?')} operations, "
+            f"{stats.get('moves', '?')} moves "
+            f"({stats.get('rapid', '?')} rapid, "
+            f"{stats.get('feed', '?')} feed, "
+            f"{stats.get('arc', '?')} arc)")
+        for op in tp.get("operations") or []:
+            moves = op.get("moves") or []
+            n_rapid = sum(1 for m in moves if m.get("t") == "rapid")
+            n_feed = sum(1 for m in moves if m.get("t") == "feed")
+            n_arc = sum(1 for m in moves if m.get("t") == "arc")
+            lines.append(
+                f"  - {op.get('operation', '?')} {op.get('layer', '?')} "
+                f"({op.get('tool_id', '?')}, "
+                f"{(op.get('pass') or {}).get('kind', '?')}"
+                f"{' #' + str((op.get('pass') or {}).get('stepdown_index')) if (op.get('pass') or {}).get('stepdown_index') is not None else ''}): "
+                f"{len(moves)} moves ({n_rapid} rapid, {n_feed} feed, "
+                f"{n_arc} arc)")
+        for s in tp.get("skipped") or []:
+            lines.append(
+                f"  - SKIPPED {s.get('layer', '?')} loop "
+                f"{s.get('loop', '?')}: {s.get('reason', '?')}: "
+                f"{s.get('detail', '')}")
+        if not (tp.get("skipped") or []):
+            lines.append("  - no loops skipped")
+        # V3.14: estimate vs motion, same words as report.md.
+        for line in _toolpaths_motion_lines(manifest, indent="  "):
+            lines.append(line)
+    gc = manifest.get("gcode")
+    if isinstance(gc, list) and gc:
+        lines.append(f"gcode ({len(gc)} run(s)):")
+        for e in gc:
+            stamp = "verified" if e.get("verified") \
+                else "UNVERIFIED — do not run"
+            lines.append(
+                f"  - {e.get('post_id', '?')}: {e.get('file', '?')} "
+                f"({stamp}, sha {str(e.get('sha256', ''))[:8]}…, "
+                f"{e.get('generated_at', '?')})")
     lines.append(f"post-processing ({len(steps)} steps):")
     lines.extend(f"  - {s}" for s in steps) if steps else \
         lines.append("  - none — part is fully prismatic")
@@ -1114,6 +2264,18 @@ def format_job_human(manifest, job_dir):
 
 def cmd_plan(args):
     require_config_file(args.config)
+    # Fail fast on a bad --config z_zero (docs-v3/z_zero.md) —
+    # the snapshot (and its validation) is built after the child
+    # runs, so without this the run would spend minutes in the
+    # child before refusing. An unparseable file is left for the
+    # child to refuse as before; only a parsed bad value fails
+    # here.
+    if args.config:
+        try:
+            _validate_config_z_zero(
+                json.loads(Path(args.config).read_text()), "--config file")
+        except json.JSONDecodeError:
+            pass
     step = Path(args.step)
     if not step.is_file():
         fail("step_file_not_found", f"STEP file not found: {step}")
@@ -1333,6 +2495,16 @@ def cmd_rerun(args):
         fail("job_invalid",
              f"{job_dir} is a v2 job but its job.json has no usable "
              "config snapshot — rerun cannot reproduce it")
+    # V3.2: a job carrying toolpaths but not marked v3 is corrupt
+    # (presence of toolpaths IS the v3 marker) — refuse before
+    # touching the job dir rather than silently dropping them.
+    if manifest.get("toolpaths") is not None \
+            and manifest.get("job_version") != 3:
+        fail("job_invalid",
+             f"{job_dir} carries a toolpaths section but job_version "
+             f"is {manifest.get('job_version')} — the section is "
+             "corrupt (toolpaths present ⟺ job_version 3). Repair "
+             "the version or regenerate with `mldxf toolpaths`")
     # Rerun + guides (V2.9, settled): a rerun REPRODUCES the
     # guides from the recorded provenance — guides are a pure
     # function of the job geometry plus the machine/clamp inputs
@@ -1467,6 +2639,43 @@ def cmd_rerun(args):
             _run_guides_subprocess(tmpdir, replay_inputs["machine"],
                                    replay_inputs["clamps"], VERSION)
             job = json.loads((tmpdir / "job.json").read_text())
+        # V3.2 (job_model_v3.md §9): a v3 job round-trips its
+        # toolpaths. Regenerate them from the replayed job (the
+        # generator reads only the replayed plan + DXF + config
+        # snapshot, all reproduced above) and require the
+        # regenerated section to be identical to the old one on
+        # the moves (V3.14: the comparison ignores the derived
+        # motion fields, so a pre-V3.14 job reruns clean against
+        # a regenerated section that carries them).
+        old_toolpaths = manifest.get("toolpaths")
+        if old_toolpaths is not None:
+            tp_body = _run_toolpaths_subprocess(tmpdir)
+            new_toolpaths = tp_body["toolpaths"]
+            if _toolpaths_identity_bytes(new_toolpaths) != \
+                    _toolpaths_identity_bytes(old_toolpaths):
+                fail("rerun_toolpaths_mismatch",
+                     f"rerun of {job_dir} regenerated different "
+                     "toolpaths than the job carried — the generator "
+                     "is deterministic, so the replayed job differs "
+                     "from the original (plan, DXF, or config "
+                     "snapshot changed). Refusing to publish; the "
+                     "old job dir is untouched")
+            job = json.loads((tmpdir / "job.json").read_text())
+            job["toolpaths"] = new_toolpaths
+            job["job_version"] = 3
+            # V3.14: the replayed report gains the toolpaths
+            # section, as `mldxf toolpaths` writes it.
+            _update_report_toolpaths(tmpdir, job)
+            blob = _canonical_json_bytes(job)
+            (tmpdir / "job.json").write_bytes(blob)
+            (tmpdir / "manifest.json").write_bytes(blob)
+            vbody = _run_validate_job_subprocess(job_dir=tmpdir)
+            if not vbody.get("ok"):
+                fail(vbody.get("error") or "toolpaths_invalid",
+                     "rerun's merged v3 job failed job-model "
+                     f"validation: {vbody.get('message') or 'no detail'}",
+                     exit_code=2)
+            job = json.loads((tmpdir / "job.json").read_text())
         _assert_no_path(tmpdir, str(tmpdir))
         _swap_into_place(tmpdir, job_dir)
         job["job_dir"] = str(job_dir.resolve())
@@ -1515,6 +2724,7 @@ def cmd_machine(args):
                 f"machine: {data.get('id')} — {data.get('name')}",
                 f"bed: {bed.get('width_mm')} x {bed.get('depth_mm')} mm",
                 f"controller: {data.get('controller')} (informational in V2)",
+                f"post processor: {data.get('post_processor') or 'not set (mldxf gcode defaults to masso-mm)'}",
                 f"T-track: {len(slots)} slot(s), "
                 f"width {(data.get('t_track') or {}).get('slot_width_mm')} mm"
                 + (" — PLACEHOLDER, measure your bed before V2.9 guides"
@@ -1656,6 +2866,69 @@ def _stop_server_proc(proc):
         return proc.wait()
 
 
+def _run_view3d_build(force=False):
+    """Run the V3.3 view bundler (ts/view3d/build.ts, Bun). Returns
+    (exit_code, body): body is the bundler's parsed stdout JSON on
+    success, None when it produced no JSON. A missing Bun or a
+    failed build is a CliError (the caller decides whether that is
+    fatal — `mldxf serve` treats it as a warning and still starts
+    the server, whose view then falls back)."""
+    bun = bun_executable()
+    if not bun:
+        # Dev-VM fallback, same as cmd_serve: Bun lives outside
+        # PATH here.
+        for cand in ("/opt/hatch-image/bin/bun",):
+            if Path(cand).is_file():
+                bun = cand
+                break
+    if not bun:
+        fail("bun_missing",
+             "Bun is not installed or not on PATH — the V3.3 view "
+             "bundler needs it (https://bun.sh, or set $BUN to the "
+             "Bun executable)")
+    argv = [bun, str(REPO_ROOT / "ts" / "view3d" / "build.ts"), "--json"]
+    if force:
+        argv.append("--force")
+    result = subprocess.run(argv, capture_output=True, text=True)
+    for line in (result.stderr or "").rstrip("\n").split("\n"):
+        if line.strip():
+            progress(line)
+    try:
+        body = json.loads((result.stdout or "").strip())
+    except ValueError:
+        body = None
+    if result.returncode != 0:
+        detail = (body or {}).get("message") if body else None
+        fail((body or {}).get("error") or "view3d_build_failed",
+             detail or f"ts/view3d/build.ts failed (exit "
+             f"{result.returncode})",
+             exit_code=2 if result.returncode == 2 else 1)
+    return result.returncode, body
+
+
+def cmd_build_view3d(args):
+    """`mldxf build-view3d [--force]` (V3.3): bundle the 3D view
+    entry (ts/view3d/entry.ts, three.js vendored locally) into
+    server/public/vendor/view3d.js. The bundle is a build
+    artifact, not checked in; a rebuild happens only when it is
+    missing or stale (inputs newer than the bundle), unless
+    --force. `mldxf serve` runs this before starting the server."""
+    require_config_file(args.config)
+    _code, body = _run_view3d_build(force=bool(getattr(args, "force", False)))
+    if args.json:
+        emit_success({"built": bool((body or {}).get("built")),
+                      "bundle": (body or {}).get("bundle"),
+                      "reason": (body or {}).get("reason")})
+    else:
+        if body and body.get("built"):
+            print(f"view3d bundle built: {body.get('bundle')} "
+                  f"({body.get('reason')})")
+        else:
+            print(f"view3d bundle up to date: "
+                  f"{(body or {}).get('bundle') or 'server/public/vendor/view3d.js'}")
+    return 0
+
+
 def cmd_serve(args):
     """Start the Bun web server (V2.5): spawn `bun run server.ts`
     from the server dir, wait for the port to answer /api/health,
@@ -1682,6 +2955,16 @@ def cmd_serve(args):
              "Bun is not installed or not on PATH — the V2.5 server "
              "needs Bun (https://bun.sh). Set MLDXF_BUN to the bun "
              "binary if it lives somewhere unusual.")
+    # The 3D view bundle (V3.3) is a build artifact: build it when
+    # it is missing or stale, before the server starts serving it.
+    # Best-effort — a failed build never blocks the server: the
+    # view falls back to the toolpath list and the CLI still works.
+    try:
+        _code, _body = _run_view3d_build()
+    except CliError as e:
+        progress(f"warning: 3D view bundle not built ({e.name}: "
+                 f"{e.message}) — the view will fall back to the "
+                 "toolpath list")
     port = args.port
     url = f"http://127.0.0.1:{port}"
     # If a server is already answering on this port, reuse it
@@ -1906,6 +3189,62 @@ def build_parser():
                             "plan never runs guides)")
     p.add_argument("job_dir", help="job directory")
 
+    p = sub.add_parser("toolpaths", parents=[common],
+                       help="toolpaths (V3.1): in-house TypeScript "
+                            "toolpath generation for a finished job "
+                            "(post-step; plan never generates toolpaths)")
+    p.add_argument("job_dir", help="job directory")
+
+    p = sub.add_parser("validate-job", parents=[common],
+                       help="validate a job dir's job.json against the "
+                            "v3 schema (V3.2, docs-v3/job_model_v3.md)")
+    p.add_argument("job_dir", help="job directory")
+
+    p = sub.add_parser("geometry", parents=[common],
+                       help="layer geometry for the 3D view (V3.3): "
+                            "per-layer DXF loops + Z depths, read-only")
+    p.add_argument("job_dir", help="job directory")
+
+    p = sub.add_parser("build-view3d", parents=[common],
+                       help="build the 3D view bundle (V3.3) into "
+                            "server/public/vendor/ when missing/stale")
+    p.add_argument("--force", action="store_true",
+                   help="rebuild even when the bundle is up to date")
+
+    p = sub.add_parser("gcode", parents=[common],
+                       help="G-code export (V3.6): post the "
+                            "toolpaths through a native post; "
+                            "round-trip verified, entry recorded")
+    p.add_argument("job_dir", help="job directory")
+    p.add_argument("--post", default=None,
+                   help="post-processor id (masso-mm, masso-inch, "
+                        "grbl, template) — overrides the job's "
+                        "machine_profile.post_processor and the "
+                        "home machine.json post_processor")
+    p.add_argument("--verify", action="store_true",
+                   help="re-verify the recorded .nc for the post "
+                        "(V3.8): entry? file? sha? round-trip? — "
+                        "syncs the verified stamp to the observed "
+                        "result; exit 1 with a named error when it "
+                        "no longer verifies")
+
+    p = sub.add_parser("sim", parents=[common],
+                       help="headless sim verification (V3.4): dexel "
+                            "sim of the toolpaths vs the intended "
+                            "geometry; writes the sim section on PASS; "
+                            "--seek rewinds the stock to a move/time (V3.5)")
+    p.add_argument("job_dir", help="job directory")
+    p.add_argument("--verify", action="store_true",
+                   help="run the headless verification (writes the sim "
+                        "section + the delta log on PASS)")
+    p.add_argument("--seek", action="store_true",
+                   help="rewind/seek the stock to a move or cut time "
+                        "(V3.5, headless — needs exactly one of --move / --time)")
+    p.add_argument("--move", type=int, default=None,
+                   help="move index to seek to (with --seek)")
+    p.add_argument("--time", type=float, default=None,
+                   help="cut time in seconds to seek to (with --seek)")
+
     p = sub.add_parser("machine", parents=[common],
                        help="machine profile: show | validate")
     p.add_argument("action", choices=["show", "validate"])
@@ -1955,8 +3294,9 @@ def main(argv=None):
     if not getattr(args, "command", None):
         parser.print_usage(sys.stderr)
         print("ERROR: usage_error: a command is required "
-              "(plan, check, job, rerun, guides, machine, tools, "
-              "clamps, preferences, serve, init)",
+              "(plan, check, job, rerun, guides, toolpaths, "
+              "validate-job, geometry, build-view3d, gcode, sim, machine, "
+              "tools, clamps, preferences, serve, init)",
               file=sys.stderr)
         return 1
     args = _merge_globals(args)
@@ -1970,6 +3310,12 @@ def main(argv=None):
             "job": cmd_job,
             "rerun": cmd_rerun,
             "guides": cmd_guides,
+            "toolpaths": cmd_toolpaths,
+            "validate-job": cmd_validate_job,
+            "geometry": cmd_geometry,
+            "build-view3d": cmd_build_view3d,
+            "gcode": cmd_gcode,
+            "sim": cmd_sim,
             "machine": cmd_machine,
             "tools": cmd_tools,
             "clamps": cmd_clamps,

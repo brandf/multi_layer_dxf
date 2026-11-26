@@ -28,6 +28,16 @@ a throwaway MLDXF_HOME and checks, in order:
      rerun_unavailable error through faithfully, and on the v2
      parity job it reproduces the job (same DXF geometry after the
      rerun as before).
+  8. V3.2 toolpaths: POST /api/jobs/:id/toolpaths on the API job
+     (202 async, SSE machinery shared with plan runs) upgrades it
+     to v3 — stats agree with the operations, manifest.txt and the
+     DXF are unchanged, manifest.json stays byte-identical to
+     job.json, GET .../validate agrees, the list summary carries
+     the toolpaths; a rerun of the v3 job reproduces the toolpaths
+     byte-for-byte; `mldxf gcode` posts through Masso-mm
+     (verified round-trip, entry recorded, .nc sha matches);
+     `mldxf sim --verify` passes and writes the `sim` section
+     (V3.4), keeping manifest.json byte-identical to job.json.
 
 Usage: python3 server/verify_v25.py [--port N]
 Logs to stdout; exit code = number of failed checks (0 = all pass).
@@ -598,6 +608,155 @@ def main():
               r.returncode == 0
               and json.loads(r.stdout)["job"].get("job_version") == 2,
               r.stdout[:200] + r.stderr[-200:])
+
+        # ---- V3.2: toolpaths via the API ------------------------------
+        # The API container job above is v2 (planned with no --auto
+        # and no --material, so its toolpaths counts are NOT the
+        # 15/222 of the --auto reference — assert structure, not
+        # counts, here; the exact counts live in verify_v28, whose
+        # CLI job is the --auto reference).
+        print("toolpaths (V3.2)", flush=True)
+        status, listing = jreq("GET", "/api/jobs")
+        entry = next((j for j in listing.get("jobs", [])
+                      if j["id"] == api_job_id), None)
+        check("list summary: v2 job has toolpaths null",
+              entry is not None
+              and (entry.get("summary") or {}).get("toolpaths") is None,
+              str(entry)[:300])
+        status, val = jreq("GET", f"/api/jobs/{api_job_id}/validate")
+        check("GET validate on v2 job -> ok, version 2, no toolpaths",
+              status == 200 and val.get("ok") is True
+              and val.get("job_version") == 2
+              and val.get("has_toolpaths") is False,
+              f"status={status} {str(val)[:300]}")
+        manifest_before = (api_dir / "manifest.txt").read_bytes()
+        sig_before = dxf_signature(api_dir / dxf_name)
+        status, tp = jreq("POST", f"/api/jobs/{api_job_id}/toolpaths", {},
+                          timeout=120)
+        check("POST toolpaths -> 202 running",
+              status == 202 and tp.get("ok") is True
+              and tp.get("job", {}).get("status") == "running",
+              f"status={status} {str(tp)[:300]}")
+
+        def tp_done():
+            s, b = jreq("GET", f"/api/jobs/{api_job_id}/status", timeout=10)
+            return b if s == 200 and b.get("status") in ("complete", "failed") else None
+        tpfinal = wait_for(tp_done, 300, 2, "toolpaths run")
+        check("toolpaths run completes",
+              tpfinal["status"] == "complete",
+              str(tpfinal.get("error"))[:300])
+        status, api_job2 = jreq("GET", f"/api/jobs/{api_job_id}")
+        job2 = api_job2.get("job") or {}
+        tp2 = job2.get("toolpaths") or {}
+        stats2 = tp2.get("stats") or {}
+        check("toolpaths: job is v3, stats agree with operations",
+              job2.get("job_version") == 3
+              and stats2.get("operations") == len(tp2.get("operations") or [])
+              and stats2.get("moves") == sum(len(o.get("moves") or [])
+                                             for o in tp2.get("operations") or []),
+              f"version={job2.get('job_version')} stats={stats2}")
+        check("toolpaths: manifest.txt unchanged by toolpaths",
+              (api_dir / "manifest.txt").read_bytes() == manifest_before)
+        check("toolpaths: DXF unchanged by canonical signature",
+              dxf_signature(api_dir / dxf_name) == sig_before)
+        check("toolpaths: manifest.json is job.json (v3, byte-identical)",
+              (api_dir / "manifest.json").read_bytes()
+              == (api_dir / "job.json").read_bytes())
+        status, val3 = jreq("GET", f"/api/jobs/{api_job_id}/validate")
+        check("GET validate on v3 job -> ok, version 3, has toolpaths",
+              status == 200 and val3.get("ok") is True
+              and val3.get("job_version") == 3
+              and val3.get("has_toolpaths") is True,
+              f"status={status} {str(val3)[:200]}")
+        status, listing = jreq("GET", "/api/jobs")
+        entry = next((j for j in listing.get("jobs", [])
+                      if j["id"] == api_job_id), None)
+        tps = (entry.get("summary") or {}).get("toolpaths") or {}
+        check("list summary carries toolpaths matching the detail",
+              tps.get("operations") == stats2.get("operations")
+              and tps.get("moves") == stats2.get("moves")
+              and tps.get("skipped") == (tp2.get("skipped") or []),
+              str(tps)[:300])
+        # Rerun of the v3 job reproduces the toolpaths byte-for-byte.
+        tp_bytes_before = json.dumps(tp2, indent=2, sort_keys=True)
+        status, rerun_v3 = jreq("POST", f"/api/jobs/{api_job_id}/rerun", {},
+                                timeout=900)
+        check("rerun of a v3 job succeeds through the API",
+              status == 200 and rerun_v3.get("ok") is True,
+              f"status={status} {str(rerun_v3)[:400]}")
+        status, api_job3 = jreq("GET", f"/api/jobs/{api_job_id}")
+        job3 = api_job3.get("job") or {}
+        check("rerun reproduces identical toolpaths",
+              json.dumps(job3.get("toolpaths") or {}, indent=2, sort_keys=True)
+              == tp_bytes_before,
+              f"version={job3.get('job_version')}")
+        check("rerun keeps the job v3 (no silent downgrade)",
+              job3.get("job_version") == 3)
+        # gcode posts (V3.6 — the CLI, default Masso-mm) and sim
+        # verifies (V3.4 built it) and writes the sim section on
+        # PASS. The gcode check runs before sim here, so the
+        # round-trip uses prepareSim's derived stock (identical
+        # to the recorded stock for the container job, whose sheet
+        # is at (0,0)); v28 posts after sim and exercises the
+        # recorded-stock path.
+        r = cli("gcode", str(api_dir), "--json")
+        gc_body = json.loads(r.stdout) if r.stdout.strip() else {}
+        gc_job = gc_body.get("job") or {}
+        gc_entries = gc_job.get("gcode") or []
+        gc_mm = next((e for e in gc_entries if e.get("post_id") == "masso-mm"), None)
+        gc_mm_file = api_dir / (gc_mm.get("file") if gc_mm else "missing")
+        check("mldxf gcode posts Masso-mm, verified, entry recorded",
+              r.returncode == 0 and gc_body.get("ok") is True
+              and gc_mm is not None and gc_mm.get("verified") is True
+              and gc_mm.get("file", "").endswith("-masso-mm.nc")
+              and (gc_body.get("roundtrip") or {}).get("verified") is True
+              and (gc_body.get("roundtrip") or {}).get("mismatched") == 0,
+              r.stdout[:300])
+        check("posted .nc exists and its sha256 matches the entry",
+              gc_mm_file.is_file()
+              and hashlib.sha256(gc_mm_file.read_bytes()).hexdigest() == (gc_mm or {}).get("sha256"),
+              str(gc_mm)[:200])
+        r = cli("sim", "--verify", str(api_dir), "--json")
+        sim_body = json.loads(r.stdout) if r.stdout.strip() else {}
+        sim = (sim_body.get("job") or {}).get("sim") or {}
+        # V3.5: checkpoints is the delta-log index (was null in
+        # V3.4) — the file, format, move count, and chunk/byte
+        # totals must agree with the job and the file on disk.
+        # This is the API-defaults job (POST /api/jobs, no --auto,
+        # no --material): 10 operations / 158 moves — NOT the
+        # --auto reference job's 14 ops / 220 moves (that is v28's
+        # CLI job). The numbers below are that job's as regenerated
+        # under the Nov 25-26, 2026 layout change (suggested sheet
+        # 160x90, parts at 21.35/85.05): the stock grew, so the
+        # delta log is 30511796 bytes (was 30507980), and the
+        # rapid traverses shifted, so the cut time is 167.136 s
+        # (was 167.586 s). They no longer match the frozen
+        # v31-jobs/real_container reference job, which keeps the
+        # old layout as history.
+        cps = sim.get("checkpoints") or {}
+        check("mldxf sim --verify passes and writes the sim section",
+              r.returncode == 0 and sim_body.get("ok") is True
+              and sim.get("pitch_mm") == 0.05
+              and sim.get("pitch_coarse") is False
+              and isinstance(cps, dict)
+              and cps.get("file") == "sim/delta.bin"
+              and cps.get("format") == 1
+              and cps.get("moves") == 158
+              and cps.get("chunks") == 6
+              and cps.get("bytes") == 30511796
+              and cps.get("checkpoints") == [
+                  {"chunk": -1, "move": 0, "time_s": 0},
+                  {"chunk": 5, "move": 158, "time_s": 167.13559995425905},
+              ],
+              r.stdout[:300])
+        check("sim writes the delta log the index points at",
+              (api_dir / "sim" / "delta.bin").is_file()
+              and (api_dir / "sim" / "delta.bin").stat().st_size
+              == (cps.get("bytes") or -1),
+              str(cps.get("bytes")))
+        check("sim keeps manifest.json byte-identical to job.json",
+              (api_dir / "job.json").read_bytes()
+              == (api_dir / "manifest.json").read_bytes())
     finally:
         try:
             os.killpg(os.getpgid(server.pid), signal.SIGINT)

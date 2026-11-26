@@ -168,6 +168,25 @@ const TAB_ICONS = {
 };
 window.App = App;
 
+// The native in-house post-processors (V3.6/V3.8) — the ids `mldxf
+// gcode` accepts. The AUTHORITY is the TS registry
+// (ts/posts/index.ts POSTS); this list mirrors it for the two
+// dropdowns that choose a post (Preferences + machine profile).
+// A post added to the registry needs adding here too — the V3.8
+// verify_v28 checks assert the dropdowns offer exactly these ids.
+/** @type {{id: string, label: string}[]} */
+const NATIVE_POSTS = [
+  { id: "masso-mm", label: "Onefinity Masso (mm)" },
+  { id: "masso-inch", label: "Onefinity Masso (inch)" },
+  { id: "grbl", label: "GRBL (generic hobby)" },
+  { id: "template", label: "Template (example post)" },
+];
+/** Label for a post id (the id itself for an unknown value). */
+function postLabel(id) {
+  const found = NATIVE_POSTS.find((p) => p.id === id);
+  return found ? found.label : id;
+}
+
 // ---------------------------------------------------------------- helpers
 
 /** Call the server API. Throws an Error carrying the API's named
@@ -281,8 +300,8 @@ function parseToolId(id) {
 
 /** A feeds override as human words, not a code dump: "feed 30 mm/s ·
  * plunge 10 · spindle 20,000 rpm". Unknown keys fall back to key=value. */
-function formatFeeds(feeds) {
-  if (!feeds) return "planner defaults";
+function formatFeedsParts(feeds) {
+  if (!feeds) return [];
   const parts = [];
   const labels = {
     feed_mm_s: (v) => `feed ${v} mm/s`,
@@ -294,6 +313,11 @@ function formatFeeds(feeds) {
   for (const [k, v] of Object.entries(feeds)) {
     parts.push(labels[k] ? labels[k](v) : `${k}=${v}`);
   }
+  return parts;
+}
+function formatFeeds(feeds) {
+  if (!feeds) return "planner defaults";
+  const parts = formatFeedsParts(feeds);
   return parts.length ? parts.join(" · ") : "planner defaults";
 }
 
@@ -416,13 +440,26 @@ function renderToolsTab(container) {
         el("th", { text: "Id" }), el("th", { text: "Kind" }),
         el("th", { class: "num", text: "Dia (mm)" }),
         el("th", { text: "Native label" }), el("th", { text: "Feeds override" }),
-        el("th", { text: "Notes" }), el("th", { text: "" }),
+        el("th", { text: "Notes" }), el("th", { text: "Actions" }),
       ]));
       table.appendChild(thead);
       const tbody = document.createElement("tbody");
       table.appendChild(tbody);
       for (const t of doc.tools) {
-        const feeds = formatFeeds(t.feeds);
+        // The feeds override breaks only between segments (m9):
+        // each "feed 30 mm/s" segment is a no-wrap span, so the
+        // cell never wraps mid-phrase ("feed 30" / "mm/s").
+        // separator lives INSIDE the following segment's span
+        // ("· plunge 10"), not as a text node between spans — in
+        // the narrow card layout each segment is its own line
+        // (see style.css) and a bare "·" text node would take a
+        // line of its own. Wide rendering is unchanged.
+        const feedsParts = formatFeedsParts(t.feeds);
+        const feedsCell = el("td", { "data-label": "Feeds override" });
+        if (!feedsParts.length) feedsCell.textContent = "planner defaults";
+        else feedsParts.forEach((p, i) => {
+          feedsCell.appendChild(el("span", { class: "feeds-seg", text: (i ? " · " : "") + p }));
+        });
         // The note sits behind a "Notes" toggle, collapsed by
         // default at every width: one line per row, the full note
         // one click away. Showing the paragraph in full ballooned
@@ -438,7 +475,7 @@ function renderToolsTab(container) {
           el("td", { text: t.kind, "data-label": "Kind" }),
           el("td", { class: "num", text: String(t.dia_mm), "data-label": "Dia (mm)" }),
           el("td", { text: t.native_label, "data-label": "Native label" }),
-          el("td", { text: feeds, "data-label": "Feeds override" }),
+          feedsCell,
           notesCell,
         ]);
         const actions = el("td", { class: "actions-cell", "data-label": "" });
@@ -650,7 +687,13 @@ function renderClampsMachineTab(container) {
     // not as UI copy — only the count stays here.
     body.appendChild(el("p", {
       class: "version",
-      text: `${countText(clampsDoc.clamps.length, "clamp", "clamps")} recorded.`,
+      // The count is the physical clamps, not the inventory rows:
+      // a fresh home has 5 clamp-type rows with Count 0 each, so
+      // "5 clamps recorded" contradicted the table it sat above.
+      // The row count is the number of types; the total is the
+      // sum of the Count column.
+      text: `${countText(clampsDoc.clamps.length, "clamp type", "clamp types")} recorded — ` +
+        `${countText(clampsDoc.clamps.reduce((n, c) => n + (c.count || 0), 0), "clamp", "clamps")} in total.`,
     }));
 
     // ---- Machine profile ----
@@ -665,12 +708,24 @@ function renderClampsMachineTab(container) {
     const controllerInput = textInput(machine.controller);
     const materialInput = textInput(
       typeof machine.default_material === "string" ? machine.default_material : "");
+    // V3.8: the machine profile names the post — a real selection
+    // over the native posts, not free text. Read at save time like
+    // the other machine fields below; an empty choice stores null
+    // (no selection — `mldxf gcode` then uses its default).
+    const postSel = el("select");
+    postSel.setAttribute("data-role", "machine-post");
+    for (const [value, label] of [["", "Not set — default (masso-mm)"], ...NATIVE_POSTS.map((p) => [p.id, p.label])]) {
+      const opt = el("option", { value, text: label });
+      if ((machine.post_processor || "") === value) opt.selected = true;
+      postSel.appendChild(opt);
+    }
     mgrid.appendChild(labeled("Machine id", idInput));
     mgrid.appendChild(labeled("Name", nameInput));
     mgrid.appendChild(labeled("Bed width (mm)", bedW));
     mgrid.appendChild(labeled("Bed depth (mm)", bedD));
     mgrid.appendChild(labeled("Controller", controllerInput, "informational in V2"));
     mgrid.appendChild(labeled("Default material", materialInput, null, "Sheet size, WxDxT in mm — blank for none"));
+    mgrid.appendChild(labeled("Post processor", postSel, null, "The in-house post this machine uses is `mldxf gcode` — unless a job or --post says otherwise"));
     mfs.appendChild(mgrid);
     body.appendChild(mfs);
 
@@ -734,7 +789,11 @@ function renderClampsMachineTab(container) {
     }
     (tt.slots || []).forEach((slot, i) => {
       const row = el("tr", { "data-slot-row": String(i) });
-      const axisCell = el("td");
+      // Round 14 (M2) — every cell carries its header as
+      // data-label, so the narrow card layout can label each row
+      // (see style.css); the Remove cell carries an empty label
+      // so no label doubles the button.
+      const axisCell = el("td", { "data-label": "Axis" });
       const axisSel = el("select");
       for (const a of ["x", "y"]) {
         const opt = el("option", { value: a, text: a });
@@ -765,13 +824,15 @@ function renderClampsMachineTab(container) {
       const toInput = numInput(slot.axis === "x" ? slot.to_x_mm : slot.to_y_mm);
       toInput.name = "slot to";
       const phInput = checkInput(slot.placeholder === true);
-      // A textarea, not a single-line input: the comment is long
-      // ("PLACEHOLDER — not a measurement…") and a one-line input
-      // truncates it with no way to read the rest. The textarea
-      // wraps so the full comment reads, and the title carries it
-      // on hover as well.
+      // Round 14 (m6) — a single-row textarea that expands on
+      // focus: the comment is long ("PLACEHOLDER — not a
+      // measurement…") and a one-line input truncates it with no
+      // way to read the rest, but a 3-row textarea made every
+      // slots row very tall even when empty. One row tall at
+      // rest (see style.css: it grows to 5 rows on focus, wraps,
+      // and the title carries the full text on hover).
       const commentInput = document.createElement("textarea");
-      commentInput.rows = 2;
+      commentInput.rows = 1;
       commentInput.value = slot.comment || "";
       commentInput.title = slot.comment || "";
       const saveSlot = () => {
@@ -793,12 +854,12 @@ function renderClampsMachineTab(container) {
       for (const inp of [atInput, fromInput, toInput, phInput, commentInput]) {
         inp.addEventListener("change", saveSlot);
       }
-      const atCell = el("td", { class: "num" }); atCell.appendChild(atInput); row.appendChild(atCell);
-      const fromCell = el("td", { class: "num" }); fromCell.appendChild(fromInput); row.appendChild(fromCell);
-      const toCell = el("td", { class: "num" }); toCell.appendChild(toInput); row.appendChild(toCell);
-      const phCell = el("td"); phCell.appendChild(phInput); row.appendChild(phCell);
-      const commentCell = el("td"); commentCell.appendChild(commentInput); row.appendChild(commentCell);
-      const delCell = el("td");
+      const atCell = el("td", { class: "num", "data-label": "At (mm)" }); atCell.appendChild(atInput); row.appendChild(atCell);
+      const fromCell = el("td", { class: "num", "data-label": "From (mm)" }); fromCell.appendChild(fromInput); row.appendChild(fromCell);
+      const toCell = el("td", { class: "num", "data-label": "To (mm)" }); toCell.appendChild(toInput); row.appendChild(toCell);
+      const phCell = el("td", { "data-label": "Placeholder" }); phCell.appendChild(phInput); row.appendChild(phCell);
+      const commentCell = el("td", { "data-label": "Comment" }); commentCell.appendChild(commentInput); row.appendChild(commentCell);
+      const delCell = el("td", { "data-label": "" });
       const delBtn = el("button", { type: "button", class: "danger", text: "Remove" });
       delBtn.addEventListener("click", () => {
         machine.t_track.slots.splice(i, 1);
@@ -857,6 +918,7 @@ function renderClampsMachineTab(container) {
         machine.id = id;
         machine.name = name;
         machine.controller = controller;
+        machine.post_processor = postSel.value || null;
         machine.bed = { width_mm: width, depth_mm: depth };
         const material = materialInput.value.trim();
         machine.default_material = material || null;
@@ -896,7 +958,7 @@ function renderClampsMachineTab(container) {
         el("th", { text: "Footprint (mm)" }), el("th", { class: "num", text: "Keep-out (mm)" }),
         el("th", { class: "num", text: "Hold force (N)" }),
         el("th", { text: "T-track?" }), el("th", { class: "num", text: "Count" }),
-        el("th", { text: "Notes" }), el("th", { text: "" }),
+        el("th", { text: "Notes" }), el("th", { text: "Actions" }),
       ]));
       for (const c of clampsDoc.clamps) {
         // The note sits behind a "Notes" toggle, collapsed by
@@ -908,17 +970,21 @@ function renderClampsMachineTab(container) {
         noteDetails.appendChild(el("summary", { text: "Notes" }));
         noteDetails.appendChild(el("span", { text: c.notes || "" }));
         notesCell.appendChild(noteDetails);
+        // Round 14 (M2) — every cell carries its header as
+        // data-label, so the narrow card layout can label each row
+        // (see style.css); the Actions cell carries an empty label
+        // so no label doubles the buttons.
         const row = el("tr", {}, [
-          el("td", {}, [codeWithHyphenBreaks(c.id)]),
-          el("td", { text: c.method }),
-          el("td", { text: `${c.footprint_mm[0]} × ${c.footprint_mm[1]}` }),
-          el("td", { class: "num", text: String(c.keep_out_mm) }),
-          el("td", { class: "num", text: c.hold_force_n !== undefined ? String(c.hold_force_n) : "—" }),
-          el("td", { text: c.t_track ? "yes" : "no" }),
-          el("td", { class: "num", text: String(c.count) }),
+          el("td", { "data-label": "Id" }, [codeWithHyphenBreaks(c.id)]),
+          el("td", { text: c.method, "data-label": "Method" }),
+          el("td", { text: `${c.footprint_mm[0]} × ${c.footprint_mm[1]}`, "data-label": "Footprint (mm)" }),
+          el("td", { class: "num", text: String(c.keep_out_mm), "data-label": "Keep-out (mm)" }),
+          el("td", { class: "num", text: c.hold_force_n !== undefined ? String(c.hold_force_n) : "—", "data-label": "Hold force (N)" }),
+          el("td", { text: c.t_track ? "yes" : "no", "data-label": "T-track?" }),
+          el("td", { class: "num", text: String(c.count), "data-label": "Count" }),
           notesCell,
         ]);
-        const actions = el("td", { class: "actions-cell" });
+        const actions = el("td", { class: "actions-cell", "data-label": "" });
         const editBtn = el("button", { type: "button", text: "Edit" });
         editBtn.addEventListener("click", () => { editingClampId = c.id; draw(); });
         const delBtn = el("button", { type: "button", class: "danger", text: "Remove" });
@@ -1078,8 +1144,13 @@ function renderPreferencesTab(container) {
     } else if (kind === "select") {
       input = el("select");
       for (const o of options) {
-        const opt = el("option", { value: o, text: o });
-        if (get() === o) opt.selected = true;
+        // An option is a bare string (value == label) or a
+        // [value, label] pair (the V3.8 post dropdown shows labels
+        // and stores ids).
+        const value = Array.isArray(o) ? o[0] : o;
+        const label = Array.isArray(o) ? o[1] : o;
+        const opt = el("option", { value, text: label });
+        if (get() === value) opt.selected = true;
         input.appendChild(opt);
       }
       input.addEventListener("change", () => set(input.value));
@@ -1183,6 +1254,10 @@ function renderPreferencesTab(container) {
     const pens = p.orientation_penalties || (p.orientation_penalties = {});
     const tabs = tp.tabs || (tp.tabs = {});
     const vc = p.vcarve || (p.vcarve = {});
+    // Z-zero reads as "top" when the home never set it (the
+    // default in docs-v3/z_zero.md) — the select and the section
+    // summary must show the effective value, never undefined.
+    if (vc.z_zero !== "top" && vc.z_zero !== "bottom") vc.z_zero = "top";
 
     let grid = section("General", "prefs-general",
       `Clamp margin ${p.clamp_margin_mm} mm · min web ${p.web_min_mm} mm · ` +
@@ -1318,18 +1393,26 @@ function renderPreferencesTab(container) {
     field(grid, { label: "Tab length (mm)", kind: "num", get: () => tabs.length_mm, set: (v) => { tabs.length_mm = v; }, desc: "How long each holding tab is along the cut." });
     field(grid, { label: "Tab thickness (mm)", kind: "num", get: () => tabs.thickness_mm, set: (v) => { tabs.thickness_mm = v; }, desc: "How thick each holding tab is — the uncut material left behind." });
 
-    // A stored CHANGE_ME sentinel is a placeholder, not a value:
-    // the summary says "not set" (with the example) until a real
-    // post processor is chosen — never the placeholder token.
+    // V3.8: the post processor is a real selection, not free text.
+    // The stored value is a native post id (masso-mm, masso-inch,
+    // grbl, template); a stored CHANGE_ME sentinel or a legacy
+    // VCarve post name matches no option, so the select shows
+    // "Not set" until a real post is chosen — never the placeholder
+    // token. Saving a chosen post also sets the machine profile's
+    // post processor (machine.json): the server mirrors it on PUT
+    // /api/preferences, so the choice is what `mldxf gcode`
+    // actually posts with. (A legacy VCarve name stored here is
+    // replaced by "" on the next save — it was informational only,
+    // nothing reads it as code; see docs-v3/post_config.md.)
     const pp = vc.post_processor;
-    const ppText = (pp && !String(pp).startsWith("CHANGE_ME"))
-      ? pp : "not set — e.g. GRBL (mm)";
+    const ppKnown = NATIVE_POSTS.some((p) => p.id === pp);
+    const ppText = ppKnown ? postLabel(pp) : "not set — pick a post";
     grid = section("VCarve", "prefs-vcarve",
       `Mode ${vc.gadget_mode} · Z zero ${vc.z_zero} · post processor ${ppText}`);
     field(grid, { label: "Gadget mode", kind: "select", options: ["full", "check", "dxf", "manifest"], get: () => vc.gadget_mode, set: (v) => { vc.gadget_mode = v; }, desc: "What the VCarve gadget does: build everything, check only, write the DXF, or write the manifest." });
     field(grid, { label: "Material thickness from the STEP", kind: "bool", get: () => vc.material_thickness_from_step, set: (v) => { vc.material_thickness_from_step = v; }, desc: "Take the sheet thickness from the part instead of the material setting." });
-    field(grid, { label: "Post processor", kind: "text", get: () => vc.post_processor, set: (v) => { vc.post_processor = v; }, wide: true, sentinel: "CHANGE_ME — e.g. GRBL (mm) / Mach3 / ShopBot", desc: "The VCarve post processor that turns toolpaths into G-code for your controller." });
-    field(grid, { label: "Z zero", kind: "select", options: ["top", "bottom"], get: () => vc.z_zero, set: (v) => { vc.z_zero = v; }, desc: "Where zero height is: the top of the sheet or the bottom." });
+    field(grid, { label: "Post processor", kind: "select", options: [["", "Not set — pick a post"], ...NATIVE_POSTS.map((p) => [p.id, p.label])], get: () => vc.post_processor, set: (v) => { vc.post_processor = v; }, wide: true, desc: "The in-house post-processor that turns toolpaths into G-code for your controller. Choosing one also sets the machine profile's post processor (machine.json) — `mldxf gcode` uses it unless a job or --post says otherwise." });
+    field(grid, { label: "Z zero", kind: "select", options: ["top", "bottom"], get: () => vc.z_zero, set: (v) => { vc.z_zero = v; }, desc: "Where zero height is: the top of the sheet or the bottom. New jobs use this unless a --config file sets vcarve.z_zero (the config file wins); a job records its own Z-zero, so changing this never moves an existing job's zero." });
 
     // post_method_overrides — layer name -> post method.
     const ovDetails = el("details", { class: "prefs-section" });

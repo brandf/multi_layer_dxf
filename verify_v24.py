@@ -8,12 +8,14 @@ Runs the real container STEP (test/real_container.step) through
      carries owned booleans on every plan's tools (Plan A EM3.17 /
      D2.25 false, EM6.35 true), `mldxf job` shows owned first with
      the not-owned warning, report.md carries the inventory section.
-  2. empty inventory: Plan A is exactly the V1 numbers (3 tools /
-     7.0 min / 418.8 s), all tools owned:false, no ranking change —
-     job.json's v1 keys (owned stripped), manifest.txt, report.md
-     (inventory section stripped) and the DXF (canonical signature)
-     all match a fresh direct-v1 run; the report says plainly that
-     no inventory is recorded instead of alarming about every tool.
+  2. empty inventory: Plan A is exactly the no-inventory numbers
+     (3 tools / 7.7 min / 464.1 s — V3.14 cut-time feedback; V1's
+     were 7.0 min / 418.8 s), all tools owned:false, no ranking
+     change — job.json's v1 keys (owned stripped), manifest.txt,
+     report.md (inventory section stripped) and the DXF (canonical
+     signature) all match a fresh direct-v1 run; the report says
+     plainly that no inventory is recorded instead of alarming
+     about every tool.
   3. rerun: after the live tools.json is changed to own everything,
      `mldxf rerun` on the test-inventory job keeps the same owned
      flags and the same report inventory section (snapshot-derived).
@@ -92,7 +94,10 @@ def strip_owned(obj):
 
 V2_KEYS = {"job_version", "job_id", "cli_version", "created_at",
            "source_step_sha256", "inputs_embedded", "config_snapshot",
-           "machine_profile", "workholding", "outputs"}
+           "machine_profile", "workholding", "outputs",
+           # Nov 26, 2026 (Z-zero): the job's Z-zero, recorded by
+           # plan — a v2-era key, not a v1 manifest key.
+           "z_zero"}
 
 
 def v1_keys(job):
@@ -148,10 +153,10 @@ def main():
     job = load_json(job_test / "job.json")
     pa = plan_a(job)
     check("T1 Plan A is EM3.17 + D2.25 + EM6.35, 3 tools, 2 changes, "
-          "7.0 min",
+          "7.7 min",
           [t["id"] for t in pa["tools"]] == ["EM3.17", "D2.25", "EM6.35"]
           and len(pa["tools"]) == 3 and pa["tool_changes"] == 2
-          and abs(pa["total_seconds"] / 60.0 - 7.0) < 0.05,
+          and abs(pa["total_seconds"] / 60.0 - 7.7) < 0.05,
           json.dumps(owned_flags(pa)))
     check("T1 Plan A owned flags EM3.17 False, D2.25 False, EM6.35 True",
           owned_flags(pa) == [("EM3.17", False), ("D2.25", False),
@@ -163,12 +168,12 @@ def main():
           all_tools and all(isinstance(t.get("owned"), bool)
                             for t in all_tools),
           f"{len(all_tools)} tools")
-    check("T1 ranking untouched: Plan A 418.8 s, B 7.8 min, C 11.6 min",
-          abs(pa["total_seconds"] - 418.8) < 0.01
+    check("T1 ranking untouched: Plan A 464.1 s, B 8.7 min, C 12.7 min",
+          abs(pa["total_seconds"] - 464.1) < 0.01
           and abs(job["tool_plan"]["plans"][1]["total_seconds"] / 60.0
-                  - 7.8) < 0.05
+                  - 8.7) < 0.05
           and abs(job["tool_plan"]["plans"][2]["total_seconds"] / 60.0
-                  - 11.6) < 0.05,
+                  - 12.7) < 0.05,
           [round(p["total_seconds"] / 60.0, 1)
            for p in job["tool_plan"]["plans"]])
     rc, so, se = cli(home_test, "job", str(job_test))
@@ -200,7 +205,7 @@ def main():
           "Plan A: End Mill 1/4in (owned) + End Mill 1/8in (not in "
           "your inventory — check before you cut) + Drill 2.25 mm "
           "(not in your inventory — check before you cut) — 3 tools, "
-          "2 changes, 7.0 min" in so_plan, so_plan)
+          "2 changes, 7.7 min" in so_plan, so_plan)
 
     # --- 2. empty inventory: exactly V1 -------------------------------
     home_empty = make_home(work / "home_empty", [])
@@ -214,10 +219,10 @@ def main():
     check("T2 empty-inventory plan exits 0", rc == 0, se[-500:])
     job_e = load_json(job_empty / "job.json")
     pa_e = plan_a(job_e)
-    check("T2 Plan A is V1 numbers: 3 tools / 7.0 min / 418.8 s",
+    check("T2 Plan A matches the no-inventory numbers: 3 tools / 7.7 min / 464.1 s",
           [t["id"] for t in pa_e["tools"]] ==
           ["EM3.17", "D2.25", "EM6.35"]
-          and abs(pa_e["total_seconds"] - 418.8) < 0.01,
+          and abs(pa_e["total_seconds"] - 464.1) < 0.01,
           json.dumps(owned_flags(pa_e)))
     check("T2 all tools owned:false with empty inventory",
           all(t.get("owned") is False for p in job_e["tool_plan"]["plans"]
@@ -226,7 +231,7 @@ def main():
                       for p in job_e["tool_plan"]["plans"]]))
     check("T2 plan summary is exactly the V1 string",
           "Plan A: End Mill 1/8in + Drill 2.25 mm + End Mill 1/4in — "
-          "3 tools, 2 changes, 7.0 min" in so, so)
+          "3 tools, 2 changes, 7.7 min" in so, so)
     report_e = (job_empty / "report.md").read_text()
     check("T2 report says plainly no inventory is recorded",
           "No tool inventory recorded yet (tools.json is empty)" in
@@ -297,8 +302,8 @@ def main():
     check("T3 rerun report inventory section is unchanged",
           report_r.split("## Tool inventory (advisory")[1] ==
           section_before)
-    check("T3 rerun Plan A still 418.8 s (ranking untouched)",
-          abs(plan_a(job_r)["total_seconds"] - 418.8) < 0.01)
+    check("T3 rerun Plan A still 464.1 s (ranking untouched)",
+          abs(plan_a(job_r)["total_seconds"] - 464.1) < 0.01)
 
     # --- 4/5. unowned plan stands; v1 job shows no owned info --------
     check("T4 job dir complete despite unowned tools",

@@ -19,8 +19,11 @@
  * the harness's own PASS/FAIL lines -> exit code = fail count.
  *
  * Usage: bun server/run-job-prep-e2e.ts [--app-port N] [--proxy-port N]
- *        [--debug-port N] [--keep-home]   (keeps the scratch home for
- *        debugging; default removes it)
+ *        [--debug-port N] [--keep-home] [--mode dom|e2e]
+ *        (keeps the scratch home for debugging; default removes it).
+ *        --mode e2e (default) runs the live end-to-end flow;
+ *        --mode dom runs the synchronous DOM harness checks
+ *        (canned jobs) in the same real browser + proxy.
  */
 import { join } from "node:path";
 import { $ } from "bun";
@@ -37,6 +40,7 @@ function arg(name: string, fallback: string): string {
 const APP_PORT = arg("--app-port", "3897");
 const PROXY_PORT = arg("--proxy-port", "3898");
 const DEBUG_PORT = Number(arg("--debug-port", "9224"));
+const MODE = arg("--mode", "e2e");
 const KEEP_HOME = process.argv.includes("--keep-home");
 const HOME = join(process.env.HOME!, "workspace", ".mldxf-jobprep-e2e-home");
 const PROFILE = join(process.env.HOME!, "workspace", "jobprep-e2e-chrome-profile");
@@ -113,7 +117,7 @@ async function main() {
         "--no-sandbox",
         "--disable-gpu",
         `--user-data-dir=${PROFILE}`,
-        `http://127.0.0.1:${PROXY_PORT}/test-job-prep.html?mode=e2e`,
+        `http://127.0.0.1:${PROXY_PORT}/test-job-prep.html?mode=${MODE}`,
       ],
       { stdout: "pipe", stderr: "pipe" },
     );

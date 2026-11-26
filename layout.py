@@ -19,9 +19,12 @@ Rules (BRA-16 issue + Brandon 2026-11-08):
     full. A part may be rotated 90 deg in Z to fit (recorded as
     rotate_z in the manifest). Gap between parts is gap_mm.
   - Clamping: a clamp margin (config "clamp_margin_mm", default
-    20 mm) is reserved around the material edge; parts are placed
+    15 mm) is reserved around the material edge; parts are placed
     only inside the usable area (material minus margin). The margin
-    and usable area go in the manifest/report.
+    is clamp space only, sized for the clamp body — it carries no
+    tool diameter — and it is the web on the outside (Brandon,
+    Nov 25, 2026). The margin and usable area go in the
+    manifest/report.
   - Registration pins (two-sided): when the job is two-sided, the
     layout reserves two pin positions (dowel-pin holes) outside the
     parts but inside the material, in the clamp-safe zone (inside
@@ -36,15 +39,31 @@ Rules (BRA-16 issue + Brandon 2026-11-08):
     profile endmill diameters (toolplan.profile_tool_diameter, the
     planner fit rule, computed BEFORE packing — see multi_part.py)
     and web_min is the remaining web for the tabs (default 5 mm).
-    The same rule sets the gap between rows, the clamp margin
-    check (margin must cover D + web_min or the kerf eats the
-    sheet edge), and the registration-pin clearance (pin centre to
-    a part outline >= D_p + pin radius + ~3 mm). Pockets and
-    drills do not affect spacing (they cut interior material).
+    The same rule sets the gap between rows and the edge inset:
+    every part outline sits D_p inside the usable-area boundary
+    (its own profile tool — the kerf only), so the kerf runs up
+    to the usable boundary and the margin band itself is the web
+    on the outside; the clamp margin must be bigger than web_min
+    (see check_margin_web) and it carries no tool diameter
+    (Brandon, Nov 25, 2026). The registration-pin clearance is
+    pin centre to a part outline >= D_p + pin radius + ~3 mm.
+    Pockets and drills do not affect spacing (they cut interior
+    material).
 """
 import math
 
-DEFAULT_CLAMP_MARGIN_MM = 20.0
+DEFAULT_CLAMP_MARGIN_MM = 15.0
+# Floor for the clamp margin (Brandon, Nov 25, 2026): the margin
+# band must fit the clamp body, so the margin is at least the
+# largest across-slot clamp footprint in the recorded inventory —
+# the clamp's long side runs along its slot, so the across-slot
+# width is min(footprint). Recorded inventory: test-tt-clamp
+# 20 x 12 mm -> 12 mm across. The default 15 mm leaves 3 mm
+# slack. Enforced at guide time (mldxf_guides.compute_guides),
+# where the inventory is known — the headless pipeline never
+# reads the home, so it cannot enforce this itself. See
+# check_margin_for_clamps below.
+MIN_CLAMP_MARGIN_MM = 12.0
 DEFAULT_PIN_DIAMETER_MM = 6.0
 DEFAULT_PIN_KEEP_OUT_MM = 1.0  # extra clearance around a pin hole
 DEFAULT_WEB_MIN_MM = 5.0       # minimum remaining web between profile cuts
@@ -58,7 +77,9 @@ class PackError(Exception):
 
 
 def clamp_margin_mm(cfg=None, parts_cfg=None):
-    """Clamp margin in mm: parts.json wins, then config, then 20."""
+    """Clamp margin in mm: parts.json wins, then config, then 15
+    (the default). The margin is clamp space only — see
+    MIN_CLAMP_MARGIN_MM for the floor from the clamp inventory."""
     for src in (parts_cfg, cfg):
         if src and src.get("clamp_margin_mm") is not None:
             return float(src["clamp_margin_mm"])
@@ -108,10 +129,14 @@ def _ceil_to(value, step):
 
 
 def suggest_material(packed_w, packed_d, max_height, margin):
-    """Suggested material size when none was given: packed layout
-    bounds + clamp margin on every side, W/D rounded up to the
-    next 10 mm; thickness is the tallest part, rounded up to the
-    next 1 mm."""
+    """Suggested material size when none was given: the REQUIRED
+    usable extents (packed layout bounds plus the far-side kerf
+    insets — see required_usable_extents) + clamp margin on every
+    side, W/D rounded up to the next 10 mm; thickness is the
+    tallest part, rounded up to the next 1 mm. The caller passes
+    the required extents, not the raw packed bounds, so the sheet
+    covers parts + kerf + margin (the margin band is the web on
+    the outside)."""
     return {
         "x": _ceil_to(packed_w + 2 * margin, 10),
         "y": _ceil_to(packed_d + 2 * margin, 10),
@@ -119,20 +144,30 @@ def suggest_material(packed_w, packed_d, max_height, margin):
     }
 
 
-def check_fits_usable(name, w, d, max_w, max_d):
+def check_fits_usable(name, w, d, max_w, max_d, dia=None,
+                     web_min_mm=DEFAULT_WEB_MIN_MM):
     """A single part's footprint must fit the usable area in either
-    in-plane spin. Raises PackError naming the part and the shortfall."""
+    in-plane spin. Raises PackError naming the part and the shortfall.
+    With dia given, the fit also reserves the part's own edge inset
+    (dia — the kerf only) on every side: the kerf runs up to the
+    usable boundary and the margin band is the web on the outside.
+    With dia None (the prepare-phase call, before the profile tools
+    are known) it checks the bare footprint only; pack_shelf
+    enforces the insets once the tools are known."""
     if max_w is None:
         return
-    fits = (w <= max_w + TOL_MM and d <= max_d + TOL_MM) or \
-           (d <= max_w + TOL_MM and w <= max_d + TOL_MM)
+    inset = dia if dia is not None else 0.0
+    fits = (w + 2 * inset <= max_w + TOL_MM and d + 2 * inset <= max_d + TOL_MM) or \
+           (d + 2 * inset <= max_w + TOL_MM and w + 2 * inset <= max_d + TOL_MM)
     if not fits:
-        over0 = max(0.0, w - max_w) + max(0.0, d - max_d)
-        over1 = max(0.0, d - max_w) + max(0.0, w - max_d)
+        over0 = max(0.0, w + 2 * inset - max_w) + max(0.0, d + 2 * inset - max_d)
+        over1 = max(0.0, d + 2 * inset - max_w) + max(0.0, w + 2 * inset - max_d)
         raise PackError(
             f"part {name} footprint {w:.2f} x {d:.2f} mm does not fit "
             f"usable area {max_w:.2f} x {max_d:.2f} mm in either spin "
-            f"(short by {min(over0, over1):.2f} mm in the best spin)")
+            f"(short by {min(over0, over1):.2f} mm in the best spin)"
+            + (f" (includes {inset:.2f} mm kerf inset per side)"
+               if inset else ""))
 
 
 def pack_shelf(rects, gap, max_w=None, max_d=None,
@@ -141,7 +176,18 @@ def pack_shelf(rects, gap, max_w=None, max_d=None,
     (caller sorts largest-first); tool_dia is the part's profile
     endmill diameter (BRA-16 spacing rule) or None when unknown.
     Returns [{name, x, y, w, d, rotate_z}] with x/y the lower-left
-    corner of the placed rect.
+    corner of the placed rect, in usable-area coordinates.
+    Edge inset (Brandon, Nov 25, 2026): every part outline sits
+    (its own tool_dia — the kerf only) inside the usable-area
+    boundary, so the kerf runs up to the usable boundary and the
+    margin band itself is the web on the outside; the clamp
+    margin must be bigger than web_min (see check_margin_web).
+    The first part in a row starts at its own inset, the first
+    row starts at the largest inset in the row, and a part only
+    fits a row when its outline plus its own inset fits the
+    usable width — the inset is per part, not a single max. With
+    every tool_dia None the insets are all zero — exactly the old
+    behaviour.
     The gap between two adjacent parts is pair_gap(D_A, D_B) and the
     gap between two rows is max(gap, max tool in the row above +
     max tool in the row below + web_min). With every tool_dia None
@@ -149,7 +195,8 @@ def pack_shelf(rects, gap, max_w=None, max_d=None,
     A rect is tried unrotated first, then rotated 90 deg, in the
     current row; if neither fits the row it starts a new row.
     With max_w/max_d None the layout is unbounded: a single row,
-    exactly the old behaviour (regressions must not move).
+    but placements still start at the edge inset (the unbounded
+    regressions move with the Nov 25, 2026 semantics change).
     Raises PackError naming the part and the overshoot when a rect
     cannot fit the usable width in either spin, or the rows exceed
     the usable depth."""
@@ -160,14 +207,16 @@ def pack_shelf(rects, gap, max_w=None, max_d=None,
         w, d = float(r["w"]), float(r["d"])
         name = r["name"]
         dia = r.get("tool_dia")
+        inset = dia if dia is not None else 0.0
         if max_w is not None:
-            check_fits_usable(name, w, d, max_w, max_d)
-        # gap to the previous part in this row (0 for the first)
+            check_fits_usable(name, w, d, max_w, max_d, dia, web_min_mm)
+        # gap to the previous part in this row (the first part in a
+        # row starts at its own edge inset, not at the usable edge)
         prev_dia = cur["items"][-1][0].get("tool_dia") if cur["items"] else None
         placed = None
         for rot, (rw, rd) in ((0, (w, d)), (90, (d, w))):
-            gx = pair_gap(prev_dia, dia, gap, web_min_mm) if cur["items"] else 0.0
-            if max_w is None or x + gx + rw <= max_w + TOL_MM:
+            gx = pair_gap(prev_dia, dia, gap, web_min_mm) if cur["items"] else inset
+            if max_w is None or x + gx + rw + inset <= max_w + TOL_MM:
                 placed = (x + gx, rw, rd, rot)
                 break
         if placed is None:
@@ -177,13 +226,15 @@ def pack_shelf(rects, gap, max_w=None, max_d=None,
             cur = {"items": [], "height": 0.0, "max_dia": 0.0}
             x = 0.0
             for rot, (rw, rd) in ((0, (w, d)), (90, (d, w))):
-                if max_w is None or rw <= max_w + TOL_MM:
-                    placed = (0.0, rw, rd, rot)
+                if max_w is None or rw + 2 * inset <= max_w + TOL_MM:
+                    placed = (inset, rw, rd, rot)
                     break
             if placed is None:
                 raise PackError(
                     f"part {name} footprint {w:.2f} x {d:.2f} mm does not fit "
-                    f"usable width {max_w:.2f} mm in either spin")
+                    f"usable width {max_w:.2f} mm in either spin"
+                    + (f" (needs {inset:.2f} mm kerf inset per side)"
+                       if inset else ""))
         px, pw, pd, rot = placed
         cur["items"].append((r, px, pw, pd, rot))
         cur["height"] = max(cur["height"], pd)
@@ -196,7 +247,15 @@ def pack_shelf(rects, gap, max_w=None, max_d=None,
     placements = []
     y = 0.0
     for i, row in enumerate(rows):
-        if i > 0:
+        # First row starts at its largest edge inset; later rows
+        # stack on the previous row's height + the row gap.
+        row_inset = max(
+            ((it[0].get("tool_dia"))
+             if it[0].get("tool_dia") is not None else 0.0)
+            for it in row["items"]) if row["items"] else 0.0
+        if i == 0:
+            y = row_inset
+        else:
             prev = rows[i - 1]
             row_gap = max(gap, prev["max_dia"] + row["max_dia"] + web_min_mm)
             y += prev["height"] + row_gap
@@ -204,15 +263,23 @@ def pack_shelf(rects, gap, max_w=None, max_d=None,
             placements.append({"name": r["name"], "x": round(px, 3), "y": round(y, 3),
                                "w": round(pw, 3), "d": round(pd, 3), "rotate_z": rot})
     total_d = y + rows[-1]["height"] if rows else 0.0
-    if max_d is not None and total_d > max_d + TOL_MM:
-        pw, _ = packed_bounds(placements)
-        raise PackError(
-            f"packed layout {pw:.2f} x {total_d:.2f} mm exceeds usable area "
-            f"{max_w:.2f} x {max_d:.2f} mm (depth overshoot {total_d - max_d:.2f} mm; "
-            f"{len(rects)} parts, gaps per the tool-spacing rule "
-            f"(D_A + D_B + {web_min_mm:g} mm web) — a larger sheet, a smaller "
-            f"clamp margin, or smaller profile tools would fit; clamp margin "
-            f"already removed)")
+    if max_d is not None:
+        # Top edge: every part in the last row needs its own
+        # kerf inset above its top edge.
+        top_need = max(
+            (it[3] + it[0].get("tool_dia")
+             if it[0].get("tool_dia") is not None else it[3])
+            for it in rows[-1]["items"]) if rows and rows[-1]["items"] else 0.0
+        if y + top_need > max_d + TOL_MM:
+            pw, _ = packed_bounds(placements)
+            raise PackError(
+                f"packed layout {pw:.2f} x {y + top_need:.2f} mm exceeds usable area "
+                f"{max_w:.2f} x {max_d:.2f} mm (depth overshoot {y + top_need - max_d:.2f} mm "
+                f"including each part's kerf inset above its top edge; "
+                f"{len(rects)} parts, gaps per the tool-spacing rule "
+                f"(D_A + D_B + {web_min_mm:g} mm web) — a larger sheet, a smaller "
+                f"clamp margin, or smaller profile tools would fit; clamp margin "
+                f"already removed)")
     return placements
 
 
@@ -263,22 +330,126 @@ def verify_spacing(placements, tool_dias, gap_mm,
     return violations
 
 
-def check_edge_clearance(tool_dias, margin, web_min_mm=DEFAULT_WEB_MIN_MM):
-    """The clamp margin must leave the sheet edge alive: the profile
-    kerf eats D beyond the outline, so the margin has to cover the
-    largest profile tool + the edge margin (web_min). Returns a
-    violation string, or None when the margin holds."""
-    dias = [d for d in tool_dias.values() if d is not None]
-    if not dias:
+def verify_edge_insets(placements, tool_dias, max_w, max_d,
+                       web_min_mm=DEFAULT_WEB_MIN_MM):
+    """Check the packed edge insets against the tool-spacing rule,
+    using the ACTUAL profile tools. placements: [{name, x, y, w, d}]
+    in usable-area coordinates; tool_dias: {name: dia_mm or None}.
+    Returns a list of violation strings (empty = every part outline
+    sits its own dia (the kerf) inside the usable-area boundary,
+    so its kerf runs up to the usable boundary and the margin
+    band is the web on the outside). A part with no profile tool
+    (None) has no kerf and needs no inset."""
+    violations = []
+    if max_w is None or max_d is None:
+        return violations
+    for p in placements:
+        dia = tool_dias.get(p["name"])
+        if dia is None:
+            continue
+        inset = dia
+        if p["x"] + TOL_MM < inset:
+            violations.append(
+                f"{p['name']} left edge {p['x']:.2f} mm < "
+                f"{inset:.2f} mm inset "
+                f"({dia:.2f} mm profile tool — the kerf)")
+        if p["y"] + TOL_MM < inset:
+            violations.append(
+                f"{p['name']} bottom edge {p['y']:.2f} mm < "
+                f"{inset:.2f} mm inset "
+                f"({dia:.2f} mm profile tool — the kerf)")
+        if p["x"] + p["w"] + inset > max_w + TOL_MM:
+            violations.append(
+                f"{p['name']} right edge {p['x'] + p['w']:.2f} mm + "
+                f"{inset:.2f} mm inset > usable width {max_w:.2f} mm")
+        if p["y"] + p["d"] + inset > max_d + TOL_MM:
+            violations.append(
+                f"{p['name']} top edge {p['y'] + p['d']:.2f} mm + "
+                f"{inset:.2f} mm inset > usable depth {max_d:.2f} mm")
+    return violations
+
+
+def required_usable_extents(placements, tool_dias,
+                            web_min_mm=DEFAULT_WEB_MIN_MM):
+    """(required usable W, required usable D) for a packing: the
+    packed bounds plus each edge part's own kerf inset on the
+    far sides. The near-side insets are already in the placements
+    (the first part in a row starts at its own inset, the first
+    row starts at its largest inset); the far sides need the
+    trailing inset added: max over parts of (x + w + dia)
+    and (y + d + dia). A part with no profile tool (None)
+    contributes no inset. Feed the result to suggest_material so
+    the suggested sheet covers parts + kerf + margin (the margin
+    band is the web on the outside)."""
+    if not placements:
+        return (0.0, 0.0)
+    req_w = 0.0
+    req_d = 0.0
+    for p in placements:
+        dia = tool_dias.get(p["name"])
+        inset = dia if dia is not None else 0.0
+        req_w = max(req_w, p["x"] + p["w"] + inset)
+        req_d = max(req_d, p["y"] + p["d"] + inset)
+    return (req_w, req_d)
+
+
+def check_margin_web(margin, web_min_mm=DEFAULT_WEB_MIN_MM):
+    """The clamp margin IS the web on the outside (Brandon, Nov 25,
+    2026): the kerf runs up to the usable-area boundary, so the
+    material holding the sheet edge is the margin band itself —
+    and it must be bigger than web_min. Returns a violation
+    string, or None when the margin holds. A configured margin at
+    or below web_min refuses here rather than silently leaving
+    too little web on the outside."""
+    if margin <= web_min_mm:
+        return (f"clamp margin {margin:.1f} mm must be bigger than the "
+                f"web_min {web_min_mm:.1f} mm — the margin band is the web "
+                f"on the outside; increase clamp_margin_mm (or lower "
+                f"web_min_mm)")
+    return None
+
+
+def check_margin_for_clamps(margin, clamps):
+    """The clamp margin must fit the clamp body: the margin band is
+    clamp space only, so the margin is at least the largest
+    across-slot clamp footprint in the inventory — the clamp's long
+    side runs along its slot, so the across-slot width is
+    min(footprint). Only clamps that actually sit in the band count:
+    slot-mounted ones (``t_track: true``) the operator owns
+    (``count > 0``). Off-slot methods (tape, glue, screw, pin) never
+    sit in the band — tape is stuck on top of the sheet wherever it
+    is needed, not slotted into the margin — and a count-0 template
+    entry is a method the operator does not own, so neither sets
+    the floor. Returns a violation string, or None when the
+    margin holds. ``clamps`` is a list of dicts with ``id`` and
+    ``footprint_mm``. The floor for the recorded inventory is
+    MIN_CLAMP_MARGIN_MM (test-tt-clamp 20 x 12 mm -> 12 mm).
+    Enforced at guide time (mldxf_guides.compute_guides), where the
+    inventory is known."""
+    worst = None
+    for c in clamps or []:
+        if not isinstance(c, dict):
+            continue
+        if not c.get("t_track"):
+            continue
+        try:
+            owned = int(c.get("count", 0))
+        except (TypeError, ValueError):
+            owned = 0
+        if owned <= 0:
+            continue
+        fp = c.get("footprint_mm")
+        if not fp or len(fp) < 2:
+            continue
+        across = min(float(fp[0]), float(fp[1]))
+        if worst is None or across > worst[0]:
+            worst = (across, c.get("id", "?"))
+    if worst is None:
         return None
-    biggest = max(dias)
-    need = biggest + web_min_mm
-    if margin + TOL_MM < need:
-        return (f"clamp margin {margin:.1f} mm is less than the {need:.1f} mm "
-                f"the {biggest:.2f} mm profile tool needs "
-                f"({biggest:.2f} mm kerf + {web_min_mm:g} mm edge margin) — "
-                f"increase clamp_margin_mm, or cut the profiles with a "
-                f"smaller endmill")
+    if margin + TOL_MM < worst[0]:
+        return (f"clamp margin {margin:.1f} mm cannot fit the "
+                f"{worst[1]} clamp ({worst[0]:.1f} mm across its slot) — "
+                f"increase clamp_margin_mm to at least {worst[0]:.1f} mm")
     return None
 
 

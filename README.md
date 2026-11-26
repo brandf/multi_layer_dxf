@@ -182,10 +182,15 @@ Does NOT do: true 3D roughing/finishing, slanted walls, undercuts.
   `mldxf` and displays its output.
 - `mldxf_guides.py` — workholding guides (V2.9): `mldxf guides
   <job-dir>` places T-track clamps for a finished job (keep-out
-  first, support near the cuts, first-order force estimate —
-  conservative and unvalidated, labelled so everywhere it appears).
-  Post-step only; `mldxf plan` never runs guides. Placeholder
-  T-track slots refuse with a named error, never a guess.
+  first, contact balance from clamp-type primitives — V3.16,
+  support near the cuts, first-order force estimate —
+  conservative and unvalidated, labelled so everywhere it
+  appears). Post-step only; `mldxf plan` never runs guides.
+  Placeholder T-track slots refuse with a named error, never a
+  guess; a placement the balance cannot prove warns with the
+  numbers (worst cut, required hold-down per clamp) instead of
+  claiming it is proven — there is no edge-based refusal any
+  more.
 - `mldxf_dxf.py` — the one canonical DXF signature (entity+layer,
   not bytes): ezdxf writes timestamps/GUIDs, so DXF bytes are NOT
   reproducible — parity and rerun compare by this signature.

@@ -1,0 +1,405 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>view3d probe</title>
+<!-- Test-only page (V3.3): mounts the real 3D view against a real
+  v3 job under SwiftShader WebGL and asserts the canvas actually
+  draws. Served by server/test-e2e-proxy.ts, driven by
+  server/run-view3d-probe.ts. Not part of the app. -->
+<script src="/public/vendor/view3d.js"></script>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:1em auto;padding:0 1em}</style>
+</head>
+<body>
+<h1>view3d probe (throwaway — not part of the app)</h1>
+<div id="mount"></div>
+<pre id="probe-output">PENDING</pre>
+<script>
+(function () {
+  'use strict';
+  var out = [];
+  function check(label, cond, detail) {
+    out.push((cond ? 'PASS ' : 'FAIL ') + label + (cond ? '' : ' :: ' + (detail || '')));
+    renderOut();
+  }
+  function renderOut() {
+    document.getElementById('probe-output').textContent = out.join('\n');
+  }
+  function finish() {
+    var fails = out.filter(function (l) { return l.indexOf('FAIL ') === 0; }).length;
+    var passes = out.filter(function (l) { return l.indexOf('PASS ') === 0; }).length;
+    document.title = 'VIEW3D DONE: ' + passes + ' pass, ' + fails + ' fail';
+    renderOut();
+  }
+  var jobId = new URLSearchParams(location.search).get('job');
+  if (!jobId) { check('job param present', false, 'no ?job='); finish(); return; }
+  fetch('/api/jobs/' + encodeURIComponent(jobId)).then(function (r) { return r.json(); }).then(function (body) {
+    var job = body.job;
+    check('job loads with toolpaths (220 moves)',
+      !!job && !!job.toolpaths && job.toolpaths.stats.moves === 220,
+      'moves=' + (job && job.toolpaths && job.toolpaths.stats.moves));
+    check('bundle loaded', !!window.MldxfView3d, '');
+    if (!job || !job.toolpaths || !window.MldxfView3d) { finish(); return; }
+    var mount = document.getElementById('mount');
+    var api = window.MldxfView3d.mount(mount, {
+      jobId: jobId, job: job,
+      geometryUrl: '/api/jobs/' + encodeURIComponent(jobId) + '/geometry',
+    });
+    check('view mounts with WebGL (ready)',
+      mount.getAttribute('data-view3d-state') === 'ready',
+      'state=' + mount.getAttribute('data-view3d-state'));
+    var canvas = mount.querySelector('.view3d-canvas');
+    check('canvas exists', !!canvas, '');
+    check('WebGL context is real', !!window.MldxfView3d.isWebGLAvailable(), '');
+    // Pixel readback in the SAME task as the mount's render: the
+    // drawing buffer is still valid before compositing. A later
+    // readback (after a frame boundary) would be blank without
+    // preserveDrawingBuffer, and would prove nothing.
+    var pixelDone = false;
+    function afterPixels(pixelCheck) {
+      pixelCheck();
+      // Layer planes arrive async (geometry fetch): poll for them,
+      // then check playback + toggles and finish.
+      var waitedMs = 0;
+      var timer = setInterval(function () {
+        waitedMs += 250;
+        var info = api.sceneInfo();
+        if ((info.layerObjects === 8 && info.layers === 8) || waitedMs >= 10000) {
+          clearInterval(timer);
+          check('layer planes: 8 layers, 8 plane objects',
+            info.layerObjects === 8 && info.layers === 8,
+            JSON.stringify(info));
+          check('scene has the path objects (box, grid, rapids, feeds, progress, tool)',
+            info.sceneObjects >= 15, 'sceneObjects=' + info.sceneObjects);
+          check('playback scrub seeks by move index (timeline + state)',
+            (function () {
+              var scrub = mount.querySelector('[data-role="view3d-scrub"]');
+              scrub.value = '100';
+              scrub.dispatchEvent(new Event('input', { bubbles: true }));
+              var tl = mount.querySelector('[data-role="view3d-timeline"]').textContent;
+              return api.playback.state.index === 100 && tl.indexOf('Move 101/220') !== -1;
+            })(), 'index=' + api.playback.state.index);
+          check('layer toggle flips the plane state',
+            (function () {
+              var t0 = mount.querySelector('[data-role="view3d-layer-toggle"]');
+              if (!t0) return false;
+              t0.checked = false;
+              t0.dispatchEvent(new Event('change', { bubbles: true }));
+              var st = api.layerState();
+              t0.checked = true;
+              t0.dispatchEvent(new Event('change', { bubbles: true }));
+              return st[t0.getAttribute('data-layer')] === false;
+            })(), 'no layer toggle found');
+          // Clamp boxes (Nov 25, 2026): the boxes must sit at
+          // exactly the positions the guides wrote into the job's
+          // own workholding (footprint already oriented, bed to
+          // stock top 9.5). The probe reads the job's clamps, so
+          // it tests rendering fidelity, not the guides'
+          // placement policy — the origin keep-out moved the
+          // fixture from (15,6)+(144,75) to (135,6)+(15,84) on
+          // Nov 25, and the Nov 25 layout change moved it again
+          // to (145,6)+(15,84); the boxes followed, which is the
+          // correct behaviour. The toggle hides them; a second mount
+          // with the workholding stripped draws none.
+          check('clamp boxes: 2 boxes at the guides positions in the job',
+            (function () {
+              var expected = (job.workholding && (job.workholding.clamps || job.workholding.positions)) || [];
+              var cs = api.sceneInfo().clamps || [];
+              if (expected.length !== 2 || cs.length !== 2) return false;
+              for (var i = 0; i < 2; i++) {
+                var e = expected[i];
+                if (cs[i].x !== e.x_mm || cs[i].y !== e.y_mm ||
+                    cs[i].w !== e.footprint_mm[0] || cs[i].d !== e.footprint_mm[1] ||
+                    cs[i].z0 !== 0 || cs[i].z1 !== 9.5) return false;
+              }
+              return true;
+            })(), JSON.stringify({ jobClamps: job.workholding && job.workholding.clamps, boxes: api.sceneInfo().clamps }));
+          check('clamp toggle flips the clamp boxes',
+            (function () {
+              var t0 = mount.querySelector('[data-role="view3d-clamp-toggle"]');
+              if (!t0) return false;
+              t0.checked = false;
+              t0.dispatchEvent(new Event('change', { bubbles: true }));
+              var hidden = api.sceneInfo().clampsVisible === false;
+              t0.checked = true;
+              t0.dispatchEvent(new Event('change', { bubbles: true }));
+              return hidden && api.sceneInfo().clampsVisible === true;
+            })(), 'no clamp toggle found');
+          // Toolpath-vs-clamp check (V3.15 follow-up): the summary
+          // line sits next to the toggle, names the 5 mm
+          // threshold, says the check is against the boxes as
+          // drawn — and the closest move it names must be the one
+          // sceneInfo reports. The numbers follow the job's own
+          // toolpaths + clamps, so this asserts the line and the
+          // check agree, not a pinned placement.
+          check('clamp check: summary line agrees with the computed check',
+            (function () {
+              var el = mount.querySelector('[data-role="view3d-clamp-check"]');
+              var cc = api.sceneInfo().clampCheck;
+              if (!el || !cc) return false;
+              var txt = el.textContent;
+              if (txt.indexOf('within 5.0 mm of a clamp') === -1) return false;
+              if (txt.indexOf('boxes as drawn') === -1) return false;
+              var m = /closest (-?[\d.]+) mm at move (\d+)/.exec(txt);
+              if (!m) return false;
+              return Math.abs(parseFloat(m[1]) - cc.minClearanceMm) < 0.05 &&
+                parseInt(m[2], 10) - 1 === cc.closestMove;
+            })(), (function () {
+              var el = mount.querySelector('[data-role="view3d-clamp-check"]');
+              return (el ? el.textContent : 'no check line') + ' | ' +
+                JSON.stringify(api.sceneInfo().clampCheck);
+            })());
+          check('timeline labels the cutting time and the plan total',
+            (function () {
+              var tl = mount.querySelector('[data-role="view3d-timeline"]').textContent;
+              return tl.indexOf('cutting time') !== -1 &&
+                tl.indexOf('plan total 7:44.1 incl. 2 tool changes') !== -1;
+            })(), (mount.querySelector('[data-role="view3d-timeline"]') || {}).textContent);
+          // Origin marker (Nov 25, 2026 — homing): the crosshair
+          // sits at machine zero (0, 0), and the camera fit
+          // includes the origin, so the marker is in frame on
+          // load. The guides' origin keep-out has since moved
+          // the fixture's clamps away from it (nearest is now
+          // (15,84), ~78 mm up the left edge); the marker still
+          // shows where home is, so a future placement that
+          // drifts back reads as a problem at a glance.
+          check('origin marker: crosshair at (0, 0) and in the camera fit',
+            (function () {
+              var info = api.sceneInfo();
+              return info.originMarker === true &&
+                !!info.origin && info.origin.x === 0 && info.origin.y === 0 &&
+                !!info.fitBounds && info.fitBounds.xMin <= 0 && info.fitBounds.yMin <= 0 &&
+                !!(mount.querySelector('[data-role="view3d-origin-note"]') || {}).textContent &&
+                mount.querySelector('[data-role="view3d-origin-note"]').textContent.indexOf('Origin (0, 0)') !== -1;
+            })(), JSON.stringify({ originMarker: api.sceneInfo().originMarker, fitBounds: api.sceneInfo().fitBounds }));
+          // Z-zero frame (docs-v3/z_zero.md): the view must agree
+          // with the job's own setting — top by default (the probe
+          // job is planned with no --config), bottom when the job
+          // says so. Stock top sits at display Z 0 under top, at
+          // the stock top under bottom; the note names the corner.
+          check('Z-zero frame: view agrees with the job setting',
+            (function () {
+              var info = api.sceneInfo();
+              var zz = (job.z_zero === 'bottom') ? 'bottom' : 'top';
+              var topMm = Math.max.apply(null, job.parts.map(function (p) { return p.z_top; }));
+              var wantTopZ = (zz === 'bottom') ? topMm : 0;
+              var note = mount.querySelector('[data-role="view3d-origin-note"]').textContent;
+              var noteOk = note.indexOf(zz === 'bottom' ? 'Z-zero is the stock bottom' : 'Z-zero is the stock top') !== -1;
+              return info.zZero === zz && info.stockTopZ === wantTopZ && noteOk;
+            })(), JSON.stringify({ zZero: api.sceneInfo().zZero, stockTopZ: api.sceneInfo().stockTopZ, jobZZero: job.z_zero }));
+          check('layer rows show no raw DXF id (id lives in the tooltip)',
+            (function () {
+              var rows = mount.querySelectorAll('.view3d-layer-list li');
+              if (!rows.length) return false;
+              for (var i = 0; i < rows.length; i++) {
+                if (rows[i].querySelector('.view3d-layer-id')) return false;
+                if (rows[i].textContent.indexOf('P01_P01__') !== -1) return false;
+              }
+              var first = rows[0].querySelector('label');
+              return !!first && first.title.indexOf('P01_P01__') !== -1;
+            })(), '');
+          // No-guides mount: the same job with the workholding
+          // stripped must draw no clamp boxes and offer no clamp
+          // toggle — the view draws nothing rather than guessing
+          // clamp positions.
+          (function () {
+            var noGuidesJob = JSON.parse(JSON.stringify(job));
+            delete noGuidesJob.workholding;
+            var mount2 = document.createElement('div');
+            mount2.id = 'mount-noguides';
+            document.body.appendChild(mount2);
+            var api2 = window.MldxfView3d.mount(mount2, {
+              jobId: jobId, job: noGuidesJob,
+              geometryUrl: '/api/jobs/' + encodeURIComponent(jobId) + '/geometry',
+            });
+            var info2 = api2.sceneInfo();
+            var note2 = mount2.querySelector('[data-role="view3d-clamp-note"]');
+            check('no guides: no clamp boxes, no clamp toggle, no clamp check',
+              info2.clampBoxes === 0 && (info2.clamps || []).length === 0 &&
+                !mount2.querySelector('[data-role="view3d-clamp-toggle"]') &&
+                !mount2.querySelector('[data-role="view3d-clamp-check"]') &&
+                !!note2 && note2.textContent.indexOf('No clamps') !== -1,
+              JSON.stringify({ clampBoxes: info2.clampBoxes, clamps: info2.clamps }));
+          })();
+          // V3.4 sim: click Simulate, wait for the stock mesh AND
+          // the background CPU seek build (the GPU headline sim
+          // finishes first at ~27 s; "seek ready" lands only once
+          // the background build of all 220 moves completes, so
+          // the bound is 120 s, not 30 s), and check the layer
+          // toggles still work with it shown.
+          (function () {
+            var btn = mount.querySelector('[data-role="view3d-simulate"]');
+            check('Simulate button present', !!btn, '');
+            if (!btn) { finish(); return; }
+            btn.click();
+            var simWaited = 0;
+            var simTimer = setInterval(function () {
+              simWaited += 250;
+              var info = api.sceneInfo();
+              if ((info.sim && info.seekReady) || simWaited >= 120000) {
+                clearInterval(simTimer);
+                check('sim completes and shows the stock mesh',
+                  !!info.sim && info.stockMesh === true,
+                  JSON.stringify(info.sim));
+                check('sim pitch is 0.05 mm on the container',
+                  !!info.sim && info.sim.pitchMm === 0.05,
+                  JSON.stringify(info.sim));
+                check('sim mesh has vertices',
+                  !!info.sim && info.sim.vertices > 1000,
+                  JSON.stringify(info.sim));
+                check('layer toggle still flips with the stock shown',
+                  (function () {
+                    var t0 = mount.querySelector('[data-role="view3d-layer-toggle"]');
+                    if (!t0) return false;
+                    t0.checked = false;
+                    t0.dispatchEvent(new Event('change', { bubbles: true }));
+                    var st = api.layerState();
+                    t0.checked = true;
+                    t0.dispatchEvent(new Event('change', { bubbles: true }));
+                    return st[t0.getAttribute('data-layer')] === false;
+                  })(), 'no layer toggle found');
+                // V3.5 seek: scrubbing seeks the STOCK, not just the
+                // tool — the shown stock at move 0 is uncut (min
+                // height = stock top 9.5), at move 220 it is the
+                // final stock (min height 0, cut through), and at
+                // move 100 it is between. The headline sim ran on
+                // the GPU backend (WebGPU enabled); the seek data
+                // behind these checks is the background CPU build.
+                (function () {
+                  var scrub = mount.querySelector('[data-role="view3d-scrub"]');
+                  function scrubTo(n) {
+                    scrub.value = String(n);
+                    scrub.dispatchEvent(new Event('input', { bubbles: true }));
+                    return api.sceneInfo();
+                  }
+                  var i0 = scrubTo(0);
+                  check('seek to move 0 shows uncut stock (min height = stock top 9.5)',
+                    i0.seekReady === true && i0.stockMove === 0 && i0.stockMinHeight === 9.5,
+                    JSON.stringify({ seekReady: i0.seekReady, stockMove: i0.stockMove, stockMinHeight: i0.stockMinHeight }));
+                  var i100 = scrubTo(100);
+                  check('seek to move 100 shows partially cut stock',
+                    i100.stockMove === 100 && i100.stockMinHeight > 0 && i100.stockMinHeight < 9.5,
+                    JSON.stringify({ stockMove: i100.stockMove, stockMinHeight: i100.stockMinHeight }));
+                  var i220 = scrubTo(220);
+                  check('seek to move 220 shows the final stock (min height 0)',
+                    i220.stockMove === 220 && i220.stockMinHeight === 0,
+                    JSON.stringify({ stockMove: i220.stockMove, stockMinHeight: i220.stockMinHeight }));
+                  check('sim backend is labelled GPU (WebGPU enabled in this browser)',
+                    i220.backend === 'gpu',
+                    JSON.stringify({ backend: i220.backend }));
+                  check('seek is ready and the sim records its chunks',
+                    i220.seekReady === true && !!i220.sim && i220.sim.chunks > 0,
+                    JSON.stringify(i220.sim));
+                })();
+                // V3.5 GPU fallback: navigator.gpu present but no
+                // adapter (requestAdapter() -> null) must fall back
+                // to the CPU backend with an honest status, not
+                // "Sim failed". Stub the gpu object to a no-adapter
+                // fake, re-run Simulate, and check the fallback.
+                (function () {
+                  try {
+                    Object.defineProperty(navigator, "gpu", {
+                      value: { requestAdapter: async function () { return null; } },
+                      configurable: true,
+                    });
+                  } catch (e) {
+                    check('GPU fallback: navigator.gpu can be stubbed to a no-adapter fake',
+                      false, String(e && e.message || e));
+                    finish();
+                    return;
+                  }
+                  btn.click();
+                  var fbWaited = 0;
+                  var fbTimer = setInterval(function () {
+                    fbWaited += 250;
+                    var info = api.sceneInfo();
+                    var statusEl = mount.querySelector('[data-role="view3d-sim-status"]');
+                    var status = statusEl ? statusEl.textContent : "";
+                    // Round 16 (m4) — the backend naming moved from
+                    // the status line into the Sim details
+                    // disclosure (the status leads with plain words
+                    // now); the naming is read from the details at
+                    // the same strength, while "Sim failed" is
+                    // still read off the status line itself.
+                    var detailsEl = mount.querySelector('[data-role="view3d-sim-details"]');
+                    var details = detailsEl ? detailsEl.textContent : "";
+                    if ((info.sim && info.seekReady && info.backend === "cpu") || fbWaited >= 120000) {
+                      clearInterval(fbTimer);
+                      check('GPU fallback: no-adapter WebGPU falls back to the CPU backend',
+                        info.backend === "cpu" && !!info.sim && info.sim.backend === "cpu",
+                        JSON.stringify({ backend: info.backend, sim: info.sim }));
+                      check('GPU fallback: seek is ready after the CPU fallback sim',
+                        info.seekReady === true,
+                        JSON.stringify({ seekReady: info.seekReady }));
+                      check('GPU fallback: status names the CPU fallback, not "Sim failed"',
+                        details.indexOf("Simulated on CPU") !== -1
+                          && details.indexOf("WebGPU unavailable") !== -1
+                          && status.indexOf("Sim failed") === -1,
+                        status + " | " + details);
+                      // Round-7 minor 5, second half: the key sim
+                      // facts (backend, verts, seek-ready) live in
+                      // the status line itself, not only inside
+                      // the collapsed Sim details.
+                      check('sim status line carries the key sim facts (backend, verts, seek-ready)',
+                        status.indexOf("(CPU,") !== -1 && status.indexOf("verts, seek ready)") !== -1,
+                        status);
+                      check('GPU fallback: seeked final stock is still the final stock',
+                        (function () {
+                          var scrub = mount.querySelector('[data-role="view3d-scrub"]');
+                          scrub.value = "220";
+                          scrub.dispatchEvent(new Event('input', { bubbles: true }));
+                          var i = api.sceneInfo();
+                          return i.stockMove === 220 && i.stockMinHeight === 0;
+                        })(), '');
+                      finish();
+                    }
+                  }, 250);
+                })();
+              }
+            }, 250);
+          })();
+        }
+      }, 250);
+    }
+    if (!canvas) { afterPixels(function () { check('canvas pixels drawn', false, 'no canvas'); }); return; }
+    var dataUrl = null;
+    try { dataUrl = canvas.toDataURL('image/png'); } catch (e) { dataUrl = null; }
+    if (!dataUrl) {
+      afterPixels(function () { check('canvas pixels drawn', false, 'toDataURL failed'); });
+      return;
+    }
+    var img = new Image();
+    img.onload = function () {
+      afterPixels(function () {
+        var c2 = document.createElement('canvas');
+        c2.width = img.width; c2.height = img.height;
+        var ctx = c2.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        var data = ctx.getImageData(0, 0, c2.width, c2.height).data;
+        var seen = {};
+        var nonBg = 0, total = 0;
+        for (var i = 0; i < data.length; i += 4) {
+          var key = data[i] + ',' + data[i + 1] + ',' + data[i + 2];
+          seen[key] = true;
+          total++;
+          // Scene background is #eef1f4 (238,241,244).
+          if (!(data[i] === 238 && data[i + 1] === 241 && data[i + 2] === 244)) nonBg++;
+        }
+        var distinct = Object.keys(seen).length;
+        check('canvas pixels drawn (distinct colours, non-background fraction)',
+          distinct >= 5 && nonBg / total > 0.01,
+          'distinct=' + distinct + ' nonBg=' + (100 * nonBg / total).toFixed(1) + '%');
+      });
+    };
+    img.onerror = function () {
+      afterPixels(function () { check('canvas pixels drawn', false, 'data URL did not decode'); });
+    };
+    img.src = dataUrl;
+  }).catch(function (e) {
+    check('job fetch', false, String(e && e.message || e));
+    finish();
+  });
+})();
+</script>
+</body>
+</html>

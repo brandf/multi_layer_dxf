@@ -5,6 +5,11 @@
 <title>job-prep harness</title>
 <script src="/public/job-prep.js"></script>
 <script src="/public/jobs.js"></script>
+<!-- The 3D view bundle (V3.3): preloaded so the DOM-mode view
+  checks mount synchronously (the real app lazy-loads it for v3
+  jobs only — the harness exercises the mounted view, not the
+  lazy load, which the E2E run covers through the real tab). -->
+<script src="/public/vendor/view3d.js"></script>
 <!-- jobs.js is loaded too (round 11): the Job prep result renders
   its layout preview through the Jobs tab's buildLayoutPreview, so
   the harness must have that module present, as the real app does. -->
@@ -40,31 +45,50 @@
   }
   function text() { return document.getElementById('app').innerText; }
 
+  // Round 12 — the result is split across workflow-stage sub-tabs
+  // (Setup / Plan / Preview / Downloads): innerText only covers
+  // the visible stage, so each check group switches to its stage
+  // first, the way a user would. The switch itself is a click on
+  // the real sub-tab button, never a state poke.
+  function showSub(id) {
+    var b = document.querySelector('[data-role="jp-subtab-' + id + '"]');
+    if (b) b.click();
+  }
+
   // Canned v2 job: mirrors the real container job.json shape
   // (plans A/B, owned mix, POST-PROCESS flag, workholding null).
   var CANNED_V2 = {
     job_version: 2, job_id: '20261123-000000-canned', created_at: '2026-11-23T00:00:00',
     source_step: 'test/real_container.step',
-    suggested_material: { x: 150, y: 90, thickness: 10 },
+    suggested_material: { x: 160, y: 90, thickness: 10 },
     parts: [
-      { name: 'P01_P01', footprint_mm: [46.0, 46.0], height_mm: 9.5, x_mm: 20.0, y_mm: 20.0 },
-      { name: 'P02_P02', footprint_mm: [46.0, 46.0], height_mm: 8.0, x_mm: 83.7, y_mm: 20.0 }
+      { name: 'P01_P01', footprint_mm: [46.0, 46.0], height_mm: 9.5, x_mm: 21.35, y_mm: 21.35 },
+      { name: 'P02_P02', footprint_mm: [46.0, 46.0], height_mm: 8.0, x_mm: 85.05, y_mm: 21.35 }
     ],
     layers: [{ layer: 'P01_P01__POCKET_D1.50' }, { layer: 'P01_P01__PROFILE_THRU' }],
     layout: [
-      { name: 'P01_P01', x_mm: 20.0, y_mm: 20.0, w_mm: 46.0, d_mm: 46.0 },
-      { name: 'P02_P02', x_mm: 83.7, y_mm: 20.0, w_mm: 46.0, d_mm: 46.0 }
+      { name: 'P01_P01', x_mm: 21.35, y_mm: 21.35, w_mm: 46.0, d_mm: 46.0 },
+      { name: 'P02_P02', x_mm: 85.05, y_mm: 21.35, w_mm: 46.0, d_mm: 46.0 }
     ],
-    clamp_margin_mm: 20,
+    clamp_margin_mm: 15,
     cut_order: ['drill', 'pocket', 'profile'],
     tool_plan: { chosen: 'A', plans: [
-      { id: 'A', tool_changes: 2, total_seconds: 420.0, cutting_seconds: 180.0, change_seconds: 240.0,
+      { id: 'A', tool_changes: 2, total_seconds: 464.1, cutting_seconds: 224.1, change_seconds: 240.0,
+        // Round 15 (m1) — the plan's cut order, so the harness can
+        // check the tool-sequence line (same shape as the real
+        // job.json: one entry per layer, in cut order).
+        layers: [
+          { layer: 'P01_P01__POCKET_D1.50', tool_id: 'EM3.17' },
+          { layer: 'P01_P01__DRILL_D2.25_D1.55_START1.50', tool_id: 'D2.25' },
+          { layer: 'P01_P01__POCKET_D6.50_START1.50', tool_id: 'EM6.35' },
+          { layer: 'P01_P01__PROFILE_THRU', tool_id: 'EM6.35' }
+        ],
         tools: [
           { id: 'EM3.17', name: 'End Mill 1/8in', kind: 'endmill', dia_mm: 3.175, feed_mm_s: 15.88, tool_number: 1, owned: true },
           { id: 'D2.25', name: 'Drill 2.25 mm', kind: 'drill', dia_mm: 2.25, feed_mm_s: 4.0, tool_number: 2, owned: true },
           { id: 'EM6.35', name: 'End Mill 1/4in', kind: 'endmill', dia_mm: 6.35, feed_mm_s: 30.0, tool_number: 3, owned: true }
         ] },
-      { id: 'B', tool_changes: 2, total_seconds: 468.0, cutting_seconds: 228.0, change_seconds: 240.0,
+      { id: 'B', tool_changes: 2, total_seconds: 519.8, cutting_seconds: 279.8, change_seconds: 240.0,
         tools: [
           { id: 'EM3.17', name: 'End Mill 1/8in', kind: 'endmill', dia_mm: 3.175, feed_mm_s: 15.88, tool_number: 1, owned: true },
           { id: 'D2.25', name: 'Drill 2.25 mm', kind: 'drill', dia_mm: 2.25, feed_mm_s: 4.0, tool_number: 2, owned: true },
@@ -101,8 +125,58 @@
     post_process: null
   };
 
+  // Canned v3 job (V3.2): the canned v2 job plus a small toolpaths
+  // section — 2 operations, 5 moves, 1 skipped loop, so the
+  // section's summary, per-operation table, and skipped-loop
+  // display can all be checked without a real generator run.
+  var CANNED_V3 = JSON.parse(JSON.stringify(CANNED_V2));
+  CANNED_V3.job_version = 3;
+  CANNED_V3.job_id = '20261124-000000-canned-v3';
+  CANNED_V3.toolpaths = {
+    version: 1, generator: 'ts/toolpaths.ts', plan: 'A', clearance_z_mm: 14.5,
+    z_model: 'Z=0 at bottom of stock; cut-bottom Z = z_top - start_depth - cut_depth',
+    cut_order: ['drill', 'pocket', 'profile'],
+    operations: [
+      { operation: 'drill', layer: 'P01_P01__DRILL_D2.25_D1.55_START1.50', tool_id: 'D2.25',
+        feed_mm_s: 4, plunge_mm_s: 4, spindle_rpm: 20000,
+        pass: { kind: 'rough', stepdown_index: null }, z_mm: 6.45, z_top_mm: 9.5, z_bottom_mm: 6.45,
+        tabs: null,
+        moves: [{ t: 'rapid', x: 22.5, y: 43, z: 14.5 }, { t: 'feed', x: 22.5, y: 43, z: 6.45 }],
+        skipped: [], notes: [] },
+      { operation: 'pocket', layer: 'P01_P01__POCKET_D1.50', tool_id: 'EM3.17',
+        feed_mm_s: 15.88, plunge_mm_s: 5.29, spindle_rpm: 20000,
+        pass: { kind: 'rough', stepdown_index: 0 }, z_mm: 8, z_top_mm: 9.5, z_bottom_mm: 8,
+        tabs: null,
+        moves: [{ t: 'rapid', x: 20, y: 20, z: 14.5 }, { t: 'feed', x: 20, y: 20, z: 8 },
+                { t: 'arc', x: 20, y: 20, z: 8, i: -21.4, j: 0, cw: false }],
+        skipped: [{ loop: 0, reason: 'tool_too_large', detail: 'no ring fits at wall offset 0.250 mm (tool EM0.50)' }],
+        notes: [] }
+    ],
+    skipped: [{ layer: 'P01_P01__POCKET_D1.50', loop: 0, reason: 'tool_too_large',
+                detail: 'no ring fits at wall offset 0.250 mm (tool EM0.50)' }],
+    stats: { operations: 2, moves: 5, rapid: 2, feed: 2, arc: 1 }
+  };
+  // Canned gcode section (V3.6): one verified run and one
+  // unverified run, so the stamps, the download links, and the
+  // Z-zero note can all be checked without a real post run.
+  CANNED_V3.gcode = [
+    { post_id: 'masso-mm', file: 'gcode/20261124-000000-canned-v3-masso-mm.nc',
+      sha256: 'e8a2014103b4fe2d64985617961a3a429d5dd39072c19a6025be1c0d6a89a3fc',
+      verified: true, generated_at: '2026-11-24T15:55:00+00:00' },
+    { post_id: 'masso-inch', file: 'gcode/20261124-000000-canned-v3-masso-inch.nc',
+      sha256: '30519a0b2db849458a55d98923405a18564dd4a49ca6673aa3a880478339d2a5',
+      verified: false, generated_at: '2026-11-24T16:00:00+00:00' }
+  ];
+
   function runDomMode() {
     var app = document.getElementById('app');
+    // Hermetic start: the driver's Chrome profile persists across
+    // runs, so a previous run's remembered job (localStorage,
+    // written by beginRun) would otherwise steer this run's first
+    // render at a stale id. Clear storage + any deep-link before
+    // the first render.
+    try { sessionStorage.removeItem('mldxf:lastJobId'); localStorage.removeItem('mldxf:lastJobId'); } catch (e) { /* ignore */ }
+    try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* ignore */ }
     check('module present', !!window.MldxfJobPrep && window.MldxfJobPrep.id === 'job-prep'
       && window.MldxfJobPrep.label === 'Job prep', 'window.MldxfJobPrep=' + typeof window.MldxfJobPrep);
 
@@ -151,26 +225,103 @@
       + ' placeholder=' + JSON.stringify(document.querySelector('[name="min_tool"]').placeholder));
     check('no rerun button anywhere in job prep', !document.querySelector('[data-role="rerun"]')
       && t.indexOf('Rerun') === -1, 'rerun offered');
+    // Round 12 (A) — the job view splits into four workflow-stage
+    // sub-tabs (Setup / Plan / Preview / Downloads), Setup first,
+    // with roving tabindex (the selected tab is the tab stop) and
+    // arrow-key movement, following the main tab pattern.
+    check('round 12 — job view splits into four workflow-stage sub-tabs',
+      !!document.querySelector('[data-role="jp-subtab-setup"]')
+      && !!document.querySelector('[data-role="jp-subtab-plan"]')
+      && !!document.querySelector('[data-role="jp-subtab-preview"]')
+      && !!document.querySelector('[data-role="jp-subtab-downloads"]')
+      && document.querySelector('[data-role="jp-subtab-setup"]').getAttribute('aria-selected') === 'true'
+      && document.querySelector('[data-role="jp-subtab-setup"]').textContent === 'Setup'
+      && document.querySelector('[data-role="jp-subtab-plan"]').textContent === 'Plan'
+      && document.querySelector('[data-role="jp-subtab-preview"]').textContent === 'Preview'
+      && document.querySelector('[data-role="jp-subtab-downloads"]').textContent === 'Downloads',
+      'missing sub-tab buttons');
+    check('round 12 — sub-tabs use roving tabindex (selected tab is the stop)',
+      document.querySelector('[data-role="jp-subtab-setup"]').tabIndex === 0
+      && document.querySelector('[data-role="jp-subtab-plan"]').tabIndex === -1
+      && document.querySelector('[data-role="jp-subtab-preview"]').tabIndex === -1,
+      'tabIndex not roving');
+    check('round 12 — arrow keys move between sub-tabs',
+      (function () {
+        document.querySelector('[data-role="jp-subtab-setup"]').focus();
+        document.querySelector('[data-role="jp-subtab-setup"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        return document.querySelector('[data-role="jp-subtab-plan"]').getAttribute('aria-selected') === 'true'
+          && document.activeElement === document.querySelector('[data-role="jp-subtab-plan"]');
+      })(), 'ArrowRight did not select Plan');
+    check('round 12 — a typed disk path survives sub-tab switches',
+      (function () {
+        showSub('setup');
+        var disk = document.querySelector('[name="step_path"]');
+        disk.value = '/somewhere/real_container.step';
+        disk.dispatchEvent(new Event('input', { bubbles: true }));
+        showSub('plan');
+        showSub('setup');
+        return document.querySelector('[name="step_path"]').value === '/somewhere/real_container.step';
+      })(), 'disk path lost across sub-tab switches');
+    // Round 12 (m3) — the visually-hidden file input is not a Tab
+    // stop: Tab goes drop zone → disk path, never through the
+    // invisible input (which shows no focus ring).
+    check('round 12 — hidden file input is not a Tab stop',
+      document.querySelector('[data-role="file-input"]').tabIndex === -1,
+      'file input tabIndex=' + document.querySelector('[data-role="file-input"]').tabIndex);
 
     // Canned v2 job.
     window.MldxfJobPrep._state.job = CANNED_V2;
     window.MldxfJobPrep._state.status = 'complete';
     window.MldxfJobPrep._state.jobId = CANNED_V2.job_id;
     window.MldxfJobPrep.render(app);
+    showSub('plan');
+    // Round 18 — non-chosen plans sit behind the "Other plans"
+    // disclosure now: assert it starts closed, then open it before
+    // reading the plan text (innerText omits closed details — the
+    // same open-before-read the flag details and run log use).
+    check('round 18 — non-chosen plans sit behind a closed Other plans disclosure',
+      !!document.querySelector('[data-role="other-plans"]')
+      && document.querySelector('[data-role="other-plans"]').open === false
+      && document.querySelector('[data-role="other-plans"] summary').textContent.indexOf('Other plans (B)') !== -1,
+      'no closed other-plans disclosure on the Plan stage');
+    var otherPlans = document.querySelector('[data-role="other-plans"]');
+    if (otherPlans) otherPlans.open = true;
     t = text();
-    check('v2 plan header shows Plan A 3 tools 2 changes 7.0 min',
-      t.indexOf('Plan A (chosen') !== -1 && t.indexOf('3 tools · 2 changes') !== -1 && t.indexOf('7.0') !== -1, t.slice(0, 600));
-    check('v2 cutting/change split shown', t.indexOf('cutting 3.0 + changes 4.0') !== -1, t.slice(0, 600));
+    check('v2 plan header shows Plan A 3 tools 2 changes 7.7 min (V3.14)',
+      t.indexOf('Plan A (chosen') !== -1 && t.indexOf('3 tools · 2 changes') !== -1 && t.indexOf('7.7') !== -1, t.slice(0, 600));
+    // Round 15 (m1) — each plan card shows its tool sequence in
+    // cut order, so a re-loaded tool reads as a repeat.
+    check('round 15 — plan card shows the tool sequence in cut order',
+      t.indexOf('Cut order: EM3.17 → D2.25 → EM6.35') !== -1, t.slice(0, 600));
+    check('v2 cutting/change split shown', t.indexOf('cutting 3.7 + changes 4.0') !== -1, t.slice(0, 600));
     check('v2 owned tools marked owned', (t.match(/✓ owned/g) || []).length === 5,
       'owned badges: ' + ((t.match(/✓ owned/g) || []).length));
     check('v2 not-owned tool marked explicitly',
       t.indexOf('not in your inventory — check before you cut') !== -1, t.slice(0, 1200));
     check('v2 not-owned plan warns', t.indexOf('needs a tool that is not in your inventory') !== -1, '');
     check('v2 flags shown', t.indexOf('Pocket island at floor Z 8.00') !== -1, '');
+    // Post-processing and G-code live on the Downloads stage now
+    // (round 12); workholding and toolpaths on Preview.
+    showSub('downloads');
+    t = text();
     check('v2 post-processing steps shown',
       t.indexOf('Post-processing (1 step)') !== -1 && t.indexOf('Round over the outer edge') !== -1, t.slice(0, 2000));
+    showSub('preview');
+    t = text();
     check('v2 workholding honest — no guides yet, offers Run guides',
       t.indexOf('No guides yet for this job') !== -1 && !!document.querySelector('.jp-guides'),
+      t.slice(0, 2000));
+    // V3.2: a v2 job has no toolpaths yet — say so and offer to
+    // generate them (the button posts to /api/jobs/:id/toolpaths).
+    check('v2 toolpaths honest — no toolpaths yet, offers Generate toolpaths',
+      t.indexOf('No toolpaths yet for this job') !== -1 && !!document.querySelector('[data-role="run-toolpaths"]'),
+      t.slice(0, 2000));
+    showSub('downloads');
+    t = text();
+    // V3.6: a v2 job has no toolpaths, so no G-code either — say
+    // "Generate toolpaths first" and offer no Generate button.
+    check('v2 gcode honest — no toolpaths yet, no Generate G-code button',
+      t.indexOf('Generate toolpaths first') !== -1 && !document.querySelector('[data-role="run-gcode"]'),
       t.slice(0, 2000));
     check('v2 download links present',
       !!document.querySelector('a[href$="/download/real_container.dxf"]')
@@ -185,39 +336,101 @@
       && !!document.querySelector('.plan-tools td[data-label="Tool"]')
       && !!document.querySelector('.plan-tools td[data-label="Ø (mm)"]'),
       'no data-label on plan cells');
-    check('v2 job summary shows parts + material',
-      t.indexOf('P01_P01 46 × 46 mm') !== -1 && t.indexOf('Suggested material: 150 × 90 × 10 mm') !== -1, '');
+    // The stat strip lives on the Plan stage (round 12) — the
+    // checks above switched away to Downloads/Preview, so switch
+    // back before reading the Plan text.
+    showSub('plan');
+    t = text();
+    // Round 12 (m8) — the MATERIAL stat value is just the size:
+    // the label above it already says MATERIAL, so a "Suggested
+    // material: 160 × 90 × 10 mm" value duplicated the label.
+    check('v2 job summary shows parts + material (value is just the size)',
+      t.indexOf('P01_P01 46 × 46 mm') !== -1
+      && (function () {
+        var stats = Array.from(document.querySelectorAll('.stat'));
+        var mat = stats.filter(function (s) {
+          return s.querySelector('.stat-label').textContent === 'Material';
+        })[0];
+        return !!mat && mat.querySelector('.stat-value').textContent === '160 × 90 × 10 mm';
+      })(), '');
     // Round 11 — the 2D layout preview renders inline in the
     // result view, through the Jobs tab's buildLayoutPreview: same
     // sheet, same parts, same caption and legend as the detail
     // view. The canned job carries a layout + clamp margin for this.
+    // It lives on the Preview stage now (round 12), so switch
+    // there first.
+    showSub('preview');
+    t = text();
     check('round 11 — layout preview is inline in the Job prep result',
-      !!document.querySelector('.jp-result [data-role="layout-preview"]'),
-      'no [data-role="layout-preview"] inside .jp-result');
+      !!document.querySelector('[data-role="jp-panel-preview"] [data-role="layout-preview"]'),
+      'no [data-role="layout-preview"] inside the Preview panel');
     check('round 11 — inline preview draws the sheet and both parts',
       (function () {
-        var svg = document.querySelector('.jp-result [data-role="layout-preview"]');
+        var svg = document.querySelector('[data-role="jp-panel-preview"] [data-role="layout-preview"]');
         if (!svg) return false;
         var sheet = svg.querySelector('[data-role="sheet"]');
         var parts = svg.querySelectorAll('[data-role="part"]');
-        return sheet && sheet.getAttribute('data-w') === '150'
+        return sheet && sheet.getAttribute('data-w') === '160'
           && sheet.getAttribute('data-h') === '90' && parts.length === 2
-          && parts[0].getAttribute('data-x') === '20'
-          && parts[1].getAttribute('data-x') === '83.7';
+          && parts[0].getAttribute('data-x') === '21.35'
+          && parts[1].getAttribute('data-x') === '85.05';
       })(), 'preview sheet/parts do not match the canned layout');
     check('round 11 — inline preview caption + legend name the margin and the usable-area outline',
-      t.indexOf('clamp margin 20 mm (shaded band)') !== -1
+      t.indexOf('clamp margin 15 mm (hatched band)') !== -1
       && t.indexOf('Usable-area outline') !== -1, t.slice(0, 2000));
+    // Round 12 (m4) — the heading discloses the preview is a
+    // schematic, not the cut outline.
+    check('round 12 — layout preview heading says schematic, not cut outline',
+      t.indexOf('2D layout preview — top view (schematic layout; dashed kerf is the cut outline)') !== -1, '');
+    // Round 15 (M1) — a part whose PROFILE perimeter is π·Ø is
+    // drawn as its bounding circle, not a square: the canned job
+    // above has no profile evidence, so it stays rectangles; this
+    // clone carries the real container's PROFILE perimeters
+    // (144.513 mm = π·46), so both parts are circles and the
+    // caption says so.
+    check('round 15 — round parts draw as bounding circles, caption says so',
+      (function () {
+        var roundJob = JSON.parse(JSON.stringify(CANNED_V2));
+        roundJob.layers = [
+          { layer: 'P01_P01__PROFILE_THRU', part: 'P01_P01', operation: 'profile', est: { perimeter_mm: 144.513, depth_mm: 9.5 } },
+          { layer: 'P02_P02__PROFILE_THRU', part: 'P02_P02', operation: 'profile', est: { perimeter_mm: 144.513, depth_mm: 8.0 } }
+        ];
+        window.MldxfJobPrep._state.job = roundJob;
+        window.MldxfJobPrep.render(app);
+        showSub('preview');
+        var svg = document.querySelector('[data-role="jp-panel-preview"] [data-role="layout-preview"]');
+        if (!svg) return false;
+        var parts = svg.querySelectorAll('[data-role="part"]');
+        var ok = parts.length === 2
+          && parts[0].tagName.toLowerCase() === 'circle' && parts[0].getAttribute('data-shape') === 'circle'
+          && parts[0].getAttribute('r') === '23'
+          && parts[1].tagName.toLowerCase() === 'circle'
+          && document.getElementById('app').innerText.indexOf('round parts shown as circles') !== -1;
+        window.MldxfJobPrep._state.job = CANNED_V2;
+        window.MldxfJobPrep.render(app);
+        return ok;
+      })(), 'round parts did not draw as circles');
+    // Round 12 (2) — the preview's "No guides yet" callout is
+    // gone: the Workholding section says the same thing, so the
+    // callout showed "No guides yet" twice with two Run guides
+    // buttons. Exactly one .jp-guides button remains, in
+    // Workholding, and exactly one "No guides yet" line.
+    check('round 12 — "No guides yet" appears once, with one Run guides button',
+      (t.match(/No guides yet for this job/g) || []).length === 1
+      && document.querySelectorAll('.jp-guides').length === 1, '');
     // Round 11 — flags scan as one-line summaries: the title is
     // visible, the detail sits behind a closed "Details" toggle,
-    // and opening it reveals the full detail text.
+    // and opening it reveals the full detail text. Flags live on
+    // the Plan stage now (round 12).
+    showSub('plan');
+    t = text();
     check('round 11 — flag details are collapsible behind the one-line title',
-      !!document.querySelector('.jp-result details.flag-detail-toggle')
-      && document.querySelector('.jp-result details.flag-detail-toggle').open === false,
-      'no closed details.flag-detail-toggle in the result');
+      !!document.querySelector('[data-role="jp-panel-plan"] details.flag-detail-toggle')
+      && document.querySelector('[data-role="jp-panel-plan"] details.flag-detail-toggle').open === false,
+      'no closed details.flag-detail-toggle in the Plan panel');
     check('round 11 — opening a flag detail reveals its full text',
       (function () {
-        var det = document.querySelector('.jp-result details.flag-detail-toggle');
+        var det = document.querySelector('[data-role="jp-panel-plan"] details.flag-detail-toggle');
         if (!det) return false;
         det.open = true;
         return det.textContent.indexOf('a rib/boss rises above the floor') !== -1;
@@ -233,11 +446,104 @@
       && t.indexOf('not in your inventory') === -1, t.slice(0, 800));
     check('v1 job marked read-only', t.indexOf('v1 job — read-only') !== -1, '');
     check('v1 job offers no rerun', t.indexOf('Rerun') === -1 && !document.querySelector('.jp-rerun'), '');
+    // V3.2: a v1 job has no toolpaths and gets no Generate button.
+    // Toolpaths live on the Preview stage now (round 12).
+    showSub('preview');
+    t = text();
+    check('v1 toolpaths honest — v1 job, no Generate button',
+      t.indexOf('No toolpaths for this job — it is a v1 job') !== -1
+      && !document.querySelector('[data-role="run-toolpaths"]'), t.slice(0, 2000));
+    // V3.6: a v1 job has no G-code and gets no Generate button.
+    // G-code lives on the Downloads stage now (round 12).
+    showSub('downloads');
+    t = text();
+    check('v1 gcode honest — v1 job, no Generate G-code button',
+      t.indexOf('No G-code for this job — it is a v1 job') !== -1
+      && !document.querySelector('[data-role="run-gcode"]'), t.slice(0, 2000));
+
+    // Canned v3 job (V3.2): summary, per-operation table, skipped
+    // loop shown, Re-generate offered, inline refusal. Toolpaths
+    // live on the Preview stage now (round 12).
+    window.MldxfJobPrep._state.job = CANNED_V3;
+    window.MldxfJobPrep._state.status = 'complete';
+    window.MldxfJobPrep._state.jobId = CANNED_V3.job_id;
+    window.MldxfJobPrep.render(app);
+    showSub('preview');
+    t = text();
+    check('v3 toolpaths summary shows operations + moves + rapid/feed/arc split',
+      t.indexOf('2 operations, 5 moves (2 rapid, 2 feed, 1 arc)') !== -1
+      && t.indexOf('Plan A') !== -1, t.slice(0, 2000));
+    check('v3 toolpaths table shows one row per operation with data-labels',
+      !!document.querySelector('.tp-table td[data-label="Operation"]')
+      && !!document.querySelector('.tp-table td[data-label="Layer"]')
+      && !!document.querySelector('.tp-table td[data-label="Tool"]')
+      && !!document.querySelector('.tp-table td[data-label="Pass"]')
+      && !!document.querySelector('.tp-table td[data-label="Moves"]'),
+      'no data-label on toolpaths cells');
+    check('v3 skipped loop is shown, never hidden',
+      t.indexOf('Skipped loops (1)') !== -1 && t.indexOf('tool_too_large') !== -1
+      && t.indexOf('P01_P01__POCKET_D1.50 loop 0') !== -1, t.slice(0, 2000));
+    check('v3 toolpaths offers Re-generate toolpaths',
+      t.indexOf('Re-generate toolpaths') !== -1 && !!document.querySelector('[data-role="run-toolpaths"]'), '');
+    check('v3 toolpaths refusal renders inline with the raw code machine-readable',
+      (function () {
+        window.MldxfJobPrep._state.toolpathsError = { error: 'toolpaths_unavailable',
+          message: 'toolpaths need a V2 job — re-run mldxf plan on the source STEP.' };
+        window.MldxfJobPrep.render(app);
+        var te = document.querySelector('.jp-toolpaths [data-role="toolpaths-error"]');
+        var ok = !!te && te.textContent.indexOf('toolpaths need a V2 job') !== -1
+          && te.getAttribute('data-error-code') === 'toolpaths_unavailable';
+        window.MldxfJobPrep._state.toolpathsError = null;
+        window.MldxfJobPrep.render(app);
+        return ok;
+      })(), 'no inline toolpaths error');
+
+    // V3.6: the G-code section — post selector (4 posts, default
+    // masso-mm), Generate button, one row per post run with the
+    // verified stamp and a per-segment download link, the
+    // UNVERIFIED stamp on the unverified run, the Z-zero note,
+    // and an inline refusal. G-code lives on the Downloads stage
+    // now (round 12).
+    showSub('downloads');
+    t = text();
+    check('v3 gcode offers a post selector (4 posts, masso-mm default) + Generate button',
+      (function () {
+        var sel = document.querySelector('[data-role="gcode-post"]');
+        return !!sel && sel.options.length === 4 && sel.value === 'masso-mm'
+          && !!document.querySelector('[data-role="run-gcode"]');
+      })(), 'no gcode selector/button');
+    check('v3 gcode verified entry shows the stamp + download link (per-segment encoded)',
+      t.indexOf('Verified — round-trip re-simulated') !== -1
+      && !!document.querySelector('a[href$="/download/gcode/20261124-000000-canned-v3-masso-mm.nc"]')
+      && !document.querySelector('a[href*="%2F"]'),
+      t.slice(0, 2000));
+    check('v3 gcode unverified entry shows UNVERIFIED, never ready to run',
+      t.indexOf('UNVERIFIED — do not run; inspect only') !== -1
+      && t.indexOf('masso-inch: gcode/20261124-000000-canned-v3-masso-inch.nc') !== -1,
+      t.slice(0, 2000));
+    check('v3 gcode states the Z-zero convention + dry-run note',
+      t.indexOf('Machine Z-zero is the TOP of the material') !== -1
+      && t.indexOf('Dry-run before cutting') !== -1, t.slice(0, 2000));
+    check('v3 gcode refusal renders inline with the raw code machine-readable',
+      (function () {
+        window.MldxfJobPrep._state.gcodeError = { error: 'gcode_unverified',
+          message: 'posted G-code does NOT round-trip — the entry is recorded unverified.' };
+        window.MldxfJobPrep.render(app);
+        var ge = document.querySelector('.jp-gcode [data-role="gcode-error"]');
+        var ok = !!ge && ge.textContent.indexOf('does NOT round-trip') !== -1
+          && ge.getAttribute('data-error-code') === 'gcode_unverified';
+        window.MldxfJobPrep._state.gcodeError = null;
+        window.MldxfJobPrep.render(app);
+        return ok;
+      })(), 'no inline gcode error');
 
     // Round 6: a reopened v1 job still gets a run-log block — the
     // same record the result view shows for a run followed live.
     // (No progress lines were retained for the canned job, so the
-    // block says so honestly instead of vanishing.)
+    // block says so honestly instead of vanishing.) The run log
+    // lives on the Setup stage now (round 12).
+    showSub('setup');
+    t = text();
     check('reopened job shows a run-log block even with no lines retained',
       t.indexOf('Run log:') !== -1 && t.indexOf('No run log was captured for this job.') !== -1,
       t.slice(0, 800));
@@ -292,6 +598,21 @@
     check('round 7 — progress shows a percent complete while running',
       !!pctEl && pctEl.textContent.indexOf('25% of stages complete') !== -1,
       pctEl ? pctEl.textContent : 'no progress-pct element');
+    // Round 15 (m3) — with no stage done yet the progress text
+    // names the stage in flight ("stage 1 of 4"), not "0% of
+    // stages complete" while Solids is running. Restores the
+    // one-done state afterwards for the checks below.
+    check('round 15 — progress names the stage in flight before any stage is done',
+      (function () {
+        window.MldxfJobPrep._state.progress = [];
+        window.MldxfJobPrep.render(app);
+        var el = document.querySelector('[data-role="progress-pct"]');
+        var ok = !!el && el.textContent.indexOf('stage 1 of 4') !== -1;
+        window.MldxfJobPrep._state.progress = ['2 solid(s) in STEP — 2-part path'];
+        window.MldxfJobPrep.render(app);
+        return ok;
+      })(), 'no "stage 1 of 4" with zero stages done');
+    pctEl = document.querySelector('[data-role="progress-pct"]');
     // Round 10 — the progress head reads as separate labelled
     // pieces, split by separators, and the percent names what it
     // is a percent of ("25% of stages complete", not a bare "25%
@@ -330,6 +651,14 @@
     t = text();
     check('finished timer freezes at finishedAt (0:05, not the live clock)',
       t.indexOf('finished in 0:05') !== -1, t.slice(0, 600));
+    // Round 12 — the run log + finished timer survive sub-tab
+    // switches (the state lives in the tab, not the panel).
+    check('round 12 — the run log survives sub-tab switches',
+      (function () {
+        showSub('plan');
+        showSub('setup');
+        return text().indexOf('finished in 0:05') !== -1;
+      })(), '');
     // Round 8: once the run is over the progress block stops being
     // sticky (a stuck block left its flow slot as dead space under
     // the collapsed form) and the percent is not repeated next to
@@ -381,17 +710,21 @@
     window.MldxfJobPrep.openJob('20200102-000000-v1-container');
     setTimeout(function () {
       window.fetch = realFetch;
+      // openJob lands on the Preview stage (round 12); the drill
+      // tool lives on the Plan stage, the run log on Setup.
+      showSub('plan');
       var t2 = text();
       check('openJob loads and shows a v1 job', t2.indexOf('v1 job — read-only') !== -1
         && t2.indexOf('Drill 5.00 mm') !== -1, t2.slice(0, 400));
       // The log lines sit inside a closed <details>, which
       // innerText omits — open it before reading the text.
+      showSub('setup');
       var logDetails = document.querySelector('[data-role="run-log"] details');
       if (logDetails) logDetails.open = true;
       var t2b = text();
       check('reopened job shows its run log from the status endpoint',
-        t2.indexOf('Run log (2 lines)') !== -1 && t2b.indexOf('2 solid(s) in STEP') !== -1,
-        t2.slice(0, 600));
+        t2b.indexOf('Run log (2 lines)') !== -1 && t2b.indexOf('2 solid(s) in STEP') !== -1,
+        t2b.slice(0, 600));
       // Round 8 — the guides refusal appears once, at the point of
       // action, with a way to the Clamps & machine tab: stub the
       // /guides POST to refuse, click Run guides on the v2 job,
@@ -526,6 +859,12 @@
           return realFetch3(url);
         };
         try { sessionStorage.setItem('mldxf:lastJobId', CANNED_V2.job_id); } catch (e) { /* no storage */ }
+        // Round 12 (m11) — the URL param wins over storage on
+        // restore, so a stale #job= hash from the earlier openJob
+        // block would steer the restore at the wrong id: clear
+        // the URL before testing the storage path.
+        try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* ignore */ }
+        try { localStorage.removeItem('mldxf:lastJobId'); } catch (e) { /* ignore */ }
         var S = window.MldxfJobPrep._state;
         S.jobId = null; S.job = null; S.status = null; S.progress = [];
         S.runStarted = false; S.runStartedAt = null; S.finishedAt = null;
@@ -537,7 +876,117 @@
           check('round 8 — reload restores the last-run result',
             text().indexOf('Result — canned') !== -1,
             text().slice(0, 300));
-          finish();
+          // Round 12 (m11) — the URL param restores too: clear
+          // storage, point the URL at the canned v2 job, reset
+          // the restore flag, and the result comes back without
+          // any stored id.
+          var realFetch4 = window.fetch;
+          window.fetch = function (url) {
+            var u = String(url);
+            if (u.indexOf('/api/jobs/20261123-000000-canned') !== -1
+                && u.indexOf('/status') === -1 && u.indexOf('/download/') === -1) {
+              return Promise.resolve({ json: function () {
+                return Promise.resolve({ ok: true, job: CANNED_V2, status: 'complete', cancelled: false });
+              } });
+            }
+            if (u.indexOf('/status') !== -1) {
+              return Promise.resolve({ json: function () {
+                return Promise.resolve({ ok: true, status: 'complete', progress: [], job: null });
+              } });
+            }
+            return realFetch4(url);
+          };
+          try { localStorage.removeItem('mldxf:lastJobId'); } catch (e) { /* ignore */ }
+          try { window.history.replaceState(null, '', window.location.pathname + '?job=' + CANNED_V2.job_id); } catch (e) { /* ignore */ }
+          var S2 = window.MldxfJobPrep._state;
+          S2.jobId = null; S2.job = null; S2.status = null; S2.progress = [];
+          S2.runStarted = false; S2.runStartedAt = null; S2.finishedAt = null;
+          S2.lastError = null; S2.guidesError = null; S2.restoreAttempted = false;
+          window.MldxfJobPrep.render(app);
+          setTimeout(function () {
+            window.fetch = realFetch4;
+            check('round 12 — URL ?job= restores the job on load',
+              text().indexOf('Result — canned') !== -1,
+              text().slice(0, 300));
+            try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* ignore */ }
+          // V3.3 — re-render the canned v3 job and check the 3D
+          // view once it settles. The bundle is preloaded in the
+          // harness head, so the mount itself is synchronous; the
+          // layer-geometry fetch is not (the canned job has no
+          // server job, so it 404s and the planes report
+          // unavailable — the toolpaths above are unaffected).
+          // This harness runs under the driver's --disable-gpu
+          // flags, so there is no WebGL here: the view must be in
+          // its fallback state (message + toolpath list), with the
+          // same playback controls driving the same state machine.
+          window.MldxfJobPrep._state.job = CANNED_V3;
+          window.MldxfJobPrep._state.status = 'complete';
+          window.MldxfJobPrep._state.jobId = CANNED_V3.job_id;
+          window.MldxfJobPrep.render(app);
+          var viewWaitedMs = 0;
+          var viewTimer = setInterval(function () {
+            viewWaitedMs += 250;
+            var vhost = document.querySelector('[data-role="view3d"] .view3d-mount');
+            var vstate = vhost && vhost.getAttribute('data-view3d-state');
+            var vnote = document.querySelector('[data-role="view3d-layer-note"]');
+            var vnoteDone = vnote && vnote.textContent.indexOf('Loading layer geometry') === -1;
+            if ((vstate === 'fallback' && vnoteDone) || viewWaitedMs >= 10000) {
+              clearInterval(viewTimer);
+              var vwrap = document.querySelector('[data-role="view3d"]');
+              check('v3.3 view mounts in the Toolpaths section',
+                !!vwrap && vwrap.getAttribute('data-view3d-state') === 'mounted'
+                && !!window.MldxfView3d, 'wrap=' + (vwrap && vwrap.getAttribute('data-view3d-state')));
+              check('v3.3 no WebGL here, so the view falls back (message + list)',
+                vstate === 'fallback'
+                && !!document.querySelector('[data-role="view3d-fallback"]')
+                && text().indexOf('no WebGL') !== -1
+                && document.querySelectorAll('.view3d-op-list li').length === 2,
+                'state=' + vstate);
+              check('v3.3 playback controls render (play, scrub, speed, jump, timeline)',
+                !!document.querySelector('[data-role="view3d-play"]')
+                && !!document.querySelector('[data-role="view3d-scrub"]')
+                && document.querySelector('[data-role="view3d-scrub"]').max === '5'
+                && !!document.querySelector('[data-role="view3d-speed"]')
+                && !!document.querySelector('[data-role="view3d-operation"]')
+                && document.querySelectorAll('[data-role="view3d-operation"] option').length === 3
+                && text().indexOf('Move 1/5') !== -1,
+                'timeline=' + (document.querySelector('[data-role="view3d-timeline"]') || {}).textContent);
+              check('v3.3 scrub seeks by move index and highlights the operation row',
+                (function () {
+                  var scrub = document.querySelector('[data-role="view3d-scrub"]');
+                  scrub.value = '4';
+                  scrub.dispatchEvent(new Event('input', { bubbles: true }));
+                  var tl = document.querySelector('[data-role="view3d-timeline"]').textContent;
+                  var rows = document.querySelectorAll('.tp-table tr.tp-row-current');
+                  // Round 13 (m1) — the timeline shows the human
+                  // label ("Pocket · Ø3.17 · P01"), not the raw
+                  // operation word; the full layer id lives in the
+                  // highlighted row's Layer-cell title tooltip.
+                  return tl.indexOf('Move 5/5') !== -1 && tl.indexOf('Pocket · Ø3.17 · P01') !== -1
+                    && rows.length === 1 && rows[0].querySelector('td[data-label="Layer"]').title.indexOf('P01_P01__POCKET_D1.50') !== -1;
+                })(), 'timeline=' + (document.querySelector('[data-role="view3d-timeline"]') || {}).textContent);
+              check('v3.3 jump-to-operation seeks to the operation',
+                (function () {
+                  var sel = document.querySelector('[data-role="view3d-operation"]');
+                  sel.value = '0';
+                  sel.dispatchEvent(new Event('change', { bubbles: true }));
+                  var tl = document.querySelector('[data-role="view3d-timeline"]').textContent;
+                  // Round 13 (m1) — the timeline shows the human
+                  // label ("Drill · Ø2.25 · P01"), not the raw
+                  // operation word.
+                  return tl.indexOf('Move 1/5') !== -1 && tl.indexOf('Drill · Ø2.25 · P01') !== -1;
+                })(), 'timeline=' + (document.querySelector('[data-role="view3d-timeline"]') || {}).textContent);
+              check('v3.3 layer planes report unavailable for the canned job (no server job)',
+                !!vnote && vnote.textContent.indexOf('unavailable') !== -1
+                && document.querySelectorAll('[data-role="view3d-layer-toggle"]').length === 0,
+                'note=' + (vnote && vnote.textContent));
+              check('v3.3 no 2D toolpath view exists',
+                text().indexOf('2D toolpath') === -1
+                && !document.querySelector('[data-role="view2d"]'), '');
+              finish();
+            }
+          }, 250);
+        }, 500);
         }, 500);
         }
       }, 500);
@@ -546,6 +995,10 @@
 
   function runE2eMode() {
     var app = document.getElementById('app');
+    // Hermetic start (see runDomMode): a previous run's remembered
+    // job must not steer this run's first render at a stale id.
+    try { sessionStorage.removeItem('mldxf:lastJobId'); localStorage.removeItem('mldxf:lastJobId'); } catch (e) { /* ignore */ }
+    try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* ignore */ }
     window.MldxfJobPrep.render(app);
     var sawRunning = false, sawCancel = false, sawProgress = false, sawPct = false;
     var deadline = Date.now() + 600000;
@@ -579,19 +1032,19 @@
           // out to the Python CLI, ~130-250 ms idle, ~490 ms at
           // completion under load). Sampling the text the moment
           // status flips reads the gap, not the result, so on a
-          // clean completion wait for .jp-result (bounded 10 s)
-          // before running the content checks. The checks
+          // clean completion wait for the result header (bounded
+          // 10 s) before running the content checks. The checks
           // themselves are unchanged — they just run after the
           // result has actually rendered. A failed/interrupted run
           // has no result to wait for, so it checks immediately;
           // and if the result never renders, the wait expires and
           // the checks fail exactly as before (a real regression
           // is not masked, only delayed by <= 10 s).
-          if (st.status === 'complete' && !document.querySelector('.jp-result')) {
+          if (st.status === 'complete' && !document.querySelector('[data-role="jp-result-header"]')) {
             var waitedMs = 0;
             var waitTimer = setInterval(function () {
               waitedMs += 250;
-              if (document.querySelector('.jp-result') || waitedMs >= 10000) {
+              if (document.querySelector('[data-role="jp-result-header"]') || waitedMs >= 10000) {
                 clearInterval(waitTimer);
                 runChecks();
               }
@@ -607,27 +1060,44 @@
           check('e2e streamed progress lines', sawProgress, 'progress=' + JSON.stringify(st.progress));
           check('e2e progress showed a percent complete while running', sawPct, '');
           check('e2e run completed', st.status === 'complete', 'status=' + st.status + ' err=' + JSON.stringify(st.jobError));
-          check('e2e Plan A 3 tools / 7.0 min', t.indexOf('Plan A (chosen') !== -1
-            && t.indexOf('3 tools · 2 changes') !== -1 && t.indexOf('7.0') !== -1, t.slice(0, 900));
+          // Round 12 — the result is split across workflow-stage
+          // sub-tabs; each group switches to its stage first.
+          // Plan stage: the plan cards, the flags.
+          showSub('plan');
+          t = text();
+          check('e2e Plan A 3 tools / 7.7 min (V3.14)', t.indexOf('Plan A (chosen') !== -1
+            && t.indexOf('3 tools · 2 changes') !== -1 && t.indexOf('7.7') !== -1, t.slice(0, 900));
           check('e2e owned badges for Plan A tools', (t.match(/✓ owned/g) || []).length >= 3,
             'owned badges: ' + ((t.match(/✓ owned/g) || []).length));
+          // Round 18 — Plan B sits behind the "Other plans"
+          // disclosure now: open it before reading for its
+          // not-owned badge (innerText omits closed details — the
+          // same open-before-read the DOM mode uses).
+          var otherPlans = document.querySelector('[data-role="other-plans"]');
+          if (otherPlans) otherPlans.open = true;
+          t = text();
           check('e2e not-owned tool flagged (Plan B EM4.76)',
             t.indexOf('not in your inventory — check before you cut') !== -1, '');
+          check('e2e flags shown', t.indexOf('Flags (') !== -1 && t.indexOf('Pocket island') !== -1, '');
+          check('e2e flag details are collapsible',
+            !!document.querySelector('[data-role="jp-panel-plan"] details.flag-detail-toggle'), '');
+          // Preview stage: workholding, the 2D layout preview.
+          showSub('preview');
+          t = text();
           // V2.9 wording: a v2 job with no guides yet says so honestly
           // and offers Run guides (the old 'Not yet available in V2'
           // line lives in the Jobs tab, not in job prep — see the DOM
           // mode's 'v2 workholding honest' check for the same wording).
           check('e2e workholding honest',
             t.indexOf('No guides yet for this job') !== -1 && !!document.querySelector('.jp-guides'), '');
-          check('e2e flags shown', t.indexOf('Flags (') !== -1 && t.indexOf('Pocket island') !== -1, '');
           // Round 11 — the layout preview renders inline in the
-          // result view (same preview as the Jobs detail), and the
-          // flags carry collapsible details.
+          // result view (same preview as the Jobs detail).
           check('e2e layout preview inline in the result',
-            !!document.querySelector('.jp-result [data-role="layout-preview"]')
-            && !!document.querySelector('.jp-result [data-role="layout-preview"] [data-role="sheet"]'), '');
-          check('e2e flag details are collapsible',
-            !!document.querySelector('.jp-result details.flag-detail-toggle'), '');
+            !!document.querySelector('[data-role="jp-panel-preview"] [data-role="layout-preview"]')
+            && !!document.querySelector('[data-role="jp-panel-preview"] [data-role="layout-preview"] [data-role="sheet"]'), '');
+          // Downloads stage: post-processing, the download links.
+          showSub('downloads');
+          t = text();
           // Round 4: the step renders as a card with a human method
           // badge ("Router table"), so the raw "router_table" token
           // no longer appears in the text — the badge is the check.
@@ -640,7 +1110,123 @@
             && !!document.querySelector('a[href="/api/jobs/' + id + '/download/report.md"]')
             && !!document.querySelector('a[href="/api/jobs/' + id + '/download/zip"]'),
             'jobId=' + id);
-          finish();
+          // Back to Preview for the toolpaths offer + generation.
+          showSub('preview');
+          t = text();
+          // V3.2: the fresh v2 job offers Generate toolpaths; clicking
+          // it runs the generator through the API and the section
+          // re-renders with the real 14-operation / 220-move summary.
+          // Async (the POST is 202 + status poll), so finish() waits
+          // for the summary or the 30 s bound — a timeout fails the
+          // checks instead of passing silently.
+          var tpBtn = document.querySelector('[data-role="run-toolpaths"]');
+          check('e2e toolpaths honest — offers Generate toolpaths',
+            t.indexOf('No toolpaths yet for this job') !== -1 && !!tpBtn, t.slice(0, 2000));
+          if (!tpBtn) { finish(); return; }
+          tpBtn.click();
+          // The poll below reads the Preview panel's text, so stay
+          // on Preview while the toolpaths generate.
+          showSub('preview');
+          var tpWaitedMs = 0;
+          var tpTimer = setInterval(function () {
+            tpWaitedMs += 500;
+            var tt = text();
+            var done = tt.indexOf('14 operations, 220 moves (66 rapid, 86 feed, 68 arc)') !== -1;
+            if (done || tpWaitedMs >= 30000) {
+              clearInterval(tpTimer);
+              check('e2e Generate toolpaths renders the real summary',
+                done, tt.slice(0, 2000));
+              check('e2e toolpaths table rendered',
+                !!document.querySelector('.tp-table td[data-label="Operation"]'), '');
+              check('e2e toolpaths shows no loops skipped',
+                text().indexOf('No loops skipped.') !== -1, text().slice(0, 1500));
+              // V3.3 — the 3D view on the real v3 job: the mount is
+              // async (bundle lazy-load + geometry fetch), so poll
+              // for the settled state and the 8 layer toggles
+              // before asserting. Same --disable-gpu flags as the
+              // DOM run, so no WebGL here: fallback state, with
+              // the layer toggles and playback controls live.
+              var viewWaitedMs = 0;
+              var viewTimer = setInterval(function () {
+                viewWaitedMs += 250;
+                var vhost = document.querySelector('[data-role="view3d"] .view3d-mount');
+                var vstate = vhost && vhost.getAttribute('data-view3d-state');
+                var toggles = document.querySelectorAll('[data-role="view3d-layer-toggle"]');
+                if ((vstate === 'fallback' && toggles.length === 8) || viewWaitedMs >= 10000) {
+                  clearInterval(viewTimer);
+                  check('e2e 3D view mounts and falls back without WebGL',
+                    !!document.querySelector('[data-role="view3d"]')
+                    && vstate === 'fallback'
+                    && !!document.querySelector('[data-role="view3d-fallback"]'),
+                    'state=' + vstate);
+                  check('e2e layer planes: 8 toggles, one per DXF layer',
+                    toggles.length === 8, 'toggles=' + toggles.length);
+                  // Round 12 (B) — the layer rows are short
+                  // labels (operation + Z), not raw layer ids;
+                  // the full id lives in the row's tooltip.
+                  // Round 14 (m4) — the row now also carries a
+                  // colour dot span first, so target the text
+                  // label span by class, not the first span.
+                  check('e2e layer plane rows are short labels with the full id as a tooltip',
+                    (function () {
+                      var t0 = document.querySelector('[data-role="view3d-layer-toggle"]');
+                      if (!t0) return false;
+                      var label = t0.closest('label');
+                      var span = label && label.querySelector('span.view3d-layer-label');
+                      return !!span && span.textContent.indexOf('P01_P01') === -1
+                        && span.textContent.indexOf('Z ') !== -1
+                        && !!label.title && label.title.indexOf('P01_P01') !== -1;
+                    })(), 'first layer row label is not a short label');
+                  check('e2e layer toggle hides the layer (state + row)',
+                    (function () {
+                      var t0 = document.querySelector('[data-role="view3d-layer-toggle"]');
+                      t0.checked = false;
+                      t0.dispatchEvent(new Event('change', { bubbles: true }));
+                      var api = document.querySelector('.view3d-mount')._view3d;
+                      var st = api && api.layerState();
+                      var hidden = !!document.querySelector('.view3d-layer-hidden');
+                      t0.checked = true;
+                      t0.dispatchEvent(new Event('change', { bubbles: true }));
+                      return st && st[t0.getAttribute('data-layer')] === false && hidden;
+                    })(), 'layerState did not flip');
+                  check('e2e playback scrub seeks to move 101/220',
+                    (function () {
+                      var scrub = document.querySelector('[data-role="view3d-scrub"]');
+                      scrub.value = '100';
+                      scrub.dispatchEvent(new Event('input', { bubbles: true }));
+                      var tl = document.querySelector('[data-role="view3d-timeline"]').textContent;
+                      return tl.indexOf('Move 101/220') !== -1;
+                    })(), 'timeline=' + (document.querySelector('[data-role="view3d-timeline"]') || {}).textContent);
+                  check('e2e jump-to-operation seeks to the last operation',
+                    (function () {
+                      var sel = document.querySelector('[data-role="view3d-operation"]');
+                      sel.value = '13';
+                      sel.dispatchEvent(new Event('change', { bubbles: true }));
+                      var tl = document.querySelector('[data-role="view3d-timeline"]').textContent;
+                      var rows = document.querySelectorAll('.tp-table tr.tp-row-current');
+                      // Round 13 (m1) — the timeline shows the human
+                      // label ("Profile …"), not the raw operation
+                      // word; the full layer id lives in the
+                      // highlighted row's Layer-cell title tooltip.
+                      return tl.indexOf('Profile') !== -1
+                        && rows.length === 1 && rows[0].querySelector('td[data-label="Layer"]').title.indexOf('PROFILE_THRU') !== -1;
+                    })(), 'timeline=' + (document.querySelector('[data-role="view3d-timeline"]') || {}).textContent);
+                  // Round 12 (A/m1) — switching sub-tabs keeps
+                  // the mounted 3D view: the SAME mount node,
+                  // not a remount (a remount would discard the
+                  // simmed stock and the timeline position).
+                  check('e2e sub-tab switches keep the mounted 3D view (same node)',
+                    (function () {
+                      var mount = document.querySelector('[data-role="view3d"] .view3d-mount');
+                      showSub('setup');
+                      showSub('preview');
+                      return document.querySelector('[data-role="view3d"] .view3d-mount') === mount;
+                    })(), 'view remounted on sub-tab switch');
+                  finish();
+                }
+              }, 250);
+            }
+          }, 500);
         }
       }, 1000);
     }).catch(function (e) {

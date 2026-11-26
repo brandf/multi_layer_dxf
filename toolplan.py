@@ -40,7 +40,8 @@ How it works:
       drill:   {"hole_count", "hole_dia_mm", "depth_mm"}
       pocket:  {"area_mm2", "min_width_mm", "depth_mm",
                 "perimeter_mm", "corner_radius_mm" (None = no corners)}
-      profile: {"perimeter_mm", "min_width_mm" (slots only), "depth_mm"}
+      profile: {"perimeter_mm", "min_width_mm" (slots only), "depth_mm",
+                "loop_count" (closed contours in the layer; V3.14)}
     Layers may also carry "depends_on" (a layer name that must be cut
     first — a facing pocket for a surface drill, a parent pocket for
     a pocket-in-pocket child). The planner orders by dependency first.
@@ -225,24 +226,136 @@ def _passes(cut_mm, stepdown_mm):
     return max(1, math.ceil(cut_mm / max(stepdown_mm, 0.1)))
 
 
+# --- V3.14 cut-time feedback: the estimators below model the moves
+# the toolpath generator actually emits, not just the cutting volume.
+# The acceptance run (docs-v3/acceptance.md §6.1) showed the old
+# MRR/perimeter estimates understating generated motion by 2-56%
+# per job; the gap is not noise, it is structure the old formulas
+# never saw: every peck re-plunges from clearance, every bore is a
+# stack of helical descents (plus pillar-clearing helices when the
+# hole is wide for the tool), and every profile level plunges from
+# clearance once per contour. The model mirrors ts/toolpaths.ts
+# move for move (same peck depth, same helix pitch, same clearance
+# rule); the only estimated quantities are the horizontal approach
+# traverses between contours, which the planner cannot see (no
+# contour start points at plan time) — a nominal 10 mm each.
+# Pockets keep the MRR model: it is right to ~6% on unfilled
+# pockets, and the one large pocket miss (a filled pocket whose runs
+# are each traversed twice) needs a classifier flag the planner does
+# not have — see docs-v3/cuttime_feedback.md.
+
+RAPID_MM_S = 50.0  # the simulator's rapid rate (ts/view3d/model.ts)
+_APPROACH_MM = 10.0  # nominal horizontal traverse per approach rapid
+
+
+def _clearance_gap_mm(layer, st):
+    """Vertical air gap between this layer's part top and clearance:
+    the generator's clearance is max part z_top + 5 mm, so the gap
+    is 5 mm on a single-part job and (max_z_top + 5) - z_top(part)
+    on a multi-part job. Part z_tops reach the planner through
+    plan_tools(..., part_z_top={part: z_top}); without them the gap
+    defaults to 5 mm (exact for single-part jobs)."""
+    zt = (st or {}).get("_part_z_top") or {}
+    part = layer.get("part")
+    if not zt or part is None or part not in zt:
+        return 5.0
+    return (max(zt.values()) + 5.0) - float(zt[part])
+
+
+def _loop_count(layer):
+    """Closed contours in this layer (the classifier counts merged
+    profile loops in est["loop_count"]; 1 when absent)."""
+    try:
+        return max(1, int(layer.get("est", {}).get("loop_count", 1)))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _is_through_cut(layer):
+    return "THROUGH_CUT" in str(layer.get("layer", ""))
+
+
+def _sorted_centres(layer):
+    """Hole centres in the generator's order (sorted by x, then y)."""
+    return sorted((c for c in (layer.get("centres") or [])),
+                  key=lambda c: (c[0], c[1]))
+
+
 def _est_drill(layer, tool, st):
+    """Peck drill, as generated: the tool pecks by its own diameter
+    from the stock top (full depth = start_depth + cut_depth, not
+    the cut depth alone), and every peck re-plunges from clearance
+    — the feed covers the air gap plus the depth reached by that
+    peck — then retracts to clearance. Inter-hole traverses at
+    clearance, in the generator's centre order."""
     e = layer.get("est", {})
-    n = int(e.get("hole_count", 1))
-    depth = float(e.get("depth_mm", layer["cut_depth"]))
-    pecks = _passes(depth, tool["stepdown_mm"])
-    per_hole = depth / max(tool["plunge_mm_s"], 0.1) + 0.75 * (pecks - 1) + 0.5
-    return n * per_hole
+    centres = _sorted_centres(layer)
+    n = len(centres) if centres else int(e.get("hole_count", 1))
+    full_depth = float(layer.get("start_depth", 0.0)) + float(e.get("depth_mm", layer["cut_depth"]))
+    peck = max(float(tool["dia_mm"]), 0.1)
+    n_pecks = max(1, math.ceil(full_depth / peck - 1e-9))
+    gap = _clearance_gap_mm(layer, st)
+    plunge = max(float(tool["plunge_mm_s"]), 0.1)
+    feed_s = 0.0
+    rapid_s = 0.0
+    for k in range(1, n_pecks + 1):
+        depth_k = full_depth if k == n_pecks else k * peck
+        feed_s += (gap + depth_k) / plunge
+        rapid_s += (gap + depth_k) / RAPID_MM_S
+    total = n * (feed_s + rapid_s)
+    for a, b in zip(centres, centres[1:]):
+        total += math.hypot(b[0] - a[0], b[1] - a[1]) / RAPID_MM_S
+    return total
 
 
 def _est_bore(layer, tool, st):
+    """Helical bore, as generated: the tool orbits while descending
+    the FULL depth (start_depth + cut_depth — a hole opening on a
+    pocket floor helices down through the pocket void, at feed
+    rate), pitch = stepdown per revolution, then one full circle at
+    the bottom; when the orbit radius exceeds the tool radius the
+    central pillar is cleared by further full-depth helices at
+    tiled radii. Plus one air feed-down per helix and the rapids
+    between holes (generator centre order)."""
     e = layer.get("est", {})
-    n = int(e.get("hole_count", 1))
+    centres = _sorted_centres(layer)
+    n = len(centres) if centres else int(e.get("hole_count", 1))
     dia = float(e.get("hole_dia_mm", layer.get("diameter", 0)))
-    depth = float(e.get("depth_mm", layer["cut_depth"]))
-    passes = _passes(depth, tool["stepdown_mm"])
-    per_hole = (math.pi * dia * passes) / max(tool["feed_mm_s"], 0.1) \
-        + depth / max(tool["plunge_mm_s"], 0.1) + 0.5
-    return n * per_hole
+    full_depth = float(layer.get("start_depth", 0.0)) + float(e.get("depth_mm", layer["cut_depth"]))
+    stepdown = max(float(tool["stepdown_mm"]), 0.1)
+    revs = max(1, math.ceil(full_depth / stepdown - 1e-9))
+    rh = (dia - float(tool["dia_mm"])) / 2.0
+    if not (rh > 0.05):
+        # No room for a helix: the planner never assigns such a tool
+        # (the bore fitting gate requires tool dia <= 0.8 * hole
+        # dia), but stay total rather than crash if it ever happens.
+        passes = _passes(float(e.get("depth_mm", layer["cut_depth"])), stepdown)
+        per_hole = ((math.pi * dia * passes) / max(float(tool["feed_mm_s"]), 0.1)
+                    + float(e.get("depth_mm", layer["cut_depth"])) / max(float(tool["plunge_mm_s"]), 0.1) + 0.5)
+        return n * per_hole
+    tool_r = float(tool["dia_mm"]) / 2.0
+    radii = [rh]
+    if rh > tool_r:
+        pillar_r = rh - tool_r
+        step = float(tool["dia_mm"]) * 0.8
+        k_max = max(0, math.ceil((pillar_r - 2 * tool_r) / step - 1e-9))
+        radii += [tool_r + k * step for k in range(k_max + 1)]
+    feed = max(float(tool["feed_mm_s"]), 0.1)
+    plunge = max(float(tool["plunge_mm_s"]), 0.1)
+    gap = _clearance_gap_mm(layer, st)
+    # one full circle per revolution plus the bottom circle, per helix
+    arc_s = sum((revs + 1) * 2 * math.pi * r / feed for r in radii)
+    # each helix is entered from clearance: an air feed-down at plunge
+    entry_s = len(radii) * gap / plunge
+    # traverses between successive helix radii inside one hole
+    traverse_s = sum(abs(radii[i + 1] - radii[i])
+                     for i in range(len(radii) - 1)) / RAPID_MM_S
+    # final retract, from the hole bottom back to clearance
+    retract_s = (gap + full_depth) / RAPID_MM_S
+    total = n * (arc_s + entry_s + traverse_s + retract_s)
+    for a, b in zip(centres, centres[1:]):
+        total += math.hypot(b[0] - a[0], b[1] - a[1]) / RAPID_MM_S
+    return total
 
 
 def _est_pocket(layer, tool, st, area=None):
@@ -256,23 +369,98 @@ def _est_pocket(layer, tool, st, area=None):
 
 
 def _est_profile(layer, tool, st):
+    """Profile, as generated: one contour traversal per level per
+    closed loop, plus — the part the old formula never saw — an
+    entry plunge from clearance at every level (the tool retracts
+    to clearance between contours and levels, then feeds down to
+    the previous level) and the rapids that go with it, the level-0
+    lead-in ramp on outer profiles (through-cuts ramp along the
+    slot itself, so no extra length there), and the tabbed bottom
+    traversal when the layer takes tabs."""
     e = layer.get("est", {})
     perim = float(e.get("perimeter_mm", 0))
     depth = float(e.get("depth_mm", layer["cut_depth"]))
-    passes = _passes(depth, tool["stepdown_mm"])
-    return (perim * passes) / max(tool["feed_mm_s"], 0.1) + 1.0 * passes
+    feed = max(float(tool["feed_mm_s"]), 0.1)
+    plunge = max(float(tool["plunge_mm_s"]), 0.1)
+    stepdown = max(float(tool["stepdown_mm"]), 0.1)
+    gap = _clearance_gap_mm(layer, st)
+    contours = _loop_count(layer)
+    tabs = tabs_for_layer(layer, st)
+    use_tabs = tabs is not None and float(tabs["thickness_mm"]) < depth
+    tab_thick = float(tabs["thickness_mm"]) if use_tabs else 0.0
+    levels = _passes(depth - tab_thick, stepdown) if use_tabs else _passes(depth, stepdown)
+    # the contour the generator cuts is the loop offset outward by
+    # the tool radius (outer profiles only — through-cuts are
+    # centred), and an outward offset grows a closed loop's
+    # perimeter by 2*pi*toolR (Steiner) whatever its shape
+    contour_perim = perim if _is_through_cut(layer) else perim + 2 * math.pi * (float(tool["dia_mm"]) / 2.0)
+    # one contour traversal per level per loop (the old term, kept)
+    total = (contour_perim * levels) / feed
+    # entry plunges: level 0 feeds to zTop + 0.5, later levels to
+    # the previous level (gap + li * stepdown of plunge-rate feed)
+    plunge_s = (gap - 0.5) / plunge
+    for li in range(1, levels):
+        plunge_s += (gap + li * stepdown) / plunge
+    total += contours * plunge_s
+    # rapids: per level, one vertical retract per loop (the
+    # inter-loop retracts plus the final one) and one horizontal
+    # approach per loop (nominal — the planner cannot see where
+    # the loops start)
+    for li in range(levels):
+        level_depth = min((li + 1) * stepdown, depth - tab_thick)
+        total += contours * (gap + level_depth) / RAPID_MM_S
+        total += contours * _APPROACH_MM / RAPID_MM_S
+    # level-0 lead-in ramp on outer profiles (from outside the part
+    # to the contour start; through-cuts ramp along the slot)
+    if not _is_through_cut(layer):
+        total += contours * max(2 * float(tool["dia_mm"]), 10.0) / feed
+    # tabbed bottom traversal: one more full contour, the lifts
+    # over the tab spans, and a reposition per loop (none when the
+    # layer is a single loop — the tool already ends at its start)
+    if use_tabs:
+        total += contour_perim / feed
+        total += 2 * int(tabs["count"]) * tab_thick / plunge
+        if contours > 1:
+            total += contours * ((gap + depth) / RAPID_MM_S
+                                 + _APPROACH_MM / RAPID_MM_S
+                                 + (gap + depth) / plunge)
+    return total
 
 
 def _est_finish(layer, tool, st):
     """A finish pass removes only the thin wall allowance left by the
     rough pass: it is a profile-like cut around the pocket perimeter
     (plus the corner crescents the rough tool could not reach), not
-    an area clear — so it is priced like a profile, not a pocket."""
+    an area clear — so it is priced like a profile, not a pocket.
+    As generated it is one helical descent over the full contour
+    plus one planar revolution at the bottom (two contour
+    traversals, not one per stepdown as the old formula charged),
+    entered from clearance once per loop."""
     e = layer.get("est", {})
     perim = float(e.get("perimeter_mm", 0))
     depth = float(e.get("depth_mm", layer["cut_depth"]))
-    passes = _passes(depth, tool["stepdown_mm"])
-    return (perim * passes) / max(tool["feed_mm_s"], 0.1) + 1.0 * passes
+    feed = max(float(tool["feed_mm_s"]), 0.1)
+    plunge = max(float(tool["plunge_mm_s"]), 0.1)
+    gap = _clearance_gap_mm(layer, st)
+    contours = _loop_count(layer)
+    # the finish contour is the wall contour: the loop offset by
+    # exactly the tool radius — outward for an outer profile
+    # (+2*pi*toolR), inward for a pocket wall (-2*pi*toolR),
+    # centred for a through-cut
+    tool_r = float(tool["dia_mm"]) / 2.0
+    if layer.get("operation") == "pocket":
+        contour_perim = perim - 2 * math.pi * tool_r
+    elif _is_through_cut(layer):
+        contour_perim = perim
+    else:
+        contour_perim = perim + 2 * math.pi * tool_r
+    total = 2 * contour_perim / feed
+    total += contours * gap / plunge  # air feed-down per loop
+    # approach rapids: the first from clearance (horizontal), later
+    # ones from the previous loop's bottom (diagonal, mostly vertical)
+    total += _APPROACH_MM / RAPID_MM_S
+    total += (contours - 1) * (gap + depth + _APPROACH_MM) / RAPID_MM_S
+    return total
 
 
 OP_RANK = {"drill": 0, "pocket": 1, "profile": 2}
@@ -591,14 +779,20 @@ def plan_profile_tools(plan):
     return per_part
 
 
-def plan_tools(layers, cfg=None, part_min_dim=None):
+def plan_tools(layers, cfg=None, part_min_dim=None, part_z_top=None):
     """Rank tool-set plans for these layers. Returns
     {"plans": [best, ...up to max_plans], "error": None} or
     {"plans": [], "error": "..."} when no standard tool can cut a layer.
     part_min_dim is the smallest footprint dimension per part (float
     for one part, {prefix: min_dim} for a merged job) — each layer's
-    endmill is capped at max_endmill_ratio of its own part's size."""
+    endmill is capped at max_endmill_ratio of its own part's size.
+    part_z_top is {prefix: z_top} for a merged job (V3.14): the
+    estimators need each part's top to get the clearance air gap
+    right (clearance is max z_top + 5 mm). Single-part callers omit
+    it and the gap defaults to 5 mm, which is exact there."""
     st = settings(cfg)
+    if part_z_top:
+        st["_part_z_top"] = dict(part_z_top)
     layers = [L for L in layers]
     if not layers:
         return {"plans": [], "error": "no layers to plan"}

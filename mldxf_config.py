@@ -248,13 +248,22 @@ def _require_version(obj, where, default=None):
 
 
 _MACHINE_KEYS = {"id", "name", "bed", "t_track", "controller",
-                 "default_material", "version"}
+                 "default_material", "version", "post_processor"}
 _BED_KEYS = {"width_mm", "depth_mm"}
 _T_TRACK_KEYS = {"slot_width_mm", "slots", "placeholder", "comment"}
 _SLOT_KEYS_X = {"axis", "at_y_mm", "from_x_mm", "to_x_mm",
                 "placeholder", "comment"}
 _SLOT_KEYS_Y = {"axis", "at_x_mm", "from_y_mm", "to_y_mm",
                 "placeholder", "comment"}
+
+
+# The native post-processors (V3.6/V3.8) — the ids `mldxf gcode`
+# accepts. The AUTHORITY is the TS registry (ts/posts/index.ts
+# POSTS); this list mirrors it so `mldxf machine validate` and the
+# Preferences/machine-tab UI can reject a typo at save time instead
+# of failing at post time. If a post is added to the registry, add
+# it here too — test_mldxf_config.py asserts the two lists agree.
+KNOWN_POST_PROCESSORS = ("masso-mm", "masso-inch", "grbl", "template")
 
 
 def _validate_slot(slot, index, width_mm, depth_mm, slot_width_mm):
@@ -393,6 +402,17 @@ def load_machine(home=None):
             raise ConfigError(
                 "machine.json: 'default_material' must be null, a "
                 f"'WxDxT' string, or an object, got {mat!r}")
+    # V3.8: the machine profile names the post (V3_SCOPE.md §6.1/§6.4).
+    # Absent or null = no selection (the CLI falls back to its default);
+    # a present value must name one of the known native posts. An
+    # unknown name is a loud validation error here — never a silent
+    # fall-through to the default at post time.
+    if "post_processor" in data and data["post_processor"] is not None:
+        pp = data["post_processor"]
+        if not isinstance(pp, str) or pp not in KNOWN_POST_PROCESSORS:
+            raise ConfigError(
+                "machine.json: 'post_processor' must be one of "
+                f"{', '.join(KNOWN_POST_PROCESSORS)}, got {pp!r}")
     return data
 
 
@@ -598,9 +618,37 @@ def _finish_tools(entries, keyed, version):
 # ---------------------------------------------------------------- clamps
 
 _CLAMP_METHODS = {"t_track_clamp", "tape", "glue", "screw", "pin", "vise"}
+# Mechanical contact types (Nov 25, 2026 — Brandon: a clamp's
+# restraint comes from what it actually contacts, not from sitting
+# near an edge). ``top_down`` pushes down from the top at a point
+# (hold-down + lateral resistance via friction only); ``edge_push``
+# presses against exactly one sheet edge (lateral force on that
+# edge only, no hold-down); ``pin`` constrains lateral movement in
+# two dimensions at a point (a dowel in a hole — no hold-down).
+# A clamp entry may carry ``type`` explicitly; when it does not,
+# :func:`clamp_contact_type` infers it from the method (a pin
+# method is a pin; a T-track clamp is a top-down hold-down unless
+# recorded otherwise). Capacities the balance needs: ``hold_force_n``
+# (rated hold-down, top-down), ``lateral_capacity_n`` (rated lateral
+# force, edge-push / pin), ``friction_mu`` (per-clamp override of
+# the conservative default in mldxf_guides).
+_CLAMP_CONTACT_TYPES = {"top_down", "edge_push", "pin"}
 _CLAMP_KEYS = {"id", "method", "footprint_mm", "keep_out_mm",
-               "hold_force_n", "t_track", "count", "notes"}
+               "hold_force_n", "t_track", "count", "notes",
+               "type", "lateral_capacity_n", "friction_mu"}
 _CLAMPS_FILE_KEYS = {"version", "clamps"}
+
+
+def clamp_contact_type(entry):
+    """The mechanical contact type of a clamp entry: its explicit
+    ``type`` when recorded, else inferred from the method (``pin``
+    is a pin; anything else mounts as a top-down hold-down)."""
+    t = entry.get("type")
+    if t is not None:
+        return t
+    if entry.get("method") == "pin":
+        return "pin"
+    return "top_down"
 
 
 def _validate_clamp(entry, where):
@@ -633,6 +681,20 @@ def _validate_clamp(entry, where):
     if "hold_force_n" in entry:
         _require_num(entry, "hold_force_n", where, 0,
                      exclusive_minimum=True)
+    if "type" in entry and entry["type"] not in _CLAMP_CONTACT_TYPES:
+        raise ConfigError(
+            f"{where}: 'type' must be one of "
+            f"{sorted(_CLAMP_CONTACT_TYPES)}, got {entry['type']!r}")
+    if "lateral_capacity_n" in entry:
+        _require_num(entry, "lateral_capacity_n", where, 0,
+                     exclusive_minimum=True)
+    if "friction_mu" in entry:
+        _require_num(entry, "friction_mu", where, 0,
+                     exclusive_minimum=True)
+        if not entry["friction_mu"] <= 1.0:
+            raise ConfigError(
+                f"{where}: 'friction_mu' must be <= 1.0, got "
+                f"{entry['friction_mu']!r}")
     if "notes" in entry and not isinstance(entry["notes"], str):
         raise ConfigError(f"{where}: 'notes' must be a string")
     return entry

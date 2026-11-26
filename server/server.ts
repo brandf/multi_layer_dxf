@@ -49,11 +49,24 @@
  * Usage: `mldxf serve [--port N]` (spawns `bun run server.ts`),
  * or directly: `bun run server.ts [--port N]` (PORT env also works).
  * Dependency-free — Bun's built-in server, no npm packages.
+ *
+ * V3.3: GET /api/jobs/:id/geometry serves the job's layer geometry
+ * (1:1 with `mldxf geometry --json`) for the three.js 3D view, and
+ * the server ensures the view bundle (server/public/vendor/
+ * view3d.js, built by ts/view3d/build.ts) exists and is fresh at
+ * startup — a failed build never blocks the server; the view falls
+ * back to the toolpath list. The server still computes nothing
+ * about a job itself.
  */
 
 import { homedir, tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
 import { existsSync } from "node:fs";
+// V3.8: the native post registry is the authority for the known
+// post ids (the Preferences -> machine.json mirror only ever
+// writes one of these). The posts modules are pure TS (no I/O,
+// no DOM, no Node/Bun APIs), so the server can import them.
+import { listPosts } from "../ts/posts/index.ts";
 
 // ---------------------------------------------------------------- paths
 
@@ -490,19 +503,53 @@ function startPlanRun(
     void saveRetainedIndex();
   }
   log(`run ${id} started: mldxf ${planArgv(stepPath, dir, options).join(" ")}`);
-  void runPlan(run, stepPath, options);
+  void runCliJob(
+    run,
+    planArgv(stepPath, dir, options),
+    "plan",
+    "plan_failed",
+  );
   return run;
 }
 
-/** The background half of startPlanRun: spawn the CLI, stream its
- * stderr into the run's progress buffer + SSE subscribers, and
- * record the outcome when it exits. */
-async function runPlan(
+/** Start a `mldxf toolpaths` run in the background and register it
+ * (V3.2): same machinery as a plan run — the caller gets the JobRun
+ * immediately (202), progress streams over the same SSE endpoint
+ * (`GET /api/jobs/:id/events`), completion lands in the same status
+ * endpoint. No retained inputs: the job dir itself is the input.
+ * Toolpaths run in seconds on small jobs but the Kookabus job is
+ * 57k moves, so it is async like plan, never synchronous like
+ * guides. */
+function startToolpathsRun(id: string, dir: string): JobRun {
+  const run: JobRun = {
+    id,
+    dir,
+    status: "running",
+    cancelled: false,
+    startedAt: new Date().toISOString(),
+    progress: [],
+    retained: null,
+    sse: new Set(),
+  };
+  runs.set(id, run);
+  log(`run ${id} started: mldxf toolpaths ${dir} --json`);
+  void runCliJob(run, ["toolpaths", dir, "--json"], "toolpaths", "toolpaths_failed");
+  return run;
+}
+
+/** The background half of startPlanRun / startToolpathsRun: spawn
+ * the CLI (argv is the `mldxf ...` argv without the python prefix),
+ * stream its stderr into the run's progress buffer + SSE
+ * subscribers, and record the outcome when it exits. `label` is
+ * the command name for logs/messages; `defaultError` is the error
+ * name when the CLI fails with no JSON on stdout. */
+async function runCliJob(
   run: JobRun,
-  stepPath: string,
-  options: PlanOptions,
+  cliArgs: string[],
+  label: string,
+  defaultError: string,
 ): Promise<void> {
-  const { id, dir } = run;
+  const { id } = run;
 
   // On POSIX the CLI is spawned under `setsid` so it leads its own
   // process group: cancel can then kill the whole group (the CLI
@@ -510,8 +557,8 @@ async function runPlan(
   const useSetsid =
     process.platform !== "win32" && Bun.which("setsid") !== null;
   const argv = useSetsid
-    ? ["setsid", ...cliArgv(planArgv(stepPath, dir, options))]
-    : cliArgv(planArgv(stepPath, dir, options));
+    ? ["setsid", ...cliArgv(cliArgs)]
+    : cliArgv(cliArgs);
   const proc = Bun.spawn(argv, {
     stdout: "pipe",
     stderr: "pipe",
@@ -571,10 +618,10 @@ async function runPlan(
     } else {
       run.status = "failed";
       run.error = {
-        error: body?.error ?? "plan_failed",
+        error: body?.error ?? defaultError,
         message:
           body?.message ??
-          `mldxf plan failed (exit ${code}) with no JSON on stdout`,
+          `mldxf ${label} failed (exit ${code}) with no JSON on stdout`,
       };
       run.job = body?.job ?? null;
       log(`run ${id} failed: ${run.error.error}: ${run.error.message}`);
@@ -654,6 +701,50 @@ function planSummaryFromJob(job: any): any {
           minutes: Math.round(((first.total_seconds ?? 0) / 60) * 10) / 10,
         }
       : null,
+    toolpaths: toolpathsSummaryFromJob(job),
+    gcode: gcodeSummaryFromJob(job),
+  };
+}
+
+/** The G-code summary for a job (V3.6, docs-v3/job_model_v3.md
+ * §6.1): null for a job never posted, one line per post run for a
+ * posted job — the post, the file, the verified stamp, and the
+ * run time. Read off the job object only; no computation. */
+function gcodeSummaryFromJob(job: any): any {
+  const gc = job?.gcode;
+  if (!Array.isArray(gc) || gc.length === 0) return null;
+  return gc.map((e: any) => ({
+    post_id: e?.post_id ?? null,
+    file: e?.file ?? null,
+    sha256: e?.sha256 ?? null,
+    verified: e?.verified ?? false,
+    generated_at: e?.generated_at ?? null,
+  }));
+}
+
+/** The toolpaths summary for a job (V3.2, docs-v3/job_model_v3.md
+ * §11): null for a v2 job (no toolpaths yet), the section's stats
+ * + skipped loops for a v3 job. Skipped loops are listed, never
+ * hidden — a job that skips material says so in the list. Read off
+ * the job object only; no computation. */
+function toolpathsSummaryFromJob(job: any): any {
+  const tp = job?.toolpaths;
+  if (!tp) return null;
+  const stats = tp.stats ?? {};
+  const ops = tp.operations ?? [];
+  return {
+    version: tp.version ?? null,
+    plan: tp.plan ?? null,
+    operations: stats.operations ?? ops.length,
+    moves: stats.moves ?? 0,
+    rapid: stats.rapid ?? 0,
+    feed: stats.feed ?? 0,
+    arc: stats.arc ?? 0,
+    skipped: (tp.skipped ?? []).map((s: any) => ({
+      layer: s.layer ?? null,
+      loop: s.loop ?? null,
+      reason: s.reason ?? null,
+    })),
   };
 }
 
@@ -981,7 +1072,69 @@ async function libraryPut(kind: string, req: Request): Promise<Response> {
     await writeFile(staging, JSON.stringify(candidate, null, 2) + "\n", "utf-8");
     await rename(staging, currentPath);
     log(`${kind} saved: version ${candidate.version ?? "(no version field)"} (was ${currentVersion})`);
+    // V3.8: a chosen native post in Preferences also sets the
+    // machine profile's post processor — see mirrorPostToMachine.
+    if (kind === "preferences") {
+      await mirrorPostToMachine(candidate);
+    }
     return jsonResponse({ ok: true, [lib.key]: candidate });
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+/** V3.8 — mirror a chosen native post from Preferences into the
+ * machine profile (machine.json), where the selection lives: the
+ * CLI's post resolution honors machine.json (`mldxf gcode`
+ * without --post), and the machine tab edits the same field, so
+ * the two UIs agree. Only a value naming a known native post
+ * mirrors; anything else (a legacy VCarve post name, the old
+ * CHANGE_ME sentinel, blank) leaves machine.json untouched.
+ * Best-effort by design: a machine file that cannot be read or
+ * validated keeps its old value, and the preferences save still
+ * stands — the mirror is a convenience, never a reason to refuse
+ * the operator's save. The mirrored file is validated with the
+ * CLI's own `mldxf machine validate` in a temp home before it is
+ * moved into place (the libraryPut validate-then-save pattern),
+ * and its version is bumped like any machine save. */
+async function mirrorPostToMachine(prefs: any): Promise<void> {
+  const pp = prefs?.vcarve?.post_processor;
+  if (typeof pp !== "string") return;
+  const known = new Set(listPosts().map((p) => p.id));
+  if (!known.has(pp)) return;
+  const machinePath = join(HOME, "machine.json");
+  let machine: any;
+  try {
+    machine = await Bun.file(machinePath).json();
+  } catch {
+    log(`post mirror skipped: machine.json could not be read`);
+    return;
+  }
+  if (!machine || typeof machine !== "object" || Array.isArray(machine)) return;
+  if (machine.post_processor === pp) return;
+  const next = { ...machine, post_processor: pp };
+  if (typeof next.version === "number") next.version = next.version + 1;
+  const { mkdtemp, cp, rm, rename, writeFile } = await import("node:fs/promises");
+  const tmp = await mkdtemp(join(tmpdir(), "mldxf-post-mirror-"));
+  try {
+    for (const name of ["machine.json", "tools.json", "clamps.json", "preferences.json"]) {
+      const src = join(HOME, name);
+      if (existsSync(src)) await cp(src, join(tmp, name));
+    }
+    await writeFile(
+      join(tmp, "machine.json"),
+      JSON.stringify(next, null, 2) + "\n",
+      "utf-8",
+    );
+    const result = await runCli(["machine", "validate", "--json"], { MLDXF_HOME: tmp });
+    if (!result.body?.ok) {
+      log(`post mirror skipped: machine.json with post ${pp} failed validation: ${result.body?.message ?? "unknown"}`);
+      return;
+    }
+    const staging = join(HOME, `.machine.json.tmp-${process.pid}`);
+    await writeFile(staging, JSON.stringify(next, null, 2) + "\n", "utf-8");
+    await rename(staging, machinePath);
+    log(`post mirror: machine.json post_processor set to ${pp} (version ${next.version ?? "?"})`);
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
@@ -1052,6 +1205,11 @@ async function handleCreateJob(req: Request): Promise<Response> {
   if (!body || typeof body.step_path !== "string" || !body.step_path)
     return errorResponse("step_file_not_found", "JSON body needs 'step_path' (absolute path to a STEP file)");
   stepPath = body.step_path;
+  // stepPath is a non-empty string here by the guard above; this
+  // makes the invariant visible to the typechecker (string | null
+  // otherwise, and the uses below would not typecheck).
+  if (!stepPath)
+    return errorResponse("step_file_not_found", "no STEP file for this job");
   if (!existsSync(stepPath))
     return errorResponse("step_file_not_found", `STEP file not found: ${stepPath}`);
   stepStem = basename(stepPath).replace(/\.step$/i, "");
@@ -1182,7 +1340,180 @@ async function handleGuides(id: string): Promise<Response> {
 
 /** Re-plan an interrupted job from its retained inputs into a NEW
  * job dir (new id). The old dir is never written into except by
- * the CLI, and a fresh run gets a fresh id per scope §8 Q9. */
+ * the CLI, and a fresh run gets a fresh id per scope §8 Q9. *//** Toolpaths (V3.2): POST /api/jobs/:id/toolpaths, 1:1 with
+ * `mldxf toolpaths` — async like a plan run (startToolpathsRun
+ * registers a JobRun; progress over the same SSE endpoint, outcome
+ * over the same status endpoint), because the Kookabus job is
+ * 57k moves and must not block the page. A v1 job is refused
+ * synchronously with the CLI's toolpaths_unavailable (the job
+ * cannot gain toolpaths without the V2.2 job model); a job with a
+ * run already in progress is refused with job_already_running
+ * (409) rather than starting a second generator on the same dir.
+ * On completion GET /api/jobs/:id returns the full job with its
+ * `toolpaths` section (docs-v3/job_model_v3.md §11). */
+async function handleToolpaths(id: string): Promise<Response> {
+  const dir = jobDirFor(id);
+  if (!dir) return errorResponse("job_not_found", `no such job: ${id}`, 404);
+  if (!existsSync(dir))
+    return errorResponse("job_not_found", `job dir not found: ${dir}`, 404);
+  const existing = runs.get(id);
+  if (existing && existing.status === "running")
+    return errorResponse(
+      "job_already_running",
+      `job ${id} already has a run in progress (status: running)`,
+      409,
+    );
+  const found = await readJobFile(dir);
+  if (!found || !found.data)
+    return errorResponse(
+      "job_invalid",
+      `job ${id} could not be read`,
+      400,
+    );
+  if ((found.data.job_version ?? 1) < 2)
+    return errorResponse(
+      "toolpaths_unavailable",
+      `job ${id} is a v1 job (manifest.json only) — toolpaths need ` +
+        "the V2.2 job model (job.json with layout + tool plan + " +
+        "material). v1 jobs are read-only; re-run `mldxf plan` on " +
+        "the source STEP instead",
+      400,
+    );
+  const run = startToolpathsRun(id, dir);
+  return jsonResponse(
+    { ok: true, job: { job_id: run.id, job_dir: run.dir, status: "running" } },
+    202,
+  );
+}
+
+/** Start a `mldxf gcode` run in the background and register it
+ * (V3.6): same machinery as a toolpaths run — the caller gets the
+ * JobRun immediately (202), progress over the same SSE endpoint,
+ * outcome over the same status endpoint. A Kookabus post
+ * re-simulates 76k moves, so it is async like toolpaths, never
+ * synchronous like guides. `post` is the requested post id, or
+ * null for the CLI's default selection (job profile > machine.json
+ * > masso-mm). */
+function startGcodeRun(id: string, dir: string, post: string | null): JobRun {
+  const run: JobRun = {
+    id,
+    dir,
+    status: "running",
+    cancelled: false,
+    startedAt: new Date().toISOString(),
+    progress: [],
+    retained: null,
+    sse: new Set(),
+  };
+  runs.set(id, run);
+  const argv = ["gcode", dir, "--json"];
+  if (post) argv.push("--post", post);
+  log(`run ${id} started: mldxf ${argv.join(" ")}`);
+  void runCliJob(run, argv, "gcode", "gcode_failed");
+  return run;
+}
+
+/** G-code (V3.6): POST /api/jobs/:id/gcode, 1:1 with
+ * `mldxf gcode` — async like a toolpaths run (startGcodeRun
+ * registers a JobRun; progress over the same SSE endpoint,
+ * outcome over the same status endpoint). Optional JSON body
+ * `{"post": "<post-id>"}` selects the post; an absent body, an
+ * empty body, or a body without a string `post` takes the CLI's
+ * default selection. A v1 job is refused synchronously with the
+ * CLI's toolpaths_unavailable, as is a v2/v3 job with no
+ * toolpaths yet (G-code is posted from the toolpaths); a job
+ * with a run already in progress is refused with
+ * job_already_running (409). On completion GET /api/jobs/:id
+ * returns the full job with its `gcode` section; an unverified
+ * round-trip fails the run with `gcode_unverified` (the entry
+ * is still recorded, verified: false — GET shows it). */
+async function handleGcode(id: string, req: Request): Promise<Response> {
+  const dir = jobDirFor(id);
+  if (!dir) return errorResponse("job_not_found", `no such job: ${id}`, 404);
+  if (!existsSync(dir))
+    return errorResponse("job_not_found", `job dir not found: ${dir}`, 404);
+  const existing = runs.get(id);
+  if (existing && existing.status === "running")
+    return errorResponse(
+      "job_already_running",
+      `job ${id} already has a run in progress (status: running)`,
+      409,
+    );
+  const found = await readJobFile(dir);
+  if (!found || !found.data)
+    return errorResponse(
+      "job_invalid",
+      `job ${id} could not be read`,
+      400,
+    );
+  if ((found.data.job_version ?? 1) < 2)
+    return errorResponse(
+      "toolpaths_unavailable",
+      `job ${id} is a v1 job (manifest.json only) — G-code needs ` +
+        "the V2.2 job model (job.json with layout + tool plan + " +
+        "material). v1 jobs are read-only; re-run `mldxf plan` on " +
+        "the source STEP instead",
+      400,
+    );
+  if (!found.data.toolpaths)
+    return errorResponse(
+      "toolpaths_unavailable",
+      `job ${id} has no toolpaths — G-code is posted from the ` +
+        "toolpaths. Run `mldxf toolpaths` first",
+      400,
+    );
+  let post: string | null = null;
+  try {
+    const body = await req.json();
+    if (body && typeof body.post === "string" && body.post) post = body.post;
+  } catch {
+    // No body, or an unparseable one: the default post selection.
+  }
+  const run = startGcodeRun(id, dir, post);
+  return jsonResponse(
+    { ok: true, job: { job_id: run.id, job_dir: run.dir, status: "running" } },
+    202,
+  );
+}
+
+/** Job-model validation (V3.2): GET /api/jobs/:id/validate, 1:1
+ * with `mldxf validate-job --json` — the server spawns the CLI
+ * and returns the validator's JSON, computing nothing itself. */
+async function handleValidate(id: string): Promise<Response> {
+  const dir = jobDirFor(id);
+  if (!dir) return errorResponse("job_not_found", `no such job: ${id}`, 404);
+  if (!existsSync(dir))
+    return errorResponse("job_not_found", `job dir not found: ${dir}`, 404);
+  const { body } = await runCli(["validate-job", dir, "--json"]);
+  if (body.ok) return jsonResponse(body);
+  return errorResponse(
+    body.error ?? "job_invalid",
+    body.message ?? `job ${id} failed validation`,
+    httpStatusForCliError(body.error ?? "job_invalid"),
+  );
+}
+
+/** Layer geometry (V3.3): GET /api/jobs/:id/geometry, 1:1 with
+ * `mldxf geometry --json` — the server spawns the CLI and returns
+ * the extractor's JSON (one entry per job layer: DXF loops as
+ * sampled points + the layer's Z depths), computing nothing
+ * itself. The 3D view fetches this; the toolpaths themselves come
+ * from GET /api/jobs/:id. A v1 job is refused with the CLI's
+ * geometry_unavailable (400); an unknown id is 404. */
+async function handleGeometry(id: string): Promise<Response> {
+  const dir = jobDirFor(id);
+  if (!dir) return errorResponse("job_not_found", `no such job: ${id}`, 404);
+  if (!existsSync(dir))
+    return errorResponse("job_not_found", `job dir not found: ${dir}`, 404);
+  const { body } = await runCli(["geometry", dir, "--json"]);
+  if (body.ok) return jsonResponse(body);
+  return errorResponse(
+    body.error ?? "geometry_failed",
+    body.message ?? `job ${id} has no layer geometry`,
+    httpStatusForCliError(body.error ?? "geometry_failed"),
+  );
+}
+
 async function rerunFromInputs(
   id: string,
   retained: RetainedInputs,
@@ -1336,7 +1667,10 @@ async function handleDownload(id: string, file: string): Promise<Response> {
   const dir = jobDirFor(id);
   if (!dir || !existsSync(dir))
     return errorResponse("job_not_found", `no such job: ${id}`, 404);
-  if (!SAFE_FILE.test(file) || file.includes(".."))
+  // Multi-segment paths (e.g. gcode/<job>-<post>.nc): every
+  // segment must be a safe file name, and no ".." anywhere — the
+  // download endpoint is not a file browser.
+  if (!file.split("/").every((seg) => SAFE_FILE.test(seg)) || file.includes(".."))
     return errorResponse("invalid_download", `not a downloadable file: ${file}`);
   if (file === "zip") {
     const data = await zipJobDir(dir);
@@ -1455,14 +1789,22 @@ async function handleRequest(req: Request): Promise<Response> {
         return await handleRerun(id);
       if (parts.length === 4 && parts[3] === "guides" && req.method === "POST")
         return await handleGuides(id);
+      if (parts.length === 4 && parts[3] === "toolpaths" && req.method === "POST")
+        return await handleToolpaths(id);
+      if (parts.length === 4 && parts[3] === "gcode" && req.method === "POST")
+        return await handleGcode(id, req);
+      if (parts.length === 4 && parts[3] === "validate" && req.method === "GET")
+        return await handleValidate(id);
+      if (parts.length === 4 && parts[3] === "geometry" && req.method === "GET")
+        return await handleGeometry(id);
       if (parts.length === 4 && parts[3] === "cancel" && req.method === "POST")
         return await handleCancel(id);
       if (parts.length === 4 && parts[3] === "status" && req.method === "GET")
         return await handleStatus(id);
       if (parts.length === 4 && parts[3] === "events" && req.method === "GET")
         return handleEvents(id);
-      if (parts.length === 5 && parts[3] === "download" && req.method === "GET")
-        return await handleDownload(id, parts[4]);
+      if (parts.length >= 5 && parts[3] === "download" && req.method === "GET")
+        return await handleDownload(id, parts.slice(4).join("/"));
       return errorResponse("not_found", `no such endpoint: ${req.method} ${url.pathname}`, 404);
     }
     if (parts[0] === "api" && parts.length === 2 &&
@@ -1510,6 +1852,30 @@ await saveRetainedIndex();
 
 const scanned = await scanJobs();
 const interrupted = scanned.filter((j) => j.status === "interrupted").length;
+
+// The 3D view bundle (V3.3) is a build artifact, not checked in:
+// ensure it exists and is fresh before serving, so every launch
+// path — `mldxf serve`, `start.bat`, and a direct `bun run
+// server.ts` (the path the test drivers use) — serves a working
+// view. Best-effort and synchronous at startup: a failed build
+// never blocks the server (the view falls back to the toolpath
+// list), and an up-to-date bundle is a no-op.
+try {
+  const built = Bun.spawnSync(
+    [process.execPath, join(REPO_ROOT, "ts", "view3d", "build.ts"), "--json"],
+    { cwd: REPO_ROOT, timeout: 120000 },
+  );
+  const out = built.stdout ? built.stdout.toString().trim() : "";
+  const body = out ? JSON.parse(out) : null;
+  if (built.exitCode === 0 && body?.ok) {
+    log(`3D view bundle: ${body.built ? "built" : "up to date"} (${body.bundle})`);
+  } else {
+    log(`3D view bundle: build did not run cleanly (${body?.error ?? "exit " + built.exitCode}) — the view will fall back to the toolpath list`);
+  }
+} catch (e: any) {
+  log(`3D view bundle: ensure-build failed (${e?.message ?? e}) — the view will fall back to the toolpath list`);
+}
+
 log(
   `mldxf-server starting: home=${HOME} jobs=${JOBS_ROOT} ` +
     `(${scanned.length} job dir(s) scanned, ${interrupted} interrupted)`,

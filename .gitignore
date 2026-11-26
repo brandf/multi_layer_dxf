@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 test/out/
 .DS_Store
+# V3.3: the 3D view bundle is a build artifact (three.js vendored
+# locally by ts/view3d/build.ts) — rebuilt when missing/stale, never
+# checked in. The pin lives in package.json + bun.lock.
+server/public/vendor/
+node_modules/

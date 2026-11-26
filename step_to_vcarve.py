@@ -1258,6 +1258,12 @@ def main():
                             e0[k] = v
                         else:
                             e0[k] = round(min(cur, v), 3)
+                # V3.14: each merged profile feature is one closed
+                # loop (one through-cut slot, one profile wire), so
+                # the merge count is the contour count the profile
+                # estimator needs for its per-level plunges/rapids.
+                if operation == "profile":
+                    e0["loop_count"] = e0.get("loop_count", 0) + 1
             return
         d = {"layer": name, "operation": operation, "start_depth": round(start, 3),
              "cut_depth": round(cut, 3), "segment_count": len(segs)}
@@ -1265,6 +1271,8 @@ def main():
             if "centre" in extra:
                 d["centres"] = [extra.pop("centre")]
             d.update(extra)
+        if operation == "profile" and "est" in d:
+            d["est"]["loop_count"] = 1
         _layer_index[name] = len(layers)
         layers.append(d)
 

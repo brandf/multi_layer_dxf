@@ -1,5 +1,29 @@
 # multi_layer_dxf — Changelog
 
+## V3 (unpushed, 2026-11-24)
+
+V3 is the in-house TypeScript toolpath generation + job model +
+3D view + sim wave, on top of pushed V2 (commit `aa499634`).
+Local only at this writing: no push, no tag, no release.
+
+- **V3.4 — cut-simulation engine** (`ts/sim.ts`, `ts/tools.ts`,
+  `ts/sim_verify.ts`, `mldxf sim --verify`): dexel stock, adaptive
+  pitch (0.05 mm, 25M-column budget), analytic per-segment sweep,
+  extensible tool profiles (flat / ball-nose / V-bit / bull-nose in
+  one model). `mldxf sim --verify` writes the `sim` section into
+  job.json + manifest.json on PASS only. The §5.4 target (≥50× real
+  time CPU) is confirmed on all five reference jobs (container
+  209×, real_container 252×, machined 206×, eight_parts 78×,
+  Kookabus 3812×); the VCarve baseline is unmeasured (needs
+  Brandon's machine/timing). The view gains a Simulate button
+  showing the simmed stock mesh (`VIEW3D_VERSION` 2). The verifier
+  caught nine generator defects (tabs destroyed, lead-in ramp
+  ploughing, rough levels below tab height, pocket/profile
+  diagonal-rapid retracts, single-ring sloped floor, narrow-notch
+  fill + ring clipping, bore central pillar, filled-branch
+  run-entry feed) — all fixed in `ts/toolpaths.ts`, verified by
+  the verifier itself; see `docs-v3/sim.md`.
+
 ## v2.0.0 — 2026-11-23
 
 V2: the V1 pipeline gains a headless CLI, a versioned job model,

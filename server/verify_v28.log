@@ -1,0 +1,16 @@
+[2026-11-26T07:43:03.191Z] 3D view bundle: up to date (/home/hatch/workspace/multi_layer_dxf/server/public/vendor/view3d.js)
+[2026-11-26T07:43:03.191Z] mldxf-server starting: home=/home/hatch/workspace/v28-verify-home jobs=/home/hatch/workspace/v28-verify-home/jobs (3 job dir(s) scanned, 0 interrupted)
+[2026-11-26T07:43:03.193Z] mldxf-server listening on http://127.0.0.1:8471
+[2026-11-26T07:43:03.194Z] CLI: /home/hatch/workspace/multi_layer_dxf/.venv/bin/python /home/hatch/workspace/multi_layer_dxf/mldxf.py (cli version 2.0.0)
+[2026-11-26T07:43:08.080Z] run 20261126-074307-real-container started: mldxf plan /tmp/mldxf-server/uploads/20261126-074307-real-container/real_container.step -o /home/hatch/workspace/v28-verify-home/jobs/20261126-074307-real-container --json --material 160x90x10 --auto
+[2026-11-26T07:45:12.110Z] run 20261126-074307-real-container complete (exit 0)
+[2026-11-26T07:46:48.314Z] run 20261122-220000-real-container started: mldxf toolpaths /home/hatch/workspace/v28-verify-home/jobs/20261122-220000-real-container --json
+[2026-11-26T07:46:48.772Z] run 20261122-220000-real-container complete (exit 0)
+[2026-11-26T07:46:54.504Z] run 20261122-220000-real-container started: mldxf toolpaths /home/hatch/workspace/v28-verify-home/jobs/20261122-220000-real-container --json
+[2026-11-26T07:46:54.790Z] run 20261122-220000-real-container complete (exit 0)
+[2026-11-26T07:50:32.298Z] run 20261122-220000-real-container started: mldxf gcode /home/hatch/workspace/v28-verify-home/jobs/20261122-220000-real-container --json --post masso-inch
+[2026-11-26T07:50:36.715Z] run 20261122-220000-real-container complete (exit 0)
+[2026-11-26T07:50:56.676Z] preferences saved: version (no version field) (was 1)
+[2026-11-26T07:50:56.822Z] post mirror: machine.json post_processor set to template (version 2)
+[2026-11-26T07:50:57.097Z] preferences saved: version (no version field) (was 1)
+[2026-11-26T07:50:57.587Z] preferences saved: version (no version field) (was 1)

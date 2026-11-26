@@ -9,6 +9,10 @@
  * proxy puts everything on one origin without touching the server:
  *
  *   GET /test-job-prep.html  -> served from server/test-job-prep.html
+ *   GET /view3d-probe.html   -> served from server/view3d-probe.html
+ *                               (V3.3 render probe, SwiftShader WebGL)
+ *   GET /webgpu-sim-probe.html -> served from server/webgpu-sim-probe.html
+ *                               (V3.5 GPU sim probe, WebGPU compute)
  *   GET /real_container.step -> served from test/real_container.step
  *   everything else          -> proxied to the real app server
  *                               (static files, /api/*, SSE included)
@@ -53,6 +57,20 @@ const server = Bun.serve({
     if (req.method === "GET" && url.pathname === "/test-job-prep.html") {
       console.log(`[proxy ${stamp}] serve test-job-prep.html from disk`);
       return new Response(Bun.file(join(SERVER_DIR, "test-job-prep.html")), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+    // 3D view render probe (V3.3, test-only — same treatment).
+    if (req.method === "GET" && url.pathname === "/view3d-probe.html") {
+      console.log(`[proxy ${stamp}] serve view3d-probe.html from disk`);
+      return new Response(Bun.file(join(SERVER_DIR, "view3d-probe.html")), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+    // WebGPU sim probe (V3.5, test-only — same treatment).
+    if (req.method === "GET" && url.pathname === "/webgpu-sim-probe.html") {
+      console.log(`[proxy ${stamp}] serve webgpu-sim-probe.html from disk`);
+      return new Response(Bun.file(join(SERVER_DIR, "webgpu-sim-probe.html")), {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
     }

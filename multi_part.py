@@ -62,12 +62,16 @@ Layout / alignment (added for the container Top/Bottom, 2026-11-08):
     and each part's profile endmill is taken from the CHOSEN plan
     (BRA-20; --plan picks which), then gaps are
     max(gap_mm, D_A + D_B + web_min) so the tabs keep a web to
-    hold onto; the same rule sets row gaps, the clamp-margin
-    check, and registration-pin clearance. When no merged plan
-    exists (a layer no standard tool fits), the per-part fit-rule
-    maxima are used instead (the old behaviour). With a material
-    size given, parts sit only inside the usable area (material
-    minus clamp_margin_mm, default 20 mm, on every side);
+    hold onto; the same rule sets row gaps and the edge inset
+    (each part outline sits its own D — the kerf only — inside
+    the usable boundary, so the kerf runs up to the usable
+    boundary and the margin band is the web on the outside),
+    and registration-pin clearance. When no merged
+    plan exists (a layer no standard tool fits), the per-part
+    fit-rule maxima are used instead (the old behaviour). With a
+    material size given, parts sit only inside the usable area
+    (material minus clamp_margin_mm, default 15 mm, on every
+    side), each outline inset by its own profile tool + web;
     without one, the layout is a single row and the report
     suggests a material size. The run fails with a named error if
     the layout cannot fit. Side by side is essential when the
@@ -136,6 +140,13 @@ def main():
     margin = _layout.clamp_margin_mm(cfg, parts_cfg)
     usable = _layout.usable_area(material, margin)
     web_min = _layout.web_min_mm(cfg, parts_cfg)
+    # Clamp margin vs web (Brandon Nov 25, 2026): the margin band
+    # IS the web on the outside, so the margin must be bigger than
+    # web_min. Fails before any output exists.
+    _web_v = _layout.check_margin_web(margin, web_min)
+    if _web_v:
+        print(f"ERROR: {_web_v}", file=sys.stderr)
+        return 1
     pin_clearance = _layout.pin_clearance_mm(cfg, parts_cfg)
     two_sided = bool(parts_cfg.get("two_sided", cfg.get("two_sided", False)))
     pin_dia = float(cfg.get("pin_diameter_mm",
@@ -303,6 +314,7 @@ def main():
         import tempfile
         from build123d import export_step as _export_step
         pre_layers = []  # combined layers, prefixed as the merge does
+        pre_z_tops = {}  # V3.14: per-part z_top for the clearance gap
         with tempfile.TemporaryDirectory(prefix="profile_tools_") as tmp:
             tmp = Path(tmp)
             for p in prepared:
@@ -323,6 +335,7 @@ def main():
                           f"{r.stdout}\n{r.stderr}", file=sys.stderr)
                     return r.returncode
                 man = json.loads((pre_out / "manifest.json").read_text())
+                pre_z_tops[p["prefix"]] = man["z_top"]
                 for L in man["layers"]:
                     L2 = dict(L)
                     L2["layer"] = f"{p['prefix']}__{L['layer']}"
@@ -332,7 +345,7 @@ def main():
                     pre_layers.append(L2)
                 p["pre_layers"] = man["layers"]  # fit-rule fallback only
         part_min_dims = {p["prefix"]: min(p["footprint"]) for p in prepared}
-        pre_plan = _tp.plan_tools(pre_layers, cfg, part_min_dims) if pre_layers else {"plans": [], "error": "no layers"}
+        pre_plan = _tp.plan_tools(pre_layers, cfg, part_min_dims, pre_z_tops) if pre_layers else {"plans": [], "error": "no layers"}
         if pre_plan["plans"]:
             chosen_pre = _tp.choose_plan(pre_plan["plans"], args.plan)
             profile_dias = _tp.plan_profile_tools(chosen_pre)
@@ -357,14 +370,13 @@ def main():
             p.pop("pre_layers", None)
         for p in prepared:
             p["profile_tool_dia_mm"] = profile_dias[p["prefix"]]
-        # Part-to-edge (BRA-16 spacing rule): the clamp margin must
-        # cover the largest profile tool + the edge margin, or the
-        # kerf eats the sheet edge. Fails before any output exists.
-        if material:
-            edge_violation = _layout.check_edge_clearance(profile_dias, margin, web_min)
-            if edge_violation:
-                print(f"ERROR: {edge_violation}", file=sys.stderr)
-                return 1
+        # Part-to-edge (BRA-16 spacing rule, Brandon Nov 25, 2026):
+        # the edge inset — each part outline (its own D, the kerf
+        # only) inside the usable boundary — is enforced by
+        # pack_shelf below (PackError before any output exists) and
+        # re-checked against the chosen plan's actual tools after
+        # the merge. The clamp margin no longer carries the tool
+        # diameter; the margin band is the web on the outside.
 
     # ---- pack phase (BRA-16): shelf packing inside the usable
     # area (material minus clamp margin). Unbounded when no material
@@ -408,16 +420,19 @@ def main():
                       f"{max(0.0, ud - usable[1]):.2f} mm)", file=sys.stderr)
                 return 1
 
-    # Suggested size when none was given (BRA-16): packed bounds +
-    # clamp margin, rounded up to the next 10 mm.
+    # Suggested size when none was given (BRA-16): required usable
+    # extents (parts + kerf) + clamp margin, rounded up to
+    # the next 10 mm.
     suggested_material = None
     if material is None and placements is not None:
-        pw, pd = _layout.packed_bounds(placements)
+        req_w, req_d = _layout.required_usable_extents(
+            placements, profile_dias, web_min)
         max_h = max((p["height"] for p in prepared), default=0.0)
-        suggested_material = _layout.suggest_material(pw, pd, max_h, margin)
+        suggested_material = _layout.suggest_material(req_w, req_d, max_h, margin)
         print(f"suggested material: {suggested_material['x']:.0f} x "
               f"{suggested_material['y']:.0f} x {suggested_material['thickness']:.0f} mm "
-              f"(packed {pw:.1f} x {pd:.1f} mm + {margin:.0f} mm clamp margin)")
+              f"(required usable {req_w:.1f} x {req_d:.1f} mm — parts + kerf — "
+              f"+ {margin:.0f} mm clamp margin)")
 
     # Registration pins (BRA-16 interface for BRA-13): two-sided
     # jobs only; positions are a reservation recorded in the
@@ -570,7 +585,8 @@ def main():
     # ---- tool planning (BRA-12) on the MERGED job, so tool changes
     # are minimised across both parts, not per part. Per-part runs
     # used --no-toolplan; their layers carry the "est" inputs.
-    tool_plan = _tp.plan_tools(combined_layers, cfg, part_min_dims) if combined_layers else {"plans": [], "error": "no layers"}
+    tool_plan = _tp.plan_tools(combined_layers, cfg, part_min_dims,
+                               {p["name"]: p["z_top"] for p in parts_out}) if combined_layers else {"plans": [], "error": "no layers"}
     if tool_plan["plans"]:
         chosen = _tp.choose_plan(tool_plan["plans"], args.plan)
         tool_plan["chosen"] = chosen["id"]
@@ -599,9 +615,8 @@ def main():
             actual_dias[part] = max(actual_dias.get(part, 0.0), d)
         violations = _layout.verify_spacing(placements, actual_dias, gap, web_min)
         if material:
-            edge_v = _layout.check_edge_clearance(actual_dias, margin, web_min)
-            if edge_v:
-                violations.append(edge_v)
+            violations += _layout.verify_edge_insets(
+                placements, actual_dias, usable[0], usable[1], web_min)
         if violations:
             print(f"ERROR: spacing re-check failed against plan {chosen['id']} — "
                   f"the packed layout does not fit the chosen plan's profile tools:",
@@ -629,6 +644,7 @@ def main():
                     "profile_tool_dia_mm": profile_dias.get(p["prefix"])}
                    for p, pl in zip(prepared, placements)] if placements else None,
         "spacing": {"rule": "max(gap_mm, D_A + D_B + web_min_mm)",
+                    "edge_inset": "each part outline sits its own profile tool dia (the kerf) inside the usable-area boundary (the kerf runs up to the usable boundary; the margin band is the web on the outside; clamp margin carries no tool diameter)",
                     "gap_mm": gap, "web_min_mm": web_min,
                     "pin_clearance_mm": pin_clearance,
                     "profile_tools_from": profile_tool_source,
@@ -666,12 +682,15 @@ def main():
         report.append(f"Material: {material['x']:.1f} x {material['y']:.1f} x "
                       f"{material['thickness']:.1f} mm; clamp margin {margin:.1f} mm, "
                       f"usable area {usable[0]:.1f} x {usable[1]:.1f} mm "
-                      f"(parts sit inside the usable area, lower-left at the margin).")
+                      f"(parts sit inside the usable area, each outline its own "
+                      f"profile tool (the kerf) inside the usable boundary — the kerf "
+                      f"runs up to the usable boundary and the margin band is the web "
+                      f"on the outside).")
     elif suggested_material:
         report.append(f"Material: none given — suggested "
                       f"{suggested_material['x']:.0f} x {suggested_material['y']:.0f} x "
                       f"{suggested_material['thickness']:.0f} mm "
-                      f"(packed layout + {margin:.0f} mm clamp margin, rounded up to 10 mm).")
+                      f"(required usable — parts + kerf — + {margin:.0f} mm clamp margin, rounded up to 10 mm).")
     if placements is not None:
         tools_txt = ", ".join(
             f"{p['prefix']} {profile_dias.get(p['prefix']):.2f} mm"
@@ -680,6 +699,8 @@ def main():
             for p in prepared)
         report.append(f"Spacing (BRA-16 tool rule, BRA-20 plan-aware): gaps are "
                       f"max({gap:.1f} mm, D_A + D_B + {web_min:.1f} mm web); "
+                      f"each part outline sits its own profile tool (the kerf) inside "
+                      f"the usable boundary (the margin band is the web on the outside); "
                       f"profile tools from {profile_tool_source}: {tools_txt}."
                       + (f" {spacing_check}." if spacing_check else ""))
     if two_sided:

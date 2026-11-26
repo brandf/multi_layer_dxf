@@ -281,6 +281,53 @@ def t_clamp_mountable_passes_on_real_bed():
 check("6i2. guide-time clamp check passes on a real bed",
       t_clamp_mountable_passes_on_real_bed)
 
+# 6k. clamp contact-type fields (V3.16): type / lateral capacity /
+# friction coefficient are validated, and clamp_contact_type
+# infers the type from the method when no explicit type is given.
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+cl = load_json(home, "clamps.json")
+cl["clamps"][0]["type"] = "suction"
+write(tmp, "clamps.json", cl)
+expect_error("6m1. unknown clamp contact type",
+             lambda: C.load_clamps(tmp), "'type' must be one of")
+
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+cl = load_json(home, "clamps.json")
+cl["clamps"][0]["lateral_capacity_n"] = 0
+write(tmp, "clamps.json", cl)
+expect_error("6m2. lateral_capacity_n must be > 0",
+             lambda: C.load_clamps(tmp), "lateral_capacity_n")
+
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+cl = load_json(home, "clamps.json")
+cl["clamps"][0]["friction_mu"] = 1.5
+write(tmp, "clamps.json", cl)
+expect_error("6m3. friction_mu must be <= 1.0",
+             lambda: C.load_clamps(tmp), "friction_mu")
+
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+cl = load_json(home, "clamps.json")
+cl["clamps"][0]["friction_mu"] = 0
+write(tmp, "clamps.json", cl)
+expect_error("6m4. friction_mu must be > 0",
+             lambda: C.load_clamps(tmp), "friction_mu")
+
+
+def t_clamp_contact_type_inference():
+    cl = C.load_clamps(home)
+    tt = cl["clamps"][0]
+    assert tt["type"] == "top_down", tt
+    assert C.clamp_contact_type(tt) == "top_down"
+    pin = [e for e in cl["clamps"] if e["method"] == "pin"][0]
+    assert C.clamp_contact_type(pin) == "pin"
+    assert C.clamp_contact_type({"method": "t_track_clamp"}) == "top_down"
+    assert C.clamp_contact_type(
+        {"method": "t_track_clamp", "type": "edge_push"}) == "edge_push"
+
+
+check("6m5. clamp_contact_type honours explicit type, infers the rest",
+      t_clamp_contact_type_inference)
+
 # 6j. inventory_mode constraining must not silently behave as advisory
 tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
 p = load_json(home, "preferences.json")
@@ -288,6 +335,64 @@ p["inventory_mode"] = "constraining"
 write(tmp, "preferences.json", p)
 expect_error("6j. inventory_mode other than advisory",
              lambda: C.load_preferences(tmp), "advisory")
+
+# 6k. V3.8 machine post_processor: the shipped example names the
+# default post, a known id loads, an unknown id / a non-string is
+# a loud rejection (never a silent fall-through to the default).
+def t_example_names_post():
+    m = C.load_machine(home)
+    assert m["post_processor"] == "masso-mm", m.get("post_processor")
+
+
+check("6k. shipped machine.json names post_processor masso-mm",
+      t_example_names_post)
+
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+m = load_json(home, "machine.json")
+m["post_processor"] = "grbl"
+write(tmp, "machine.json", m)
+check("6k2. machine.json with post_processor grbl loads",
+      lambda: C.load_machine(tmp)["post_processor"] == "grbl")
+
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+m = load_json(home, "machine.json")
+m["post_processor"] = "bogus-post"
+write(tmp, "machine.json", m)
+expect_error("6k3. machine.json with an unknown post_processor",
+             lambda: C.load_machine(tmp), "must be one of")
+
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+m = load_json(home, "machine.json")
+m["post_processor"] = 7
+write(tmp, "machine.json", m)
+expect_error("6k4. machine.json with a non-string post_processor",
+             lambda: C.load_machine(tmp), "must be one of")
+
+tmp = Path(tempfile.mkdtemp(prefix="mldxf_v23_bad_"))
+m = load_json(home, "machine.json")
+del m["post_processor"]
+write(tmp, "machine.json", m)
+check("6k5. machine.json without post_processor still loads",
+      lambda: C.load_machine(tmp))
+
+# 6l. V3.8 drift guard: the Python mirror of the native post ids
+# must agree with the TS registry (ts/posts/index.ts POSTS), the
+# authority. A post added to the registry without updating
+# mldxf_config.KNOWN_POST_PROCESSORS fails here, not at post time.
+def t_post_registry_agrees():
+    repo = Path(__file__).resolve().parent
+    text = (repo / "ts" / "posts" / "index.ts").read_text(encoding="utf-8")
+    import re
+    ids = re.findall(r'^\s*"?([A-Za-z0-9_-]+)"?:\s*(?:MASSO_MM|MASSO_INCH|GRBL|TEMPLATE)\b',
+                     text, flags=re.MULTILINE)
+    assert ids, "no post ids parsed from ts/posts/index.ts"
+    assert tuple(ids) == tuple(C.KNOWN_POST_PROCESSORS), (
+        f"TS registry {ids} != Python mirror "
+        f"{list(C.KNOWN_POST_PROCESSORS)}")
+
+
+check("6l. KNOWN_POST_PROCESSORS agrees with ts/posts/index.ts",
+      t_post_registry_agrees)
 
 print()
 print(f"{len(PASS)} passed, {len(FAIL)} failed")

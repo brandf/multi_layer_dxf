@@ -1,0 +1,23 @@
+[2026-11-26T07:37:27.739Z] 3D view bundle: up to date (/home/hatch/workspace/multi_layer_dxf/server/public/vendor/view3d.js)
+[2026-11-26T07:37:27.739Z] mldxf-server starting: home=/tmp/mldxf-v25-verify-home jobs=/tmp/mldxf-v25-verify-home/jobs (0 job dir(s) scanned, 0 interrupted)
+[2026-11-26T07:37:27.739Z] mldxf-server listening on http://127.0.0.1:3117
+[2026-11-26T07:37:27.741Z] CLI: /home/hatch/workspace/multi_layer_dxf/.venv/bin/python /home/hatch/workspace/multi_layer_dxf/mldxf.py (cli version 2.0.0)
+mldxf server running at http://127.0.0.1:3117 (Ctrl-C to stop; stopping the CLI stops the server)
+no browser opened automatically — open http://127.0.0.1:3117 by hand
+[2026-11-26T07:37:28.915Z] tools saved: version 2 (was 1)
+[2026-11-26T07:37:29.735Z] preferences saved: version (no version field) (was 1)
+[2026-11-26T07:37:29.894Z] preferences saved: version (no version field) (was 1)
+[2026-11-26T07:37:30.229Z] clamps saved: version 2 (was 1)
+[2026-11-26T07:37:30.279Z] run 20261126-073730-real-container started: mldxf plan /tmp/mldxf-server/uploads/20261126-073730-real-container/real_container.step -o /tmp/mldxf-v25-verify-home/jobs/20261126-073730-real-container --json
+[2026-11-26T07:38:14.283Z] run 20261126-073730-real-container complete (exit 0)
+[2026-11-26T07:38:54.501Z] run 20261126-073854-kookabus-03-enclosure started: mldxf plan /home/hatch/workspace/multi_layer_dxf/test/external/kookabus-03-enclosure.step -o /tmp/mldxf-v25-verify-home/jobs/20261126-073854-kookabus-03-enclosure --json
+[2026-11-26T07:39:06.595Z] 3D view bundle: up to date (/home/hatch/workspace/multi_layer_dxf/server/public/vendor/view3d.js)
+[2026-11-26T07:39:06.595Z] mldxf-server starting: home=/tmp/mldxf-v25-verify-home jobs=/tmp/mldxf-v25-verify-home/jobs (3 job dir(s) scanned, 2 interrupted)
+[2026-11-26T07:39:06.595Z] mldxf-server listening on http://127.0.0.1:3117
+[2026-11-26T07:39:06.597Z] CLI: /home/hatch/workspace/multi_layer_dxf/.venv/bin/python /home/hatch/workspace/multi_layer_dxf/mldxf.py (cli version 2.0.0)
+[2026-11-26T07:39:07.547Z] run 20261126-073907-kookabus-03-enclosure started: mldxf plan /home/hatch/workspace/multi_layer_dxf/test/external/kookabus-03-enclosure.step -o /tmp/mldxf-v25-verify-home/jobs/20261126-073907-kookabus-03-enclosure --json
+[2026-11-26T07:39:07.553Z] run 20261126-073907-kookabus-03-enclosure cancelled (exit 143)
+[2026-11-26T07:39:10.603Z] run 20261126-073910-kookabus-03-enclosure started: mldxf plan /home/hatch/workspace/multi_layer_dxf/test/external/kookabus-03-enclosure.step -o /tmp/mldxf-v25-verify-home/jobs/20261126-073910-kookabus-03-enclosure --json
+[2026-11-26T07:39:15.611Z] run 20261126-073910-kookabus-03-enclosure cancelled (exit 143)
+[2026-11-26T07:40:25.892Z] run 20261126-073730-real-container started: mldxf toolpaths /tmp/mldxf-v25-verify-home/jobs/20261126-073730-real-container --json
+[2026-11-26T07:40:26.294Z] run 20261126-073730-real-container complete (exit 0)
